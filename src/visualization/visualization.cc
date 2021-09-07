@@ -21,24 +21,24 @@
 
 #include <string>
 
-#include "eigen3/Eigen/Dense"
-#include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/ColoredArc2D.h"
 #include "amrl_msgs/ColoredLine2D.h"
-#include "amrl_msgs/PathVisualization.h"
 #include "amrl_msgs/ColoredPoint2D.h"
+#include "amrl_msgs/PathVisualization.h"
+#include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
+#include "eigen3/Eigen/Dense"
 #include "ros/ros.h"
 
 #include "visualization.h"
 
-using Eigen::Vector2f;
 using amrl_msgs::ColoredArc2D;
 using amrl_msgs::ColoredLine2D;
 using amrl_msgs::ColoredPoint2D;
-using amrl_msgs::Pose2Df;
 using amrl_msgs::PathVisualization;
+using amrl_msgs::Pose2Df;
 using amrl_msgs::VisualizationMsg;
+using Eigen::Vector2f;
 using std::string;
 
 namespace {
@@ -62,8 +62,7 @@ void ClearVisualizationMsg(VisualizationMsg& msg) {
 }
 
 // Return new visualization message, with initialized headers and namespace.
-VisualizationMsg NewVisualizationMessage(
-    const string& frame, const string& ns) {
+VisualizationMsg NewVisualizationMessage(const string& frame, const string& ns) {
   VisualizationMsg msg;
   msg.header.frame_id = frame;
   msg.header.seq = 0;
@@ -78,10 +77,7 @@ void DrawPoint(const Vector2f& p, uint32_t color, VisualizationMsg& msg) {
   msg.points.push_back(point);
 }
 
-void DrawLine(const Vector2f& p0,
-              const Vector2f& p1,
-              uint32_t color,
-              VisualizationMsg& msg) {
+void DrawLine(const Vector2f& p0, const Vector2f& p1, uint32_t color, VisualizationMsg& msg) {
   ColoredLine2D line;
   SetPoint(p0, &line.p0);
   SetPoint(p1, &line.p1);
@@ -93,14 +89,8 @@ void DrawCross(const Eigen::Vector2f& location,
                float size,
                uint32_t color,
                VisualizationMsg& msg) {
-  DrawLine(location + Vector2f(size, size),
-           location - Vector2f(size, size),
-           color,
-           msg);
-  DrawLine(location + Vector2f(size, -size),
-           location - Vector2f(size, -size),
-           color,
-           msg);
+  DrawLine(location + Vector2f(size, size), location - Vector2f(size, size), color, msg);
+  DrawLine(location + Vector2f(size, -size), location - Vector2f(size, -size), color, msg);
 }
 
 void DrawArc(const Vector2f& center,
@@ -118,9 +108,7 @@ void DrawArc(const Vector2f& center,
   msg.arcs.push_back(arc);
 }
 
-void DrawParticle(const Vector2f& loc,
-                  float angle,
-                  VisualizationMsg& msg) {
+void DrawParticle(const Vector2f& loc, float angle, VisualizationMsg& msg) {
   Pose2Df particle;
   particle.x = loc.x();
   particle.y = loc.y();

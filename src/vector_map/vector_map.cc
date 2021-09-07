@@ -35,25 +35,21 @@
 #include "shared/util/timer.h"
 #include "vector_map.h"
 
-using math_util::AngleMod;
-using math_util::RadToDeg;
+using Eigen::Vector2f;
 using geometry::Cross;
 using geometry::Line;
 using geometry::line2f;
+using math_util::AngleMod;
+using math_util::RadToDeg;
 using std::string;
-using std::vector;
-using Eigen::Vector2f;
 using std::swap;
+using std::vector;
 
-#define PRINT_LINE(LINE) \
-    (LINE).p0.x(), (LINE).p0.y(), \
-    (LINE).p1.x(), (LINE).p1.y()
+#define PRINT_LINE(LINE) (LINE).p0.x(), (LINE).p0.y(), (LINE).p1.x(), (LINE).p1.y()
 
 #define PRINT_VEC2(V) (V).x(), (V).y()
 
-DEFINE_double(min_line_length,
-              0.05,
-              "Minimum line length to consider for Analytic ray casting");
+DEFINE_double(min_line_length, 0.05, "Minimum line length to consider for Analytic ray casting");
 
 namespace vector_map {
 
@@ -90,22 +86,19 @@ void TrimOcclusion(const Vector2f& loc,
   // trim_line.p1 - loc
   Vector2f l2_r1 = l2_p1 - loc;
 
-  //Ensure that r0 vector to r1 vector is in the positive right-handed order
+  // Ensure that r0 vector to r1 vector is in the positive right-handed order
   if (Cross<float>(l1_r0, l1_r1) < 0.0) {
-    swap(l1_r0,l1_r1);
-    swap(l1_p0,l1_p1);
+    swap(l1_r0, l1_r1);
+    swap(l1_p0, l1_p1);
   }
-  if (Cross<float>(l2_r0, l2_r1) < 0.0 ) {
-    swap(l2_r0,l2_r1);
-    swap(l2_p0,l2_p1);
+  if (Cross<float>(l2_r0, l2_r1) < 0.0) {
+    swap(l2_r0, l2_r1);
+    swap(l2_p0, l2_p1);
   }
 
   if (kDebug) {
-    printf("l1_r0:%f,%f l1_r1:%f,%f\nl2_r0:%f,%f l2_r1:%f,%f\n",
-           PRINT_VEC2(l1_r0),
-           PRINT_VEC2(l1_r1),
-           PRINT_VEC2(l2_r0),
-           PRINT_VEC2(l2_r1));
+    printf("l1_r0:%f,%f l1_r1:%f,%f\nl2_r0:%f,%f l2_r1:%f,%f\n", PRINT_VEC2(l1_r0),
+           PRINT_VEC2(l1_r1), PRINT_VEC2(l2_r0), PRINT_VEC2(l2_r1));
   }
   if ((Cross(l1_r0, l2_r0) >= 0.0 && Cross(l1_r1, l2_r0) >= 0.0) ||
       (Cross(l2_r0, l1_r0) >= 0.0 && Cross(l2_r1, l1_r0) >= 0.0)) {
@@ -124,9 +117,7 @@ void TrimOcclusion(const Vector2f& loc,
   const bool rayOcclusion1 = trim_line.RayIntersects(loc, l1_r1);
 
   if (kDebug) {
-    printf("rayOcclusion0:%d rayOcclusion1:%d\n",
-           rayOcclusion0,
-           rayOcclusion1);
+    printf("rayOcclusion0:%d rayOcclusion1:%d\n", rayOcclusion0, rayOcclusion1);
   }
 
   // Vector2f p;
@@ -134,23 +125,18 @@ void TrimOcclusion(const Vector2f& loc,
       test_line.Intersects(loc, l2_p0) && test_line.Intersects(loc, l2_p1);
 
   // test_line.p0 is in front of, and occludes trim_line.
-  const bool occlusion0 = rayOcclusion0 &&
-      (trim_line.Touches(loc) || trim_line.Touches(l1_p0) ||
-      !trim_line.Intersects(loc, l1_p0));
+  const bool occlusion0 = rayOcclusion0 && (trim_line.Touches(loc) || trim_line.Touches(l1_p0) ||
+                                            !trim_line.Intersects(loc, l1_p0));
 
   // test_line.p1 is in front of, and occludes trim_line.
-  const bool occlusion1 = rayOcclusion1 &&
-      (trim_line.Touches(loc) || trim_line.Touches(l1_p1) ||
-      !trim_line.Intersects(loc, l1_p1));
+  const bool occlusion1 = rayOcclusion1 && (trim_line.Touches(loc) || trim_line.Touches(l1_p1) ||
+                                            !trim_line.Intersects(loc, l1_p1));
 
   if (kDebug) {
-    printf("completeOcclusion:%d occlusion0:%d occlusion1:%d\n",
-            completeOcclusion,
-            occlusion0,
-            occlusion1);
-    printf("crosses0:%d crosses1:%d\n",
-            trim_line.Crosses(loc, l1_p0),
-            trim_line.Crosses(loc, l1_p1));
+    printf("completeOcclusion:%d occlusion0:%d occlusion1:%d\n", completeOcclusion, occlusion0,
+           occlusion1);
+    printf("crosses0:%d crosses1:%d\n", trim_line.Crosses(loc, l1_p0),
+           trim_line.Crosses(loc, l1_p1));
   }
   if (completeOcclusion) {
     if (kDebug) {
@@ -160,18 +146,16 @@ void TrimOcclusion(const Vector2f& loc,
     trim_line.Set(Vector2f(0.1, 0.1), Vector2f(0.1, 0.1));
     return;
   } else if (occlusion0 && occlusion1) {
-    if (kDebug) printf("Case 3: partial occlusion in middle\n");
+    if (kDebug)
+      printf("Case 3: partial occlusion in middle\n");
     // trim_line is partially occluded in the middle by test_line. Break up
     // into 2 segments, make trim_line one segment, push back the other
     // segment to the sceneLines list.
     const Vector2f right_section_end = trim_line.RayIntersection(loc, l1_r0);
     const Vector2f left_section_end = trim_line.RayIntersection(loc, l1_r1);
     if (kDebug) {
-      printf("Right: %f,%f  Left: %f,%f\n",
-              right_section_end.x(),
-              right_section_end.y(),
-              left_section_end.x(),
-              left_section_end.y());
+      printf("Right: %f,%f  Left: %f,%f\n", right_section_end.x(), right_section_end.y(),
+             left_section_end.x(), left_section_end.y());
     }
     trim_line.Set(l2_p0, right_section_end);
     // save the unoccluded part of trim_line at its left hand end, if any
@@ -179,20 +163,22 @@ void TrimOcclusion(const Vector2f& loc,
       scene_lines.push_back(line2f(left_section_end, l2_p1));
     }
   } else if (occlusion0) {
-    if (kDebug) printf("Case 5: left end occluded\n");
-    //The left hand end of trim_line is occluded, trim it
+    if (kDebug)
+      printf("Case 5: left end occluded\n");
+    // The left hand end of trim_line is occluded, trim it
     Vector2f right_section_end = trim_line.RayIntersection(loc, l1_r0);
     trim_line.Set(l2_p0, right_section_end);
   } else if (occlusion1) {
-    if (kDebug) printf("Case 6: right end occluded\n");
-    //The right hand end of trim_line is occluded, trim it
+    if (kDebug)
+      printf("Case 6: right end occluded\n");
+    // The right hand end of trim_line is occluded, trim it
     Vector2f left_section_end = trim_line.RayIntersection(loc, l1_r1);
     trim_line.Set(left_section_end, l2_p1);
   } else {
-    if (kDebug) printf("Case 7\n");
+    if (kDebug)
+      printf("Case 7\n");
   }
 }
-
 
 void VectorMap::GetSceneLines(const Vector2f& loc,
                               float max_range,
@@ -203,10 +189,14 @@ void VectorMap::GetSceneLines(const Vector2f& loc,
   const float y_max = loc.y() + max_range;
   lines_list->clear();
   for (const line2f& l : lines) {
-    if (l.p0.x() < x_min && l.p1.x() < x_min) continue;
-    if (l.p0.y() < y_min && l.p1.y() < y_min) continue;
-    if (l.p0.x() > x_max && l.p1.x() > x_max) continue;
-    if (l.p0.y() > y_max && l.p1.y() > y_max) continue;
+    if (l.p0.x() < x_min && l.p1.x() < x_min)
+      continue;
+    if (l.p0.y() < y_min && l.p1.y() < y_min)
+      continue;
+    if (l.p0.x() > x_max && l.p1.x() > x_max)
+      continue;
+    if (l.p0.y() > y_max && l.p1.y() > y_max)
+      continue;
     lines_list->push_back(l);
   }
 }
@@ -223,18 +213,20 @@ void VectorMap::SceneRender(const Vector2f& loc,
   GetSceneLines(loc, max_range, &lines_list);
   render->clear();
 
-  for(size_t i = 0; i < lines_list.size() && i < MaxLines; ++i) {
+  for (size_t i = 0; i < lines_list.size() && i < MaxLines; ++i) {
     line2f cur_line = lines_list[i];
     // Check if any part of cur_line is unoccluded by present list of lines,
     // as seen from loc.
-    for(size_t j = 0; j < scene.size() && cur_line.SqLength() >= eps; ++j) {
-      if (scene[j].SqLength() < eps) continue;
+    for (size_t j = 0; j < scene.size() && cur_line.SqLength() >= eps; ++j) {
+      if (scene[j].SqLength() < eps)
+        continue;
       TrimOcclusion(loc, scene[j], &cur_line, &lines_list);
     }
 
-    if (cur_line.SqLength() > eps) { //At least part of cur_line is unoccluded
-      for(size_t j = 0; j < scene.size(); ++j) {
-        if (scene[j].SqLength() < eps) continue;
+    if (cur_line.SqLength() > eps) {  // At least part of cur_line is unoccluded
+      for (size_t j = 0; j < scene.size(); ++j) {
+        if (scene[j].SqLength() < eps)
+          continue;
         TrimOcclusion(loc, cur_line, &scene[j], &lines_list);
       }
       // Add the visible part of cur_line.
@@ -243,14 +235,12 @@ void VectorMap::SceneRender(const Vector2f& loc,
   }
 
   if (lines_list.size() >= MaxLines) {
-    fprintf(stderr,
-            "Runaway Analytic Scene Render at %.30f,%.30f, %.3f : %.3f\u00b0\n",
-            loc.x(), loc.y(),
-            RadToDeg(angle_min),
-            RadToDeg(angle_max));
+    fprintf(stderr, "Runaway Analytic Scene Render at %.30f,%.30f, %.3f : %.3f\u00b0\n", loc.x(),
+            loc.y(), RadToDeg(angle_min), RadToDeg(angle_max));
   }
-  for(const line2f& l : scene) {
-    if (l.SqLength() > eps) render->push_back(l);
+  for (const line2f& l : scene) {
+    if (l.SqLength() > eps)
+      render->push_back(l);
   }
 }
 
@@ -261,7 +251,8 @@ int GetRayIntersection(const Vector2f& loc,
   Vector2f intersection(0, 0);
   int intersecting_line_idx = -1;
   for (size_t i = 0; i < lines_list.size(); ++i) {
-    if (i == skip_line_idx) continue;
+    if (i == skip_line_idx)
+      continue;
     const line2f& l = lines_list[i];
     if (l.Intersection(loc, *ray_end, &intersection)) {
       *ray_end = intersection;
@@ -271,9 +262,7 @@ int GetRayIntersection(const Vector2f& loc,
   return intersecting_line_idx;
 }
 
-void VectorMap::RayCast(const Vector2f& loc,
-                        float max_range,
-                        vector<line2f>* render) const {
+void VectorMap::RayCast(const Vector2f& loc, float max_range, vector<line2f>* render) const {
   static const float kEpsilon = 1e-4;
 
   // Small optimization: ignore all lines not within max_range.
@@ -287,8 +276,7 @@ void VectorMap::RayCast(const Vector2f& loc,
   struct RayCastRay {
     Vector2f ray_end;
     int iidx;
-    RayCastRay(const Vector2f& ray_end, int iidx) :
-        ray_end(ray_end), iidx(iidx) {}
+    RayCastRay(const Vector2f& ray_end, int iidx) : ray_end(ray_end), iidx(iidx) {}
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
   // Go through all lines, and check for intersection of rays.
@@ -302,8 +290,10 @@ void VectorMap::RayCast(const Vector2f& loc,
     Vector2f r1 = l.p1 - dir;
     int r0_iidx = GetRayIntersection(loc, i, lines_list, &r0);
     int r1_iidx = GetRayIntersection(loc, i, lines_list, &r1);
-    if (r0_iidx < 0) r0_iidx = i;
-    if (r1_iidx < 0) r1_iidx = i;
+    if (r0_iidx < 0)
+      r0_iidx = i;
+    if (r1_iidx < 0)
+      r1_iidx = i;
     ray_cast_rays.push_back(RayCastRay(r0, r0_iidx));
     ray_cast_rays.push_back(RayCastRay(r1, r1_iidx));
 
@@ -320,7 +310,8 @@ void VectorMap::RayCast(const Vector2f& loc,
     }
   }
 
-  if (ray_cast_rays.size() < 2) return;
+  if (ray_cast_rays.size() < 2)
+    return;
   for (size_t i = 0; i < ray_cast_rays.size(); ++i) {
     if (ray_cast_rays[i].ray_end != ray_cast_rays[i - 1].ray_end) {
       render->push_back(line2f(loc, ray_cast_rays[i].ray_end));
@@ -328,11 +319,11 @@ void VectorMap::RayCast(const Vector2f& loc,
   }
 }
 
-
 void ShrinkLine(float distance, line2f* line) {
   const float len = line->Length();
   const Vector2f dir = line->Dir();
-  if (len < 2.0 * distance) return;
+  if (len < 2.0 * distance)
+    return;
   line->p0 += distance * dir;
   line->p1 -= distance * dir;
 }
@@ -344,7 +335,8 @@ void VectorMap::Cleanup() {
   vector<line2f> new_lines;
   for (size_t i = 0; i < lines.size(); ++i) {
     const line2f& l1 = lines[i];
-    if (l1.Length() < kMinLineLength) continue;
+    if (l1.Length() < kMinLineLength)
+      continue;
     // Check if l1 intersects with any line in new lines.
     Vector2f p;
     bool intersection = false;
@@ -360,7 +352,8 @@ void VectorMap::Cleanup() {
       }
     }
     // No intersection, add it!
-    if (!intersection) new_lines.push_back(l1);
+    if (!intersection)
+      new_lines.push_back(l1);
   }
 
   for (line2f& l : new_lines) {
@@ -387,7 +380,8 @@ void VectorMap::Load(const string& file) {
 
 bool VectorMap::Intersects(const Vector2f& v0, const Vector2f& v1) const {
   for (const line2f& l : lines) {
-    if (l.Intersects(v0, v1)) return true;
+    if (l.Intersects(v0, v1))
+      return true;
   }
   return false;
 }
@@ -423,10 +417,10 @@ void VectorMap::GetPredictedScan(const Vector2f& loc,
     l.line.p1 = r.p1 - loc;
     l.a0 = atan2(l.line.p0.y(), l.line.p0.x());
     l.a1 = atan2(l.line.p1.y(), l.line.p1.x());
-    if (fabs(l.a0 - l.a1) < 0.0001) continue;
+    if (fabs(l.a0 - l.a1) < 0.0001)
+      continue;
     l.wraps_around = fabs(l.a1 - l.a0) > M_PI;
-    if ((l.wraps_around && l.a0 < l.a1) ||
-        (!l.wraps_around && l.a0 > l.a1)) {
+    if ((l.wraps_around && l.a0 < l.a1) || (!l.wraps_around && l.a0 > l.a1)) {
       swap(l.a0, l.a1);
       swap(l.line.p0, l.line.p1);
     }

@@ -21,8 +21,8 @@
 #include "util/helpers.h"
 
 #include <execinfo.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -41,9 +41,11 @@ std::string StringPrintf(const char* format, ...) {
   va_start(al, format);
   string_length = vsnprintf(buffer, string_length, format, al);
   va_end(al);
-  if (string_length == 0) return (std::string());
+  if (string_length == 0)
+    return (std::string());
   buffer = reinterpret_cast<char*>(malloc((string_length + 1) * sizeof(char)));
-  if (buffer == NULL) return (std::string());
+  if (buffer == NULL)
+    return (std::string());
 
   va_start(al, format);
   string_length = vsnprintf(buffer, string_length + 1, format, al);
@@ -55,7 +57,8 @@ std::string StringPrintf(const char* format, ...) {
 
 std::string ExecuteCommand(const char* cmd) {
   FILE* pipe = popen(cmd, "r");
-  if (!pipe) return "ERROR";
+  if (!pipe)
+    return "ERROR";
   char buffer[128];
   std::string result = "";
   while (!feof(pipe)) {
@@ -70,7 +73,7 @@ std::string ExecuteCommand(const char* cmd) {
 void PrintStackTrace(FILE* file) {
   static const int kMaxTraceDepth = 256;
   static const int kMaxStringLength = 4096;
-  void *trace[kMaxTraceDepth];
+  void* trace[kMaxTraceDepth];
   char str[kMaxStringLength];
 
   time_t t = time(NULL);
@@ -104,7 +107,8 @@ void PrintStackTrace(FILE* file) {
       p.second = line.substr(n + 4);
       maxlen = std::max(maxlen, n);
       lines.push_back(p);
-      if (p.first == "main") break;
+      if (p.first == "main")
+        break;
     }
     pos1 = pos2 + 1;
     pos2 = s.find('\n', pos1);
@@ -118,16 +122,12 @@ void PrintStackTrace(FILE* file) {
   }
 
   for (size_t i = 0; i < lines.size(); ++i) {
-    printf("%*d: \x1b[33m%-*s\x1b[m \x1b[32m%s\x1b[m\n",
-           num_digits,
-           static_cast<int>(i),
-           static_cast<int>(maxlen),
-           lines[i].first.c_str(),
-           lines[i].second.c_str());
+    printf("%*d: \x1b[33m%-*s\x1b[m \x1b[32m%s\x1b[m\n", num_digits, static_cast<int>(i),
+           static_cast<int>(maxlen), lines[i].first.c_str(), lines[i].second.c_str());
   }
 }
 
 bool FileExists(const std::string& file_name) {
   struct stat st;
-  return(stat(file_name.c_str(), &st) == 0);
+  return (stat(file_name.c_str(), &st) == 0);
 }

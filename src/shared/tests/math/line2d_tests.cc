@@ -25,9 +25,9 @@
 #include "math/geometry.h"
 #include "math/line2d.h"
 
+using Eigen::Vector2f;
 using geometry::Line;
 using geometry::line2f;
-using Eigen::Vector2f;
 
 TEST(Line2D, Touching) {
   {
@@ -83,9 +83,9 @@ TEST(Line2D, JumboSuite) {
 }
 
 TEST(Line2D, ClosestApproach) {
-  EXPECT_FLOAT_EQ(line2f(1, 0, 0, 1).ClosestApproach(
-      Vector2f(0, 0), Vector2f(-1, -1)), 1.0f / sqrt(2.0f));
+  EXPECT_FLOAT_EQ(line2f(1, 0, 0, 1).ClosestApproach(Vector2f(0, 0), Vector2f(-1, -1)),
+                  1.0f / sqrt(2.0f));
 
-  EXPECT_FLOAT_EQ(line2f(1, 1, 10, 1).ClosestApproach(
-      Vector2f(-100, 0), Vector2f(-1, -1)), sqrt(8.0f));
+  EXPECT_FLOAT_EQ(line2f(1, 1, 10, 1).ClosestApproach(Vector2f(-100, 0), Vector2f(-1, -1)),
+                  sqrt(8.0f));
 }

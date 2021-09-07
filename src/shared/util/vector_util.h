@@ -54,8 +54,7 @@ std::vector<T> MultiplyToEachElement(const std::vector<T>& a1, const T& val) {
 }
 
 template <class T>
-std::vector<T> AddVectorElements(const std::vector<T>& a1,
-                                 const std::vector<T>& a2) {
+std::vector<T> AddVectorElements(const std::vector<T>& a1, const std::vector<T>& a2) {
   std::vector<T> ret(a1.size());
   for (size_t i = 0; i < a1.size(); ++i) {
     ret[i] = a1[i] + a2[i];

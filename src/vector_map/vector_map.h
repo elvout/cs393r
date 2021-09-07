@@ -34,22 +34,18 @@ namespace vector_map {
 // loc, and if so, trim_line is trimmed accordingly, adding sub-lines to
 // scene_lines if necessary.
 void TrimOcclusion(const Eigen::Vector2f& loc,
-                  const geometry::line2f& line1,
-                  geometry::line2f* line2_ptr,
-                  std::vector<geometry::line2f>* scene_lines_ptr);
+                   const geometry::line2f& line1,
+                   geometry::line2f* line2_ptr,
+                   std::vector<geometry::line2f>* scene_lines_ptr);
 
 struct VectorMap {
   VectorMap() {}
-  explicit VectorMap(const std::vector<geometry::line2f>& lines) :
-      lines(lines) {}
-  explicit VectorMap(const std::string& file) {
-    Load(file);
-  }
+  explicit VectorMap(const std::vector<geometry::line2f>& lines) : lines(lines) {}
+  explicit VectorMap(const std::string& file) { Load(file); }
 
   void GetSceneLines(const Eigen::Vector2f& loc,
                      float max_range,
                      std::vector<geometry::line2f>* lines_list) const;
-
 
   void SceneRender(const Eigen::Vector2f& loc,
                    float max_range,
@@ -73,12 +69,10 @@ struct VectorMap {
 
   void Load(const std::string& file);
 
-  bool Intersects(const Eigen::Vector2f& v0, const Eigen::Vector2f& v1) const ;
+  bool Intersects(const Eigen::Vector2f& v0, const Eigen::Vector2f& v1) const;
   std::vector<geometry::line2f> lines;
   std::string file_name;
 };
-
-
 
 }  // namespace vector_map
 

@@ -22,7 +22,6 @@
 
 #include <random>
 
-
 namespace util_random {
 
 double Random::UniformRandom(double a, double b) {

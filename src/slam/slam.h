@@ -43,8 +43,7 @@ class SLAM {
                     float angle_max);
 
   // Observe new odometry-reported location.
-  void ObserveOdometry(const Eigen::Vector2f& odom_loc,
-                       const float odom_angle);
+  void ObserveOdometry(const Eigen::Vector2f& odom_loc, const float odom_angle);
 
   // Get latest map.
   std::vector<Eigen::Vector2f> GetMap();
@@ -53,7 +52,6 @@ class SLAM {
   void GetPose(Eigen::Vector2f* loc, float* angle) const;
 
  private:
-
   // Previous odometry-reported locations.
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
@@ -61,4 +59,4 @@ class SLAM {
 };
 }  // namespace slam
 
-#endif   // SRC_SLAM_H_
+#endif  // SRC_SLAM_H_

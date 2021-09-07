@@ -27,49 +27,47 @@
 namespace config_reader {
 namespace config_types {
 
-#define NUMERIC_CLASS(ClassName, EnumName, CPPType)                     \
-  class ClassName : public TypeInterface {                              \
-   public:                                                              \
-    ClassName(const std::string& key)                                   \
-        : TypeInterface(key, Type::EnumName),                           \
-          upper_bound_(std::numeric_limits<CPPType>::max()),            \
-          lower_bound_(std::numeric_limits<CPPType>::lowest()),         \
-          val_(0) {}                                                    \
-                                                                        \
-    ClassName(const std::string& key, const int& upper_bound,           \
-              const int& lower_bound)                                   \
-        : TypeInterface(key, Type::EnumName),                           \
-          upper_bound_(upper_bound),                                    \
-          lower_bound_(lower_bound),                                    \
-          val_(0) {                                                     \
-      if (upper_bound_ < lower_bound_) {                                \
-        std::cerr << #ClassName << " upperbound " << upper_bound_       \
-                  << " below lowerbound " << lower_bound_ << std::endl; \
-      }                                                                 \
-    }                                                                   \
-                                                                        \
-    ClassName() = delete;                                               \
-    ~ClassName() = default;                                             \
-                                                                        \
-    void SetValue(LuaScript* lua_script) override {                     \
-      const CPPType value = lua_script->GetVariable<CPPType>(key_);     \
-      if (value < lower_bound_ || value > upper_bound_) {               \
-        std::cerr << #ClassName << " Value " << value                   \
-                  << " outside bounds; upperbound " << upper_bound_     \
-                  << " below lowerbound " << lower_bound_ << std::endl; \
-        return;                                                         \
-      }                                                                 \
-      val_ = value;                                                     \
-    }                                                                   \
-                                                                        \
-    const CPPType& GetValue() { return this->val_; }                    \
-                                                                        \
-    static Type GetEnumType() { return Type::EnumName; }                \
-                                                                        \
-   private:                                                             \
-    CPPType upper_bound_;                                               \
-    CPPType lower_bound_;                                               \
-    CPPType val_;                                                       \
+#define NUMERIC_CLASS(ClassName, EnumName, CPPType)                                       \
+  class ClassName : public TypeInterface {                                                \
+   public:                                                                                \
+    ClassName(const std::string& key)                                                     \
+        : TypeInterface(key, Type::EnumName),                                             \
+          upper_bound_(std::numeric_limits<CPPType>::max()),                              \
+          lower_bound_(std::numeric_limits<CPPType>::lowest()),                           \
+          val_(0) {}                                                                      \
+                                                                                          \
+    ClassName(const std::string& key, const int& upper_bound, const int& lower_bound)     \
+        : TypeInterface(key, Type::EnumName),                                             \
+          upper_bound_(upper_bound),                                                      \
+          lower_bound_(lower_bound),                                                      \
+          val_(0) {                                                                       \
+      if (upper_bound_ < lower_bound_) {                                                  \
+        std::cerr << #ClassName << " upperbound " << upper_bound_ << " below lowerbound " \
+                  << lower_bound_ << std::endl;                                           \
+      }                                                                                   \
+    }                                                                                     \
+                                                                                          \
+    ClassName() = delete;                                                                 \
+    ~ClassName() = default;                                                               \
+                                                                                          \
+    void SetValue(LuaScript* lua_script) override {                                       \
+      const CPPType value = lua_script->GetVariable<CPPType>(key_);                       \
+      if (value < lower_bound_ || value > upper_bound_) {                                 \
+        std::cerr << #ClassName << " Value " << value << " outside bounds; upperbound "   \
+                  << upper_bound_ << " below lowerbound " << lower_bound_ << std::endl;   \
+        return;                                                                           \
+      }                                                                                   \
+      val_ = value;                                                                       \
+    }                                                                                     \
+                                                                                          \
+    const CPPType& GetValue() { return this->val_; }                                      \
+                                                                                          \
+    static Type GetEnumType() { return Type::EnumName; }                                  \
+                                                                                          \
+   private:                                                                               \
+    CPPType upper_bound_;                                                                 \
+    CPPType lower_bound_;                                                                 \
+    CPPType val_;                                                                         \
   };
 
 NUMERIC_CLASS(ConfigInt, CINT, int);

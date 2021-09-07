@@ -36,14 +36,14 @@
 
 #include "vector_map/vector_map.h"
 
+using Eigen::Vector2f;
+using Eigen::Vector2i;
 using geometry::line2f;
 using std::cout;
 using std::endl;
 using std::string;
 using std::swap;
 using std::vector;
-using Eigen::Vector2f;
-using Eigen::Vector2i;
 using vector_map::VectorMap;
 
 DEFINE_double(num_particles, 50, "Number of particles");
@@ -52,10 +52,8 @@ namespace particle_filter {
 
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
-ParticleFilter::ParticleFilter() :
-    prev_odom_loc_(0, 0),
-    prev_odom_angle_(0),
-    odom_initialized_(false) {}
+ParticleFilter::ParticleFilter()
+    : prev_odom_loc_(0, 0), prev_odom_angle_(0), odom_initialized_(false) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -89,24 +87,19 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     const line2f map_line = map_.lines[i];
     // The line2f class has helper functions that will be useful.
     // You can create a new line segment instance as follows, for :
-    line2f my_line(1, 2, 3, 4); // Line segment from (1,2) to (3.4).
+    line2f my_line(1, 2, 3, 4);  // Line segment from (1,2) to (3.4).
     // Access the end points using `.p0` and `.p1` members:
-    printf("P0: %f, %f P1: %f,%f\n", 
-           my_line.p0.x(),
-           my_line.p0.y(),
-           my_line.p1.x(),
+    printf("P0: %f, %f P1: %f,%f\n", my_line.p0.x(), my_line.p0.y(), my_line.p1.x(),
            my_line.p1.y());
 
     // Check for intersections:
     bool intersects = map_line.Intersects(my_line);
     // You can also simultaneously check for intersection, and return the point
     // of intersection:
-    Vector2f intersection_point; // Return variable
+    Vector2f intersection_point;  // Return variable
     intersects = map_line.Intersection(my_line, &intersection_point);
     if (intersects) {
-      printf("Intersects at %f,%f\n", 
-             intersection_point.x(),
-             intersection_point.y());
+      printf("Intersects at %f,%f\n", intersection_point.x(), intersection_point.y());
     } else {
       printf("No intersection\n");
     }
@@ -128,11 +121,11 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights.
-  // The current particles are in the `particles_` variable. 
+  // The current particles are in the `particles_` variable.
   // Create a variable to store the new particles, and when done, replace the
   // old set of particles:
   // vector<Particle> new_particles';
-  // During resampling: 
+  // During resampling:
   //    new_particles.push_back(...)
   // After resampling:
   // particles_ = new_particles;
@@ -140,8 +133,7 @@ void ParticleFilter::Resample() {
   // You will need to use the uniform random number generator provided. For
   // example, to generate a random number between 0 and 1:
   float x = rng_.UniformRandom(0, 1);
-  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-         x);
+  printf("Random number drawn from uniform distribution between 0 and 1: %f\n", x);
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
@@ -153,31 +145,28 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Call the Update and Resample steps as necessary.
 }
 
-void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
-                                     const float odom_angle) {
+void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-
 
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
   float x = rng_.Gaussian(0.0, 2.0);
-  printf("Random number drawn from Gaussian distribution with 0 mean and "
-         "standard deviation of 2 : %f\n", x);
+  printf(
+      "Random number drawn from Gaussian distribution with 0 mean and "
+      "standard deviation of 2 : %f\n",
+      x);
 }
 
-void ParticleFilter::Initialize(const string& map_file,
-                                const Vector2f& loc,
-                                const float angle) {
+void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, const float angle) {
   // The "set_pose" button on the GUI was clicked, or an initialization message
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
 }
 
-void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
-                                 float* angle_ptr) const {
+void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, float* angle_ptr) const {
   Vector2f& loc = *loc_ptr;
   float& angle = *angle_ptr;
   // Compute the best estimate of the robot's location based on the current set
@@ -186,6 +175,5 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   loc = Vector2f(0, 0);
   angle = 0;
 }
-
 
 }  // namespace particle_filter

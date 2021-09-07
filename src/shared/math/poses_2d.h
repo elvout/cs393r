@@ -62,8 +62,7 @@ struct Pose2D {
   // Templated constructor with an angle and templated 2D vector.
   template <typename T>
   Pose2D(const num& new_angle, const T& new_translation)
-      : translation(new_translation.x(), new_translation.y()),
-        angle(new_angle) {}
+      : translation(new_translation.x(), new_translation.y()), angle(new_angle) {}
 
   template <typename T2>
   Pose2D(const Pose2D<T2>& other)
@@ -71,8 +70,7 @@ struct Pose2D {
         angle(static_cast<num>(other.angle)) {}
 
   // Initialization contructor with angle, x, y.
-  Pose2D(const num& new_angle, const num& x, const num& y)
-      : translation(x, y), angle(new_angle) {}
+  Pose2D(const num& new_angle, const num& x, const num& y) : translation(x, y), angle(new_angle) {}
 
   // Initialization contructor from an Affine 2D transform.
   explicit Pose2D(const Eigen::Transform<num, 2, Eigen::Affine>& affine)
@@ -90,8 +88,7 @@ struct Pose2D {
   }
 
   // Set the pose to the specified state.
-  void Set(const num& new_angle,
-           const Eigen::Matrix<num, 2, 1>& new_translation) {
+  void Set(const num& new_angle, const Eigen::Matrix<num, 2, 1>& new_translation) {
     angle = new_angle;
     translation = new_translation;
   }

@@ -161,8 +161,7 @@ TEST(LineLineIntersection, CollidesAndIntersection) {
     const Eigen::Vector2f p3(0, -1);
     const Eigen::Vector2f p4(0, 1);
     EXPECT_TRUE(geometry::CheckLineLineCollision(p1, p2, p3, p4));
-    const Eigen::Vector2f intersection = geometry::LineLineIntersection(
-        p1, p2, p3, p4);
+    const Eigen::Vector2f intersection = geometry::LineLineIntersection(p1, p2, p3, p4);
     EXPECT_FLOAT_EQ(intersection.x(), 0);
     EXPECT_FLOAT_EQ(intersection.y(), 0);
   }
@@ -172,8 +171,7 @@ TEST(LineLineIntersection, CollidesAndIntersection) {
     const Eigen::Vector2f p3(2, -5);
     const Eigen::Vector2f p4(-2, 5);
     EXPECT_TRUE(geometry::CheckLineLineCollision(p1, p2, p3, p4));
-    const Eigen::Vector2f intersection = geometry::LineLineIntersection(
-        p1, p2, p3, p4);
+    const Eigen::Vector2f intersection = geometry::LineLineIntersection(p1, p2, p3, p4);
     EXPECT_FLOAT_EQ(intersection.x(), 0);
     EXPECT_FLOAT_EQ(intersection.y(), 0);
   }
@@ -183,12 +181,8 @@ TEST(LineLineIntersection, CollidesAndIntersection) {
     const Eigen::Vector2f p3(0, -5.25);
     const Eigen::Vector2f p4(4.99, -5);
     EXPECT_TRUE(geometry::CheckLineLineCollision(p1, p2, p3, p4));
-    const Eigen::Vector2f intersection = geometry::LineLineIntersection(
-        p1, p2, p3, p4);
+    const Eigen::Vector2f intersection = geometry::LineLineIntersection(p1, p2, p3, p4);
     EXPECT_FLOAT_EQ(intersection.x(), 4.99);
     EXPECT_FLOAT_EQ(intersection.y(), -5);
   }
 }
-
-
-

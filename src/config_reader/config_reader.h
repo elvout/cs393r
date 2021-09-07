@@ -84,9 +84,7 @@ class ConfigReader {
       int wd = inotify_add_watch(fd, file.c_str(), IN_MODIFY);
 
       if (wd < 0) {
-        std::cerr << "ERROR: Couldn't add watch to the file: "
-                  << file
-                  << std::endl;
+        std::cerr << "ERROR: Couldn't add watch to the file: " << file << std::endl;
         perror("Reason");
         return;
       }

@@ -32,38 +32,36 @@
 #include "config_reader/types/type_interface.h"
 
 namespace config_reader {
-#define MAKE_NAME(name) CONFIG_ ## name
+#define MAKE_NAME(name) CONFIG_##name
 
 // Define macros for creating new config vars
 
-#define CONFIG_INT(name, key)                                                  \
-  const int& MAKE_NAME(name) =                                                 \
-      ::config_reader::InitVar<int, ::config_reader::config_types::ConfigInt>( \
+#define CONFIG_INT(name, key)  \
+  const int& MAKE_NAME(name) = \
+      ::config_reader::InitVar<int, ::config_reader::config_types::ConfigInt>(key)
+#define CONFIG_UINT(name, key)                                                                  \
+  const unsigned int& MAKE_NAME(name) =                                                         \
+      ::config_reader::InitVar<unsigned int, ::config_reader::config_types::ConfigUnsignedInt>( \
           key)
-#define CONFIG_UINT(name, key)                                    \
-  const unsigned int& MAKE_NAME(name) = ::config_reader::InitVar< \
-      unsigned int, ::config_reader::config_types::ConfigUnsignedInt>(key)
-#define CONFIG_DOUBLE(name, key)                            \
-  const double& MAKE_NAME(name) = ::config_reader::InitVar< \
-      double, ::config_reader::config_types::ConfigDouble>(key)
-#define CONFIG_FLOAT(name, key)                            \
-  const float& MAKE_NAME(name) = ::config_reader::InitVar< \
-      float, ::config_reader::config_types::ConfigFloat>(key)
-#define CONFIG_STRING(name, key)                                 \
-  const std::string& MAKE_NAME(name) = ::config_reader::InitVar< \
-      std::string, ::config_reader::config_types::ConfigString>(key)
-#define CONFIG_BOOL(name, key)       \
-  const bool& MAKE_NAME(name) =      \
-      ::config_reader::InitVar<bool, \
-                               ::config_reader::config_types::ConfigBool>(key)
+#define CONFIG_DOUBLE(name, key)  \
+  const double& MAKE_NAME(name) = \
+      ::config_reader::InitVar<double, ::config_reader::config_types::ConfigDouble>(key)
+#define CONFIG_FLOAT(name, key)  \
+  const float& MAKE_NAME(name) = \
+      ::config_reader::InitVar<float, ::config_reader::config_types::ConfigFloat>(key)
+#define CONFIG_STRING(name, key)       \
+  const std::string& MAKE_NAME(name) = \
+      ::config_reader::InitVar<std::string, ::config_reader::config_types::ConfigString>(key)
+#define CONFIG_BOOL(name, key)  \
+  const bool& MAKE_NAME(name) = \
+      ::config_reader::InitVar<bool, ::config_reader::config_types::ConfigBool>(key)
 
 class MapSingleton {
   static constexpr int kNumMapBuckets = 1000000;
 
  public:
   using KeyLookupMap =
-      std::unordered_map<std::string,
-                         std::unique_ptr<config_types::TypeInterface>>;
+      std::unordered_map<std::string, std::unique_ptr<config_types::TypeInterface>>;
 
   static KeyLookupMap& Singleton() {
     static KeyLookupMap config(kNumMapBuckets);
@@ -83,16 +81,14 @@ const CPPType& InitVar(const std::string& key) {
   if (find_res != map.end()) {
     config_types::TypeInterface* ti = find_res->second.get();
     if (ti->GetType() != ConfigType::GetEnumType()) {
-      std::cerr << "Mismatch of types for key " << key
-                << ". Existing type: " << ti->GetType()
-                << ", requested type: " << ConfigType::GetEnumType()
-                << std::endl;
+      std::cerr << "Mismatch of types for key " << key << ". Existing type: " << ti->GetType()
+                << ", requested type: " << ConfigType::GetEnumType() << std::endl;
       exit(0);
     }
     return static_cast<ConfigType*>(ti)->GetValue();
   }
-  auto insert_res = map.insert(
-      {key, std::unique_ptr<config_types::TypeInterface>(new ConfigType(key))});
+  auto insert_res =
+      map.insert({key, std::unique_ptr<config_types::TypeInterface>(new ConfigType(key))});
   if (!insert_res.second) {
     std::cerr << "Creation of " << key << " failed!" << std::endl;
     exit(0);
