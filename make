@@ -22,10 +22,11 @@ function fix-ros-path() {
     fi
 
     # Iterate through RPP and check if the current working directory
-    # is already present in ROS_PACKAGE_PATH. Return from the script if the
-    # current working directory is already present in ROS_PACKAGE_PATH.
+    # is already present in ROS_PACKAGE_PATH. Return from the function
+    # if the current working directory is already present in
+    # ROS_PACKAGE_PATH.
     for p in "${RPP[@]}"; do
-        # `-ef` comares device and inode numbers for equality
+        # `-ef` compares device and inode numbers for equality
         if [[ "$p" -ef "$CWD" ]]; then
             return
         fi
