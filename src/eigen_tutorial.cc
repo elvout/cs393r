@@ -32,8 +32,8 @@ void DemoBasics() {
 
   cout << "Initialize a 2x2 matrix m1." << endl;
   Matrix2f m1;
-  // clang-format off 
-  m1 << 0, 2, 
+  // clang-format off
+  m1 << 0, 2,
         3, 0;
   // clang-format on
   cout << "m1 = " << endl << m1 << endl;
