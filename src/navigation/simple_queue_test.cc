@@ -1,10 +1,11 @@
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "simple_queue.h"
 
 int main() {
-  // Construct the priority queue, to use uint64_t to represent node ID, and float as the priority type.
+  // Construct the priority queue, to use uint64_t to represent node ID, and float as the priority
+  // type.
   SimpleQueue<uint64_t, float> queue;
   // Check if the queue is empty
   printf("Empty?: %d\n", queue.Empty());

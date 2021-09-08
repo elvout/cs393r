@@ -27,7 +27,7 @@
 #define NAVIGATION_H
 
 namespace ros {
-  class NodeHandle;
+class NodeHandle;
 }  // namespace ros
 
 namespace navigation {
@@ -43,8 +43,7 @@ struct PathOption {
 
 class Navigation {
  public:
-
-   // Constructor
+  // Constructor
   explicit Navigation(const std::string& map_file, ros::NodeHandle* n);
 
   // Used in callback from localization to update position.
@@ -57,8 +56,7 @@ class Navigation {
                       float ang_vel);
 
   // Updates based on an observed laser scan
-  void ObservePointCloud(const std::vector<Eigen::Vector2f>& cloud,
-                         double time);
+  void ObservePointCloud(const std::vector<Eigen::Vector2f>& cloud, double time);
 
   // Main function called continously from main
   void Run();
@@ -66,7 +64,6 @@ class Navigation {
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
  private:
-
   // Whether odometry has been initialized.
   bool odom_initialized_;
   // Whether localization has been initialized.

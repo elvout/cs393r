@@ -18,7 +18,6 @@
 //  If not, see <http://www.gnu.org/licenses/>.
 //========================================================================
 
-
 #include <assert.h>
 #include <glog/logging.h>
 #include <stdio.h>
@@ -29,13 +28,12 @@
 #define SRC_UTIL_HELPERS_H_
 
 // Useful for debug printing.
-#define DEBUG_PRINT_LINE \
-    printf("%s:%d\n", __FILE__, __LINE__); \
-    fflush(stdout);
+#define DEBUG_PRINT_LINE                 \
+  printf("%s:%d\n", __FILE__, __LINE__); \
+  fflush(stdout);
 
 // Return an std::string created using a printf-like syntax.
-std::string StringPrintf(const char* format, ...)
-    __attribute__((format(__printf__, 1, 2)));
+std::string StringPrintf(const char* format, ...) __attribute__((format(__printf__, 1, 2)));
 
 // Returns an std::string of the result of executing a command @cmd.
 std::string ExecuteCommand(const char* cmd);
@@ -56,28 +54,27 @@ class ScopedFile {
   explicit ScopedFile(FILE* fid) : fid_(fid) {}
 
   // Constructor that opens the specified file in the specified mode.
-  ScopedFile(const std::string& file_name,
-             const char* mode,
-             bool print_error = false) :
-      fid_(NULL) {
+  ScopedFile(const std::string& file_name, const char* mode, bool print_error = false)
+      : fid_(NULL) {
     Open(file_name, mode, print_error);
   }
 
   // Destructor.
   ~ScopedFile() {
-    if (fid_ == NULL) return;
+    if (fid_ == NULL)
+      return;
     const bool error = (fclose(fid_) != 0);
     if (kDebug) {
       printf("fclose success:%d\n", error);
-      if (error) perror("Error closing file descriptor");
+      if (error)
+        perror("Error closing file descriptor");
     }
   }
 
   // Open a file explicitly.
-  void Open(const std::string& file_name,
-             const char* mode,
-             bool print_error = false) {
-    if (fid_) fclose(fid_);
+  void Open(const std::string& file_name, const char* mode, bool print_error = false) {
+    if (fid_)
+      fclose(fid_);
     fid_ = fopen(file_name.c_str(), mode);
     if (fid_ == NULL) {
       if (print_error) {
@@ -93,7 +90,7 @@ class ScopedFile {
   FILE* operator()() { return (fid_); }
 
   // Conversion operator to convert to FILE* type.
-  operator FILE*&() { return (fid_); }
+  operator FILE* &() { return (fid_); }
 
  private:
   static const bool kDebug = false;

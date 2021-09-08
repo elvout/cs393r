@@ -28,7 +28,7 @@
 #include "visualization_msgs/MarkerArray.h"
 
 namespace {
-  int marker_id_ = 0;
+int marker_id_ = 0;
 }  // namespace
 namespace gui_helpers {
 
@@ -41,13 +41,12 @@ const Color4f Color4f::kYellow(1, 1, 0, 1);
 const Color4f Color4f::kCyan(0, 1, 1, 1);
 const Color4f Color4f::kMagenta(1, 0, 1, 1);
 
-void InitializeMarker(
-    int marker_type,
-    const Color4f& color,
-    float scale_x,
-    float scale_y,
-    float scale_z,
-    visualization_msgs::Marker* msg) {
+void InitializeMarker(int marker_type,
+                      const Color4f& color,
+                      float scale_x,
+                      float scale_y,
+                      float scale_z,
+                      visualization_msgs::Marker* msg) {
   msg->id = marker_id_;
   ++marker_id_;
   msg->type = marker_type;
@@ -66,5 +65,3 @@ void InitializeMarker(
 }
 
 }  // namespace gui_helpers
-
-

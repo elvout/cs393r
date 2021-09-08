@@ -20,8 +20,8 @@
 #include "util/timer.h"
 
 #include <inttypes.h>
-#include <time.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -33,15 +33,14 @@ using std::string;
 #if defined(__i386__)
 uint64_t RDTSC() {
   uint64_t x;
-  __asm__ volatile (".byte 0x0f, 0x31" : "=A" (x));
+  __asm__ volatile(".byte 0x0f, 0x31" : "=A"(x));
   return x;
 }
 #elif defined(__x86_64__)
 uint64_t RDTSC() {
   uint32_t hi, lo;
-  __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
-  const uint64_t x =
-      static_cast<uint64_t>(lo) | (static_cast<uint64_t>(hi) << 32);
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  const uint64_t x = static_cast<uint64_t>(lo) | (static_cast<uint64_t>(hi) << 32);
   return x;
 }
 #endif
@@ -49,16 +48,14 @@ uint64_t RDTSC() {
 double GetWallTime() {
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  const double time =
-      static_cast<double>(ts.tv_sec) + static_cast<double>(ts.tv_nsec)*(1.0E-9);
+  const double time = static_cast<double>(ts.tv_sec) + static_cast<double>(ts.tv_nsec) * (1.0E-9);
   return time;
 }
 
 double GetMonotonicTime() {
   timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  const double time =
-      static_cast<double>(ts.tv_sec) + static_cast<double>(ts.tv_nsec)*(1.0E-9);
+  const double time = static_cast<double>(ts.tv_sec) + static_cast<double>(ts.tv_nsec) * (1.0E-9);
   return time;
 }
 
@@ -67,8 +64,7 @@ void Sleep(double duration) {
   usleep(duration_usec);
 }
 
-RateLoop::RateLoop(double rate) :
-    t_last_run_(0.0), delay_interval_(1.0 / rate) { }
+RateLoop::RateLoop(double rate) : t_last_run_(0.0), delay_interval_(1.0 / rate) {}
 
 void RateLoop::Sleep() {
   const double t_now = GetMonotonicTime();
@@ -77,8 +73,8 @@ void RateLoop::Sleep() {
   t_last_run_ = t_now + sleep_duration;
 }
 
-FunctionTimer::FunctionTimer(const char* name) :
-    name_(name), t_start_(GetMonotonicTime()), t_lap_start_(t_start_) {}
+FunctionTimer::FunctionTimer(const char* name)
+    : name_(name), t_start_(GetMonotonicTime()), t_lap_start_(t_start_) {}
 
 FunctionTimer::~FunctionTimer() {
   const double t_stop = GetMonotonicTime();
@@ -87,16 +83,12 @@ FunctionTimer::~FunctionTimer() {
 
 void FunctionTimer::Lap(int id) {
   const double t_now = GetMonotonicTime();
-  printf("%s(%d): %f ms\n",
-         name_.c_str(),
-         id,
-         1.0E3 * (t_now - t_lap_start_));
+  printf("%s(%d): %f ms\n", name_.c_str(), id, 1.0E3 * (t_now - t_lap_start_));
   t_lap_start_ = t_now;
 }
 
-CumulativeFunctionTimer::Invocation::Invocation(
-    CumulativeFunctionTimer* cumulative_timer) :
-    t_start_(GetMonotonicTime()), cumulative_timer_(cumulative_timer) {}
+CumulativeFunctionTimer::Invocation::Invocation(CumulativeFunctionTimer* cumulative_timer)
+    : t_start_(GetMonotonicTime()), cumulative_timer_(cumulative_timer) {}
 
 CumulativeFunctionTimer::Invocation::~Invocation() {
   const double t_duration = GetMonotonicTime() - t_start_;
@@ -104,18 +96,13 @@ CumulativeFunctionTimer::Invocation::~Invocation() {
   cumulative_timer_->total_run_time_ += t_duration;
 }
 
-CumulativeFunctionTimer::CumulativeFunctionTimer(const char* name) :
-    name_(name), total_run_time_(0.0), total_invocations_(0) {}
+CumulativeFunctionTimer::CumulativeFunctionTimer(const char* name)
+    : name_(name), total_run_time_(0.0), total_invocations_(0) {}
 
 CumulativeFunctionTimer::~CumulativeFunctionTimer() {
-  const double mean_run_time =
-      total_run_time_ / static_cast<double>(total_invocations_);
-  printf("Run-time stats for %s : mean run time = %f ms, "
-         "invocations = %" PRIu64 "\n",
-         name_.c_str(),
-         1.0E3 * mean_run_time,
-         total_invocations_);
+  const double mean_run_time = total_run_time_ / static_cast<double>(total_invocations_);
+  printf(
+      "Run-time stats for %s : mean run time = %f ms, "
+      "invocations = %" PRIu64 "\n",
+      name_.c_str(), 1.0E3 * mean_run_time, total_invocations_);
 }
-
-
-

@@ -23,8 +23,8 @@
 
 #include <string>
 
-#include "eigen3/Eigen/Dense"
 #include "amrl_msgs/VisualizationMsg.h"
+#include "eigen3/Eigen/Dense"
 
 namespace visualization {
 
@@ -32,13 +32,11 @@ namespace visualization {
 void ClearVisualizationMsg(amrl_msgs::VisualizationMsg& msg);
 
 // Return new visualization message, with initialized headers and namespace.
-amrl_msgs::VisualizationMsg NewVisualizationMessage(
-    const std::string& frame, const std::string& ns);
+amrl_msgs::VisualizationMsg NewVisualizationMessage(const std::string& frame,
+                                                    const std::string& ns);
 
 // Add a single point to the visualization message.
-void DrawPoint(const Eigen::Vector2f& p,
-               uint32_t color,
-               amrl_msgs::VisualizationMsg& msg);
+void DrawPoint(const Eigen::Vector2f& p, uint32_t color, amrl_msgs::VisualizationMsg& msg);
 
 // Add a single line to the visualization message.
 void DrawLine(const Eigen::Vector2f& p0,
@@ -61,9 +59,7 @@ void DrawArc(const Eigen::Vector2f& center,
              amrl_msgs::VisualizationMsg& msg);
 
 // Add a particle to the visualization message.
-void DrawParticle(const Eigen::Vector2f& loc,
-                  float angle,
-                  amrl_msgs::VisualizationMsg& msg);
+void DrawParticle(const Eigen::Vector2f& loc, float angle, amrl_msgs::VisualizationMsg& msg);
 
 void DrawPathOption(const float curvature,
                     const float distance,

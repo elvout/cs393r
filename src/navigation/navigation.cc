@@ -19,23 +19,23 @@
 */
 //========================================================================
 
-#include "gflags/gflags.h"
-#include "eigen3/Eigen/Dense"
-#include "eigen3/Eigen/Geometry"
+#include "navigation.h"
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
+#include "eigen3/Eigen/Dense"
+#include "eigen3/Eigen/Geometry"
+#include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
 #include "shared/math/math_util.h"
-#include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
-#include "navigation.h"
+#include "shared/util/timer.h"
 #include "visualization/visualization.h"
 
-using Eigen::Vector2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
 using amrl_msgs::VisualizationMsg;
+using Eigen::Vector2f;
 using std::string;
 using std::vector;
 
@@ -50,32 +50,28 @@ VisualizationMsg global_viz_msg_;
 AckermannCurvatureDriveMsg drive_msg_;
 // Epsilon value for handling limited numerical precision.
 const float kEpsilon = 1e-5;
-} //namespace
+}  // namespace
 
 namespace navigation {
 
-Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
-    odom_initialized_(false),
-    localization_initialized_(false),
-    robot_loc_(0, 0),
-    robot_angle_(0),
-    robot_vel_(0, 0),
-    robot_omega_(0),
-    nav_complete_(true),
-    nav_goal_loc_(0, 0),
-    nav_goal_angle_(0) {
-  drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
-      "ackermann_curvature_drive", 1);
+Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
+    : odom_initialized_(false),
+      localization_initialized_(false),
+      robot_loc_(0, 0),
+      robot_angle_(0),
+      robot_vel_(0, 0),
+      robot_omega_(0),
+      nav_complete_(true),
+      nav_goal_loc_(0, 0),
+      nav_goal_angle_(0) {
+  drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
-  local_viz_msg_ = visualization::NewVisualizationMessage(
-      "base_link", "navigation_local");
-  global_viz_msg_ = visualization::NewVisualizationMessage(
-      "map", "navigation_global");
+  local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
+  global_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation_global");
   InitRosHeader("base_link", &drive_msg_.header);
 }
 
-void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
-}
+void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
@@ -101,24 +97,24 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
   odom_angle_ = angle;
 }
 
-void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
-                                   double time) {
-  point_cloud_ = cloud;                                     
+void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
+  point_cloud_ = cloud;
 }
 
 void Navigation::Run() {
   // This function gets called 20 times a second to form the control loop.
-  
+
   // Clear previous visualizations.
   visualization::ClearVisualizationMsg(local_viz_msg_);
   visualization::ClearVisualizationMsg(global_viz_msg_);
 
   // If odometry has not been initialized, we can't do anything.
-  if (!odom_initialized_) return;
+  if (!odom_initialized_)
+    return;
 
-  // The control iteration goes here. 
+  // The control iteration goes here.
   // Feel free to make helper functions to structure the control appropriately.
-  
+
   // The latest observed point cloud is accessible via "point_cloud_"
 
   // Eventually, you will have to set the control values to issue drive commands:

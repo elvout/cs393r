@@ -19,18 +19,16 @@
 */
 //========================================================================
 
+#include "terminal_colors.h"
 #include <stdio.h>
 #include <vector>
-#include "terminal_colors.h"
 
-using std::vector;
 using std::size_t;
+using std::vector;
 
 namespace terminal_colors {
 
-void ColorTerminal(unsigned char fg,
-                   unsigned char bg,
-                   std::vector<unsigned char> attr) {
+void ColorTerminal(unsigned char fg, unsigned char bg, std::vector<unsigned char> attr) {
   printf("\033[%d;%d;", bg + 40, fg + 30);
   for (std::size_t i = 0; i < attr.size(); ++i) {
     printf("%d", attr[i]);
@@ -43,15 +41,12 @@ void ColorTerminal(unsigned char fg,
   fflush(stdout);
 }
 
-void ColorTerminal(unsigned char fg,
-                   unsigned char bg,
-                   unsigned char attr) {
+void ColorTerminal(unsigned char fg, unsigned char bg, unsigned char attr) {
   printf("\033[%d;%d;%dm", attr, bg + 40, fg + 30);
   fflush(stdout);
 }
 
-void ColorTerminal(unsigned char fg,
-                   unsigned char bg) {
+void ColorTerminal(unsigned char fg, unsigned char bg) {
   printf("\033[%d;%dm", bg + 40, fg + 30);
   fflush(stdout);
 }

@@ -27,25 +27,24 @@
 namespace config_reader {
 namespace config_types {
 
-#define GENERIC_CLASS(ClassName, EnumName, CPPType, DefaultValue)   \
-  class ClassName : public TypeInterface {                          \
-   public:                                                          \
-    ClassName(const std::string& key)                               \
-        : TypeInterface(key, Type::EnumName), val_(DefaultValue) {} \
-                                                                    \
-    ClassName() = delete;                                           \
-    ~ClassName() = default;                                         \
-                                                                    \
-    void SetValue(LuaScript* lua_script) override {                 \
-      val_ = lua_script->GetVariable<CPPType>(key_);                \
-    }                                                               \
-                                                                    \
-    const CPPType& GetValue() { return this->val_; }                \
-                                                                    \
-    static Type GetEnumType() { return Type::EnumName; }            \
-                                                                    \
-   private:                                                         \
-    CPPType val_;                                                   \
+#define GENERIC_CLASS(ClassName, EnumName, CPPType, DefaultValue)                                 \
+  class ClassName : public TypeInterface {                                                        \
+   public:                                                                                        \
+    ClassName(const std::string& key) : TypeInterface(key, Type::EnumName), val_(DefaultValue) {} \
+                                                                                                  \
+    ClassName() = delete;                                                                         \
+    ~ClassName() = default;                                                                       \
+                                                                                                  \
+    void SetValue(LuaScript* lua_script) override {                                               \
+      val_ = lua_script->GetVariable<CPPType>(key_);                                              \
+    }                                                                                             \
+                                                                                                  \
+    const CPPType& GetValue() { return this->val_; }                                              \
+                                                                                                  \
+    static Type GetEnumType() { return Type::EnumName; }                                          \
+                                                                                                  \
+   private:                                                                                       \
+    CPPType val_;                                                                                 \
   };
 
 GENERIC_CLASS(ConfigString, CSTRING, std::string, "");

@@ -66,11 +66,8 @@ T AngleDist(T a0, T a1) {
 
 // Check if angle is between min and max angle, moving in a counterclockwise
 // direction from min_angle to max_angle.
- template <typename T>
- bool IsAngleBetween(T query,
-                     T start_angle,
-                     T end_angle,
-                     const int rotation_sign) {
+template <typename T>
+bool IsAngleBetween(T query, T start_angle, T end_angle, const int rotation_sign) {
   if (rotation_sign == 0) {
     return (query == start_angle && start_angle == end_angle);
   } else if (rotation_sign == 1) {
@@ -121,8 +118,7 @@ T Pow(const T& x, const unsigned int n) {
 template <typename T>
 constexpr T ConstexprPow(const T& base, const int exp, const T result = 1) {
   return (exp < 1) ? result
-                   : ConstexprPow((base * base), (exp / 2),
-                                  ((exp % 2) ? result * base : result));
+                   : ConstexprPow((base * base), (exp / 2), ((exp % 2) ? result * base : result));
 }
 
 // Return the truncated linearly interpolated value between y_min and y_max
@@ -165,8 +161,10 @@ unsigned int SolveQuadratic(const T& a, const T& b, const T& c, T* r0, T* r1) {
 // Bound the value to the minimum and maximum specified.
 template <typename T>
 void Bound(const T& min_val, const T& max_val, T* x) {
-  if ((*x) > max_val) *x = max_val;
-  if ((*x) < min_val) *x = min_val;
+  if ((*x) > max_val)
+    *x = max_val;
+  if ((*x) < min_val)
+    *x = min_val;
 }
 
 // Bound the value to lie within +- limit.
@@ -188,33 +186,28 @@ int Sign(T val) {
 // the largest real root. The return value is the number of unique real roots
 // found.
 template <typename T>
-unsigned int SolveCubic(const T& a, const T& b, const T& c, const T& d, T* r0,
-                        T* r1, T* r2) {
+unsigned int SolveCubic(const T& a, const T& b, const T& c, const T& d, T* r0, T* r1, T* r2) {
   DCHECK_NE(r0, static_cast<T*>(nullptr));
   DCHECK_NE(r1, static_cast<T*>(nullptr));
   DCHECK_NE(r2, static_cast<T*>(nullptr));
-  const T discriminant = T(18) * a * b * c * d - T(4) * Cube<T>(b) * d +
-                         Sq<T>(b) * Sq<T>(c) - T(4) * a * Cube<T>(c) -
-                         T(27) * Sq<T>(a) * Sq<T>(d);
+  const T discriminant = T(18) * a * b * c * d - T(4) * Cube<T>(b) * d + Sq<T>(b) * Sq<T>(c) -
+                         T(4) * a * Cube<T>(c) - T(27) * Sq<T>(a) * Sq<T>(d);
 
   const T discriminant0 = Sq<T>(b) - T(3) * a * c;
 
-  const T discriminant1 =
-      T(2) * Cube<T>(b) - T(9) * a * b * c + T(27) * Sq<T>(a) * d;
+  const T discriminant1 = T(2) * Cube<T>(b) - T(9) * a * b * c + T(27) * Sq<T>(a) * d;
 
   if (discriminant > T(0)) {
     // todo(slane): this case is not working
     // Three distinct real roots
     const T p = (T(3) * a * c - Sq<T>(b)) / (3 * Sq<T>(a));
-    const T q = (T(2) * Cube<T>(b) - 9 * a * b * c + 27 * Sq<T>(a) * d) /
-                (T(27) * Cube<T>(a));
+    const T q = (T(2) * Cube<T>(b) - 9 * a * b * c + 27 * Sq<T>(a) * d) / (T(27) * Cube<T>(a));
 
     std::array<T, 3> roots;
 
     for (T k = 0; k < 3; k++) {
       roots[k] = (T(2) * sqrt(-p / T(3)) *
-                      cos(T(1.0 / 3.0) *
-                              acos(T(3) * q / (T(2) * p) * sqrt(T(-3) / p)) -
+                      cos(T(1.0 / 3.0) * acos(T(3) * q / (T(2) * p) * sqrt(T(-3) / p)) -
                           T(2.0) * k * M_PI / T(3.0)) -
                   b / (T(3) * a));
     }
@@ -231,8 +224,8 @@ unsigned int SolveCubic(const T& a, const T& b, const T& c, const T& d, T* r0,
     } else {
       const T double_root = (T(9) * a * d - b * c) / (T(2) * discriminant0);
 
-      const T simple_root = (T(4) * a * b * c - 9 * Sq<T>(a) * d - Cube<T>(b)) /
-                            (a * discriminant0);
+      const T simple_root =
+          (T(4) * a * b * c - 9 * Sq<T>(a) * d - Cube<T>(b)) / (a * discriminant0);
 
       if (double_root > simple_root) {
         *r2 = double_root;

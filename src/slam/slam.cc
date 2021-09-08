@@ -49,10 +49,7 @@ using vector_map::VectorMap;
 
 namespace slam {
 
-SLAM::SLAM() :
-    prev_odom_loc_(0, 0),
-    prev_odom_angle_(0),
-    odom_initialized_(false) {}
+SLAM::SLAM() : prev_odom_loc_(0, 0), prev_odom_angle_(0), odom_initialized_(false) {}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   // Return the latest pose estimate of the robot.
@@ -77,7 +74,7 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
     odom_initialized_ = true;
     return;
   }
-  // Keep track of odometry to estimate how far the robot has moved between 
+  // Keep track of odometry to estimate how far the robot has moved between
   // poses.
 }
 

@@ -46,8 +46,7 @@ T SumArray(const std::array<T, N>& v) {
 }
 
 template <size_t N, class T>
-T SelectiveSumArray(const std::array<T, N>& v, const std::array<bool, N>& b,
-                    const T zero = 0) {
+T SelectiveSumArray(const std::array<T, N>& v, const std::array<bool, N>& b, const T zero = 0) {
   T acc = zero;
   for (size_t i = 0; i < N; ++i) {
     const auto& e = v[i];
@@ -59,7 +58,8 @@ T SelectiveSumArray(const std::array<T, N>& v, const std::array<bool, N>& b,
 }
 
 template <size_t N, class T>
-bool SelectiveEqual(const std::array<bool, N>& b, const std::array<T, N>& v1,
+bool SelectiveEqual(const std::array<bool, N>& b,
+                    const std::array<T, N>& v1,
                     const std::array<T, N>& v2) {
   for (size_t i = 0; i < N; ++i) {
     if (b[i] && v1[i] != v2[i]) {
@@ -123,8 +123,7 @@ std::array<T, N> AddToEachElement(const std::array<T, N>& a1, const T& val) {
 }
 
 template <size_t N, class T>
-std::array<T, N> AddArrayElements(const std::array<T, N>& a1,
-                                  const std::array<T, N>& a2) {
+std::array<T, N> AddArrayElements(const std::array<T, N>& a1, const std::array<T, N>& a2) {
   std::array<T, N> ret;
   for (size_t i = 0; i < N; ++i) {
     ret[i] = a1[i] + a2[i];
@@ -133,8 +132,7 @@ std::array<T, N> AddArrayElements(const std::array<T, N>& a1,
 }
 
 template <size_t N, class T>
-std::array<T, N> SubtractArrayElements(const std::array<T, N>& a1,
-                                       const std::array<T, N>& a2) {
+std::array<T, N> SubtractArrayElements(const std::array<T, N>& a1, const std::array<T, N>& a2) {
   std::array<T, N> ret;
   for (size_t i = 0; i < N; ++i) {
     ret[i] = a1[i] - a2[i];

@@ -1,19 +1,19 @@
 #include <stdio.h>
-#include <iostream>
 #include <cmath>
+#include <iostream>
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 
+using std::cos;
 using std::cout;
 using std::endl;
-using std::sqrt;
 using std::sin;
-using std::cos;
+using std::sqrt;
 
-using Eigen::Vector2f;
 using Eigen::Matrix2f;
 using Eigen::Rotation2Df;
+using Eigen::Vector2f;
 
 void DemoBasics() {
   cout << "Basic initialization" << endl;
@@ -32,8 +32,10 @@ void DemoBasics() {
 
   cout << "Initialize a 2x2 matrix m1." << endl;
   Matrix2f m1;
-  m1  << 0, 2,
-         3, 0;
+  // clang-format off 
+  m1 << 0, 2, 
+        3, 0;
+  // clang-format on
   cout << "m1 = " << endl << m1 << endl;
 
   cout << "Multiply matrix times vector." << endl;
@@ -45,8 +47,7 @@ void DemoRotations() {
   cout << "Rotations demonstration" << endl;
   // Note that pi/4 radians is 45 degrees.
   float angle1 = M_PI / 4.0;
-  cout << "angle1 = " << angle1 << " radians = "
-       << angle1 / M_PI * 180.0 << " degrees." << endl;
+  cout << "angle1 = " << angle1 << " radians = " << angle1 / M_PI * 180.0 << " degrees." << endl;
 
   cout << "Create a rotation" << endl;
   Rotation2Df r1(angle1);

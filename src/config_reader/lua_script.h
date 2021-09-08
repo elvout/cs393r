@@ -38,10 +38,8 @@ class LuaScript {
 
   void ResetStack() { lua_pop(lua_state_, lua_gettop(lua_state_)); }
 
-  void Error(const std::string& variable_name,
-             const std::string& reason) const {
-    std::cerr << "Error: can't get [" << variable_name << "]. " << reason
-              << std::endl;
+  void Error(const std::string& variable_name, const std::string& reason) const {
+    std::cerr << "Error: can't get [" << variable_name << "]. " << reason << std::endl;
   }
 
   bool LoadStackLocation(const std::string& variable_name) {
@@ -100,15 +98,12 @@ class LuaScript {
  public:
   LuaScript() : lua_state_(nullptr) {}
 
-  explicit LuaScript(const std::vector<std::string>& files)
-      : lua_state_(luaL_newstate()) {
+  explicit LuaScript(const std::vector<std::string>& files) : lua_state_(luaL_newstate()) {
     luaL_openlibs(lua_state_);
     for (const std::string& filename : files) {
-      if (luaL_loadfile(lua_state_, filename.c_str()) ||
-          lua_pcall(lua_state_, 0, 0, 0)) {
+      if (luaL_loadfile(lua_state_, filename.c_str()) || lua_pcall(lua_state_, 0, 0, 0)) {
         std::cout << "Error: failed to load (" << filename << ")" << std::endl;
-        std::cout << "Error Message: " << lua_tostring(lua_state_, -1)
-                  << std::endl;
+        std::cout << "Error Message: " << lua_tostring(lua_state_, -1) << std::endl;
         CleanupLuaState();
         break;
       }
@@ -169,8 +164,7 @@ inline int LuaScript::Get<int>(const std::string& variable_name) {
 }
 
 template <>
-inline unsigned int LuaScript::Get<unsigned int>(
-    const std::string& variable_name) {
+inline unsigned int LuaScript::Get<unsigned int>(const std::string& variable_name) {
   if (!lua_isnumber(lua_state_, -1)) {
     Error(variable_name, "Not a number");
     return GetDefault<unsigned int>();
@@ -193,8 +187,7 @@ inline std::string LuaScript::GetDefault<std::string>() {
 }
 
 template <>
-inline std::string LuaScript::Get<std::string>(
-    const std::string& variable_name) {
+inline std::string LuaScript::Get<std::string>(const std::string& variable_name) {
   if (!lua_isstring(lua_state_, -1)) {
     Error(variable_name, "Not a string");
     return GetDefault<std::string>();
