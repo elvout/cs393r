@@ -32,6 +32,8 @@ class NodeHandle;
 
 namespace navigation {
 
+constexpr float kUpdateFrequency = 20.0;
+
 struct PathOption {
   float curvature;
   float clearance;

@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic, 1, &LaserCallback);
   ros::Subscriber goto_sub = n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
 
-  RateLoop loop(20.0);
+  RateLoop loop(navigation::kUpdateFrequency);
   while (run_ && ros::ok()) {
     ros::spinOnce();
     navigation_->Run();
