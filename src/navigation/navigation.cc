@@ -71,7 +71,11 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
   InitRosHeader("base_link", &drive_msg_.header);
 }
 
-void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
+void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+  nav_complete_ = false;
+  nav_goal_loc_ = loc;
+  nav_goal_angle_ = angle;
+}
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
