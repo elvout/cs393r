@@ -1,0 +1,46 @@
+#! /usr/bin/env bash
+
+function format-staged() {
+    # Formats C++ files in the git index.
+    #
+    # The entirety of each C++ file from the index is formatted in the
+    # working tree, but only the staged parts of each file are added
+    # back into the index.
+
+    if command -v clang-format &> /dev/null; then
+        # --diff-filter is needed because clang-format will panic if it encounters a deleted file
+        FILES="$(git diff --cached --name-only --diff-filter=ACMR | egrep '.+\.(cc|h)')"
+
+        # Return if there are not relevant files to format.
+        # This function may otherwise drop a stash that it did not create.
+        if [[ "$FILES" == "" ]]; then
+            return
+        fi
+
+        # Stash everything, but keep the staged changes in the working tree.
+        git stash --keep-index
+
+        # Format only the staged changes.
+        echo "$FILES" | xargs clang-format --style=file -i
+
+        # Re-add formatted versions of the previously staged changes.
+        git add --update
+
+        # Restore the working tree, but leave the index alone.
+        # Uses 'git restore' rather than 'git stash pop' to avoid potential merge conflicts.
+        git restore --source=stash@{0} -- "$(git rev-parse --show-toplevel)"
+        git stash drop 0
+
+        # Format the entire contents of the staged files, but don't re-stage anything.
+        # After this command, there should be no merge conflicts between staged files
+        # and files in the working tree.
+        echo "$FILES" | xargs clang-format --style=file -i
+    else
+        echo "error: 'clang-format' not found."
+        echo "Install 'clang-format' or use 'git commit --no-verify'."
+        exit 1
+    fi
+}
+
+
+format-staged
