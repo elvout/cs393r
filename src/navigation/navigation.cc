@@ -135,6 +135,7 @@ void Navigation::Run() {
 
   const float v_peak = sqrt((2 * target_displacement * kMaxAccel * fabsf(kMaxDecel)) /
                             (kMaxAccel + fabsf(kMaxDecel)));
+  const float cur_velocity = robot_vel_.norm();
 
   if (v_peak > kMaxSpeed) {
     // case 1: there is enough distance for the car to reach its max speed
@@ -144,10 +145,9 @@ void Navigation::Run() {
         target_displacement - (kMaxSpeed * kMaxSpeed / (2 * fabsf(kMaxDecel)));
 
     if (cur_displacement < stage_2_disp) {
-      float cur_velocity = robot_vel_.norm();
       drive_msg_.velocity = std::min(kMaxSpeed, cur_velocity + kMaxAccel / kUpdateFrequency);
     } else {
-      drive_msg_.velocity = std::max(0.0f, robot_vel_.norm() + kMaxDecel / kUpdateFrequency);
+      drive_msg_.velocity = std::max(0.0f, cur_velocity + kMaxDecel / kUpdateFrequency);
 
       if (drive_msg_.velocity == 0) {
         nav_complete_ = true;
@@ -157,10 +157,10 @@ void Navigation::Run() {
     // case 2: there is not enough distance for the car to reach its max speed
     const float stage_1_disp = v_peak * v_peak / (2 * kMaxAccel);
 
-    if (robot_vel_.norm() < v_peak && cur_displacement < stage_1_disp) {
-      drive_msg_.velocity = std::min(v_peak, robot_vel_.norm() + kMaxAccel / kUpdateFrequency);
+    if (cur_velocity < v_peak && cur_displacement < stage_1_disp) {
+      drive_msg_.velocity = std::min(v_peak, cur_velocity + kMaxAccel / kUpdateFrequency);
     } else {
-      drive_msg_.velocity = std::max(0.0f, robot_vel_.norm() + kMaxDecel / kUpdateFrequency);
+      drive_msg_.velocity = std::max(0.0f, cur_velocity + kMaxDecel / kUpdateFrequency);
 
       if (drive_msg_.velocity == 0) {
         nav_complete_ = true;
