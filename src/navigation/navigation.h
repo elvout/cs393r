@@ -72,6 +72,8 @@ class Navigation {
   // Set the Target Displacement for 1D TOC
   void SetTargetDisplacement(const float target_displacement);
 
+  inline bool odom_initialized() const { return odom_initialized_; }
+
  private:
   // Whether odometry has been initialized.
   bool odom_initialized_;

@@ -126,16 +126,26 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "navigation", ros::init_options::NoSigintHandler);
   ros::NodeHandle n;
   navigation_ = new Navigation(FLAGS_map, &n);
-  navigation_->SetTargetDisplacement(static_cast<float>(FLAGS_displacement));
 
   ros::Subscriber velocity_sub = n.subscribe(FLAGS_odom_topic, 1, &OdometryCallback);
   ros::Subscriber localization_sub = n.subscribe(FLAGS_loc_topic, 1, &LocalizationCallback);
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic, 1, &LaserCallback);
   ros::Subscriber goto_sub = n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
 
+  bool nav_target_set = false;
+
   RateLoop loop(navigation::kUpdateFrequency);
   while (run_ && ros::ok()) {
     ros::spinOnce();
+
+    if (navigation_->odom_initialized() && !nav_target_set) {
+      nav_target_set = true;
+      printf("[main]: odometry initialized\n");
+      navigation_->SetTargetDisplacement(static_cast<float>(FLAGS_displacement));
+      navigation_->SetNavGoal({0, 0}, 0);
+      printf("[main]: target displacement: %.2f\n", FLAGS_displacement);
+    }
+
     navigation_->Run();
     loop.Sleep();
   }
