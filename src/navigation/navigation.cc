@@ -20,6 +20,7 @@
 //========================================================================
 
 #include "navigation.h"
+#include <algorithm>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
@@ -108,7 +109,11 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 }
 
 void Navigation::Run() {
-  // This function gets called 20 times a second to form the control loop.
+  // This function gets called `kUpdateFreqency` times a second to form the control loop.
+
+  constexpr float kMaxSpeed = 1.0;
+  constexpr float kMaxAccel = 4.0;
+  constexpr float kMaxDecel = -4.0;
 
   // Clear previous visualizations.
   visualization::ClearVisualizationMsg(local_viz_msg_);
@@ -118,14 +123,55 @@ void Navigation::Run() {
   if (!odom_initialized_)
     return;
 
-  // The control iteration goes here.
-  // Feel free to make helper functions to structure the control appropriately.
+  if (nav_complete_) {
+    return;
+  }
+
+  const float target_displacement = (nav_goal_loc_ - nav_start_loc_).norm();
+  const float cur_displacement = (robot_loc_ - nav_start_loc_).norm();
+
+  printf("[Navigation::Run]: %.2f m / %.2f m @ %.2f m/s\n", cur_displacement, target_displacement,
+         robot_vel_.norm());
+
+  const float v_peak = sqrt((2 * target_displacement * kMaxAccel * fabsf(kMaxDecel)) /
+                            (kMaxAccel + fabsf(kMaxDecel)));
+
+  if (v_peak > kMaxSpeed) {
+    // case 1: there is enough distance for the car to reach its max speed
+
+    // The current displacement thresholds for each TOC stage.
+    const float stage_1_disp = kMaxSpeed * kMaxSpeed / (2 * kMaxAccel);
+    const float stage_2_disp =
+        target_displacement - (kMaxSpeed * kMaxSpeed / (2 * fabsf(kMaxDecel)));
+
+    if (robot_vel_.norm() < kMaxSpeed && cur_displacement < stage_1_disp) {
+      drive_msg_.velocity = std::min(kMaxSpeed, robot_vel_.norm() + kMaxAccel / kUpdateFrequency);
+    } else if (cur_displacement < stage_2_disp) {
+      // the car should be traveling at max velocity
+      // stay at max velocity
+    } else {
+      drive_msg_.velocity = std::max(0.0f, robot_vel_.norm() + kMaxDecel / kUpdateFrequency);
+
+      if (drive_msg_.velocity == 0) {
+        nav_complete_ = true;
+      }
+    }
+  } else {
+    // case 2: there is not enough distance for the car to reach its max speed
+    const float stage_1_disp = v_peak * v_peak / (2 * kMaxAccel);
+
+    if (robot_vel_.norm() < v_peak && cur_displacement < stage_1_disp) {
+      drive_msg_.velocity = std::min(v_peak, robot_vel_.norm() + kMaxAccel / kUpdateFrequency);
+    } else {
+      drive_msg_.velocity = std::max(0.0f, robot_vel_.norm() + kMaxDecel / kUpdateFrequency);
+
+      if (drive_msg_.velocity == 0) {
+        nav_complete_ = true;
+      }
+    }
+  }
 
   // The latest observed point cloud is accessible via "point_cloud_"
-
-  // Eventually, you will have to set the control values to issue drive commands:
-  // drive_msg_.curvature = ...;
-  // drive_msg_.velocity = ...;
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
