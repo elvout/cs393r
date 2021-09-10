@@ -62,6 +62,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       robot_vel_(0, 0),
       robot_omega_(0),
       nav_complete_(true),
+      nav_start_loc_(0, 0),
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0) {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
@@ -75,6 +76,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   nav_complete_ = false;
   nav_goal_loc_ = loc;
   nav_goal_angle_ = angle;
+  nav_start_loc_ = robot_loc_;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
