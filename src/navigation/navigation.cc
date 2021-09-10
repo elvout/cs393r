@@ -140,15 +140,12 @@ void Navigation::Run() {
     // case 1: there is enough distance for the car to reach its max speed
 
     // The current displacement thresholds for each TOC stage.
-    const float stage_1_disp = kMaxSpeed * kMaxSpeed / (2 * kMaxAccel);
     const float stage_2_disp =
         target_displacement - (kMaxSpeed * kMaxSpeed / (2 * fabsf(kMaxDecel)));
 
-    if (robot_vel_.norm() < kMaxSpeed && cur_displacement < stage_1_disp) {
-      drive_msg_.velocity = std::min(kMaxSpeed, robot_vel_.norm() + kMaxAccel / kUpdateFrequency);
-    } else if (cur_displacement < stage_2_disp) {
-      // the car should be traveling at max velocity
-      // stay at max velocity
+    if (cur_displacement < stage_2_disp) {
+      float cur_velocity = robot_vel_.norm();
+      drive_msg_.velocity = std::min(kMaxSpeed, cur_velocity + kMaxAccel / kUpdateFrequency);
     } else {
       drive_msg_.velocity = std::max(0.0f, robot_vel_.norm() + kMaxDecel / kUpdateFrequency);
 
