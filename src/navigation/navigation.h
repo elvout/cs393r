@@ -69,6 +69,9 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
+  // Set the Target Displacement for 1D TOC
+  void SetTargetDisplacement(const float target_displacement);
+
  private:
   // Whether odometry has been initialized.
   bool odom_initialized_;
@@ -99,6 +102,8 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+  // 1-D TOC target distance.
+  float target_displacement_;
   // 1-D TOC Planner
   toc::Plan_1D planner;
 };

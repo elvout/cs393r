@@ -65,6 +65,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       nav_complete_(true),
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0),
+      target_displacement_(0),
       planner() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -74,10 +75,13 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+  // 1-D TOC: for now ignore the specified loc and just reset the planner.
   nav_complete_ = false;
-  nav_goal_loc_ = loc;
-  nav_goal_angle_ = angle;
-  planner = toc::Plan_1D(robot_loc_, (loc - robot_loc_).norm());
+  planner = toc::Plan_1D(odom_loc_, target_displacement_);
+}
+
+void Navigation::SetTargetDisplacement(const float target_displacement) {
+  target_displacement_ = target_displacement;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -124,7 +128,7 @@ void Navigation::Run() {
   }
 
   const float target_displacement = planner.target_displacement();
-  const float cur_displacement = (robot_loc_ - planner.start_loc()).norm();
+  const float cur_displacement = (odom_loc_ - planner.start_loc()).norm();
   const float cur_velocity = robot_vel_.norm();
 
   printf("[Navigation::Run]: %.2f m / %.2f m @ %.2f m/s\n", cur_displacement, target_displacement,
