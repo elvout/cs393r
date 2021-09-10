@@ -77,7 +77,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   nav_complete_ = false;
   nav_goal_loc_ = loc;
   nav_goal_angle_ = angle;
-  planner = toc::Plan_1D(robot_loc_, loc);
+  planner = toc::Plan_1D(robot_loc_, (loc - robot_loc_).norm());
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {

@@ -9,7 +9,7 @@ class Plan_1D {
  public:
   Plan_1D() = default;
 
-  Plan_1D(const Eigen::Vector2f& start_loc, const Eigen::Vector2f& target_loc);
+  Plan_1D(const Eigen::Vector2f& start_loc, const float target_displacement);
 
   inline float target_displacement() const { return target_displacement_; }
   inline float peak_speed() const { return peak_speed_; }
