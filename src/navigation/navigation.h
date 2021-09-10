@@ -19,12 +19,13 @@
 */
 //========================================================================
 
+#ifndef NAVIGATION_H
+#define NAVIGATION_H
+
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
-
-#ifndef NAVIGATION_H
-#define NAVIGATION_H
+#include "navigation/toc.h"
 
 namespace ros {
 class NodeHandle;
@@ -94,12 +95,12 @@ class Navigation {
 
   // Whether navigation is complete.
   bool nav_complete_;
-  // Navigation start location.
-  Eigen::Vector2f nav_start_loc_;
   // Navigation goal location.
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+  // 1-D TOC Planner
+  toc::Plan_1D planner;
 };
 
 }  // namespace navigation

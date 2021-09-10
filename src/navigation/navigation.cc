@@ -63,9 +63,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       robot_vel_(0, 0),
       robot_omega_(0),
       nav_complete_(true),
-      nav_start_loc_(0, 0),
       nav_goal_loc_(0, 0),
-      nav_goal_angle_(0) {
+      nav_goal_angle_(0),
+      planner() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
   local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
@@ -77,7 +77,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
   nav_complete_ = false;
   nav_goal_loc_ = loc;
   nav_goal_angle_ = angle;
-  nav_start_loc_ = robot_loc_;
+  planner = toc::Plan_1D(robot_loc_, loc);
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
@@ -123,44 +123,21 @@ void Navigation::Run() {
     return;
   }
 
-  const float target_displacement = (nav_goal_loc_ - nav_start_loc_).norm();
-  const float cur_displacement = (robot_loc_ - nav_start_loc_).norm();
-
-  printf("[Navigation::Run]: %.2f m / %.2f m @ %.2f m/s\n", cur_displacement, target_displacement,
-         robot_vel_.norm());
-
-  const float v_peak = sqrt((2 * target_displacement * kMaxAccel * fabsf(kMaxDecel)) /
-                            (kMaxAccel + fabsf(kMaxDecel)));
+  const float target_displacement = planner.target_displacement();
+  const float cur_displacement = (robot_loc_ - planner.start_loc()).norm();
   const float cur_velocity = robot_vel_.norm();
 
-  if (v_peak > kMaxSpeed) {
-    // case 1: there is enough distance for the car to reach its max speed
+  printf("[Navigation::Run]: %.2f m / %.2f m @ %.2f m/s\n", cur_displacement, target_displacement,
+         cur_velocity);
 
-    // The current displacement thresholds for each TOC stage.
-    const float stage_2_disp =
-        target_displacement - (kMaxSpeed * kMaxSpeed / (2 * fabsf(kMaxDecel)));
-
-    if (cur_displacement < stage_2_disp) {
-      drive_msg_.velocity = std::min(kMaxSpeed, cur_velocity + kMaxAccel / kUpdateFrequency);
-    } else {
-      drive_msg_.velocity = std::max(0.0f, cur_velocity + kMaxDecel / kUpdateFrequency);
-
-      if (drive_msg_.velocity == 0) {
-        nav_complete_ = true;
-      }
-    }
+  if (cur_displacement < planner.decel_disp_threshold()) {
+    drive_msg_.velocity =
+        std::min(planner.peak_speed(), cur_velocity + kMaxAccel / kUpdateFrequency);
   } else {
-    // case 2: there is not enough distance for the car to reach its max speed
-    const float stage_1_disp = v_peak * v_peak / (2 * kMaxAccel);
+    drive_msg_.velocity = std::max(0.0f, cur_velocity + kMaxDecel / kUpdateFrequency);
 
-    if (cur_velocity < v_peak && cur_displacement < stage_1_disp) {
-      drive_msg_.velocity = std::min(v_peak, cur_velocity + kMaxAccel / kUpdateFrequency);
-    } else {
-      drive_msg_.velocity = std::max(0.0f, cur_velocity + kMaxDecel / kUpdateFrequency);
-
-      if (drive_msg_.velocity == 0) {
-        nav_complete_ = true;
-      }
+    if (drive_msg_.velocity == 0.0f) {
+      nav_complete_ = true;
     }
   }
 
