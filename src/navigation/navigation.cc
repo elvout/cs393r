@@ -111,10 +111,6 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 void Navigation::Run() {
   // This function gets called `kUpdateFreqency` times a second to form the control loop.
 
-  constexpr float kMaxSpeed = 1.0;
-  constexpr float kMaxAccel = 4.0;
-  constexpr float kMaxDecel = -4.0;
-
   // Clear previous visualizations.
   visualization::ClearVisualizationMsg(local_viz_msg_);
   visualization::ClearVisualizationMsg(global_viz_msg_);

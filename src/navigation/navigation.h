@@ -32,7 +32,10 @@ class NodeHandle;
 
 namespace navigation {
 
-constexpr float kUpdateFrequency = 20.0;
+constexpr float kUpdateFrequency = 20.0f;
+constexpr float kMaxSpeed = 1.0f;
+constexpr float kMaxAccel = 4.0f;
+constexpr float kMaxDecel = -4.0f;
 
 struct PathOption {
   float curvature;
