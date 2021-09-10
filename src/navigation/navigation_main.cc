@@ -66,6 +66,7 @@ DEFINE_string(odom_topic, "odom", "Name of ROS topic for odometry data");
 DEFINE_string(loc_topic, "localization", "Name of ROS topic for localization");
 DEFINE_string(init_topic, "initialpose", "Name of ROS topic for initialization");
 DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
+DEFINE_double(displacement, 0.0, "Target displacement.");
 
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
