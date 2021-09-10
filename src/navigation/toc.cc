@@ -6,8 +6,8 @@
 
 namespace navigation::toc {
 
-Plan_1D::Plan_1D(const Eigen::Vector2f kStartLoc, const Eigen::Vector2f kTargetLoc)
-    : start_loc_(kStartLoc), target_displacement_((kTargetLoc - kStartLoc).norm()) {
+Plan_1D::Plan_1D(const Eigen::Vector2f& start_loc, const Eigen::Vector2f& target_loc)
+    : start_loc_(start_loc), target_displacement_((target_loc - start_loc).norm()) {
   peak_speed_ = std::sqrt((2 * target_displacement_ * kMaxAccel * std::abs(kMaxDecel)) /
                           (kMaxAccel + std::abs(kMaxDecel)));
 
