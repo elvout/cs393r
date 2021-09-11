@@ -63,6 +63,8 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
+  inline bool odom_initialized() const { return odom_initialized_; }
+
  private:
   // Whether odometry has been initialized.
   bool odom_initialized_;
