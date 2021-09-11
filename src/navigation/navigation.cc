@@ -20,6 +20,7 @@
 //========================================================================
 
 #include "navigation.h"
+#include <cmath>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
@@ -72,6 +73,24 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
+
+/**
+ * Set the navigation goal based on displacement values in each
+ * axis of the odometry frame.
+ */
+void Navigation::SetNavGoal(const float x_displacement, const float y_displacement) {
+  // 2D counterclockwise rotation matrix
+  Eigen::Matrix2f Rot;
+  // clang-format off
+  Rot << std::cos(odom_angle_), -std::sin(odom_angle_),
+         std::sin(odom_angle_),  std::cos(odom_angle_);
+  // clang-format on
+
+  Eigen::Vector2f displacement = {x_displacement, y_displacement};
+  displacement = Rot * displacement;
+  nav_goal_loc_ = odom_loc_ + displacement;
+  nav_complete_ = false;
+}
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;

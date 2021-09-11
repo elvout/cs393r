@@ -63,6 +63,12 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
+  /**
+   * Set the navigation goal based on displacement values in each
+   * axis of the odometry frame.
+   */
+  void SetNavGoal(const float x_displacement, const float y_displacement);
+
   inline bool odom_initialized() const { return odom_initialized_; }
 
  private:
