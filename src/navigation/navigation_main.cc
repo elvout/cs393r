@@ -66,6 +66,8 @@ DEFINE_string(odom_topic, "odom", "Name of ROS topic for odometry data");
 DEFINE_string(loc_topic, "localization", "Name of ROS topic for localization");
 DEFINE_string(init_topic, "initialpose", "Name of ROS topic for initialization");
 DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
+DEFINE_double(x_displacement, 0.0, "Displacement along the x-axis.");
+DEFINE_double(y_displacement, 0.0, "Displacement along the y-axis.");
 
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
@@ -131,9 +133,18 @@ int main(int argc, char** argv) {
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic, 1, &LaserCallback);
   ros::Subscriber goto_sub = n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
 
+  bool nav_target_set = false;
+
   RateLoop loop(20.0);
   while (run_ && ros::ok()) {
     ros::spinOnce();
+
+    if (!nav_target_set && navigation_->odom_initialized()) {
+      navigation_->SetNavGoal(static_cast<float>(FLAGS_x_displacement),
+                              static_cast<float>(FLAGS_y_displacement));
+      nav_target_set = true;
+    }
+
     navigation_->Run();
     loop.Sleep();
   }
