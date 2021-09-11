@@ -121,7 +121,7 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 }
 
 void Navigation::Run() {
-  // This function gets called 20 times a second to form the control loop.
+  // This function gets called `kUpdateFrequency` times a second to form the control loop.
 
   // Clear previous visualizations.
   visualization::ClearVisualizationMsg(local_viz_msg_);

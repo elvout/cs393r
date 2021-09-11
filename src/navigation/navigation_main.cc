@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
 
   bool nav_target_set = false;
 
-  RateLoop loop(20.0);
+  RateLoop loop(navigation::kUpdateFrequency);
   while (run_ && ros::ok()) {
     ros::spinOnce();
 
