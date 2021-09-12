@@ -81,6 +81,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
  */
 void Navigation::SetNavDisplacement(const float dx, const float dy) {
   nav_goal_disp_ = {dx, dy};
+  nav_curvature_ = 2 * dy / (Sq(dx) + Sq(dy));
   last_odom_pose_.Set(odom_angle_, odom_loc_);
   nav_complete_ = false;
 }
@@ -137,12 +138,18 @@ void Navigation::Run() {
   nav_goal_disp_ -= corrected_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp).toRotationMatrix() * nav_goal_disp_;
 
-  float curvature = 2 * nav_goal_disp_.y() / (nav_goal_disp_.dot(nav_goal_disp_));
+  // float curvature = 2 * nav_goal_disp_.y() / (nav_goal_disp_.dot(nav_goal_disp_));
   // TODO: edge case: curvature = 0
 
-  float remaining_angular_disp = 2 * std::asin(curvature * nav_goal_disp_.norm() / 2);
+  float remaining_angular_disp = 2 * std::asin(nav_curvature_ * nav_goal_disp_.norm() / 2);
   // arc length
-  float remaining_distance = remaining_angular_disp / curvature;
+  float remaining_distance = remaining_angular_disp / nav_curvature_;
+
+  // subtract the arc length of each previous command
+  // assumes curvature stays constant
+  for (const auto& msg : drive_msg_hist_) {
+    remaining_distance -= msg.velocity / kUpdateFrequency;
+  }
 
   printf("[Navigation::Run]\n");
   printf("\todom loc: [%.2f, %.2f]\n", odom_loc_.x(), odom_loc_.y());
@@ -151,22 +158,37 @@ void Navigation::Run() {
   printf("\tinstantaneous displacement (corrected): [%.4f, %.4f]\n", corrected_disp.x(),
          corrected_disp.y());
   printf("\tinstantaneous angular difference: %.2fº\n", RadToDeg(inst_angular_disp));
-  printf("\tcurvature: %.2f\n", curvature);
-  printf("\tturning radius: %.2f\n", 1 / curvature);
+  printf("\tcurvature: %.2f\n", nav_curvature_);
+  printf("\tturning radius: %.2f\n", 1 / nav_curvature_);
   printf("\tremaining displacement: [%.2f, %.2f]\n", nav_goal_disp_.x(), nav_goal_disp_.y());
   printf("\tremaining angular displacement: %.2fº\n", RadToDeg(remaining_angular_disp));
   printf("\tremaining arc length: %.2f\n", remaining_distance);
 
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
-  const float cur_speed = robot_vel_.norm();
+  // const float cur_speed = robot_vel_.norm();
+  float cur_speed;
+  if (drive_msg_hist_.empty()) {
+    cur_speed = robot_vel_.norm();
+  } else {
+    cur_speed = drive_msg_hist_.back().velocity;
+  }
   if (remaining_distance <= braking_distance) {
     drive_msg_.velocity = std::max(0.0f, cur_speed + kMaxDecel / kUpdateFrequency);
+
+    if (drive_msg_.velocity == 0.0f) {
+      nav_complete_ = true;
+    }
   } else {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
-  drive_msg_.curvature = curvature;
+  drive_msg_.curvature = nav_curvature_;
 
   last_odom_pose_.Set(odom_angle_, odom_loc_);
+
+  drive_msg_hist_.emplace_back(drive_msg_);
+  if (drive_msg_hist_.size() > kControlHistorySize) {
+    drive_msg_hist_.pop_front();
+  }
 
   // The latest observed point cloud is accessible via "point_cloud_"
 

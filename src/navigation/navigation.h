@@ -19,8 +19,10 @@
 */
 //========================================================================
 
+#include <deque>
 #include <vector>
 
+#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "eigen3/Eigen/Dense"
 #include "shared/math/poses_2d.h"
 
@@ -33,12 +35,15 @@ class NodeHandle;
 
 namespace navigation {
 
-constexpr float kUpdateFrequency = 20.0f;
+constexpr float kUpdateFrequency = 20.0f;  // 1 / s
 
 // dynamic constraints
-constexpr float kMaxSpeed = 1.0f;
-constexpr float kMaxAccel = 4.0f;
-constexpr float kMaxDecel = -4.0f;
+constexpr float kMaxSpeed = 1.0f;   // m / s
+constexpr float kMaxAccel = 4.0f;   // m / s^2
+constexpr float kMaxDecel = -4.0f;  // m / s^2
+
+constexpr float kActuationLatency = 0.2f;  // s
+constexpr float kControlHistorySize = kActuationLatency * kUpdateFrequency;
 
 struct PathOption {
   float curvature;
@@ -110,8 +115,12 @@ class Navigation {
   float nav_goal_angle_;
   // Navigation goal remaining displacement.
   Eigen::Vector2f nav_goal_disp_;
+  // Navigation constant curvature
+  float nav_curvature_;
   // Odometry pose from the last Run() invocation.
   pose_2d::Pose2Df last_odom_pose_;
+  // Drive Message History
+  std::deque<amrl_msgs::AckermannCurvatureDriveMsg> drive_msg_hist_;
 };
 
 }  // namespace navigation
