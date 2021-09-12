@@ -3,3 +3,7 @@ build
 bin
 lib
 data
+
+# clangd files
+.cache/
+compile_flags.txt
