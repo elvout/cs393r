@@ -65,7 +65,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       nav_complete_(true),
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0),
-      nav_goal_disp_(0, 0) {
+      nav_goal_disp_(0, 0),
+      last_odom_pose_() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
   local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
@@ -80,6 +81,7 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
  */
 void Navigation::SetNavDisplacement(const float dx, const float dy) {
   nav_goal_disp_ = {dx, dy};
+  last_odom_pose_.Set(odom_angle_, odom_loc_);
   nav_complete_ = false;
 }
 

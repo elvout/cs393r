@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
+#include "shared/math/poses_2d.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -109,6 +110,8 @@ class Navigation {
   float nav_goal_angle_;
   // Navigation goal remaining displacement.
   Eigen::Vector2f nav_goal_disp_;
+  // Odometry pose from the last Run() invocation.
+  pose_2d::Pose2Df last_odom_pose_;
 };
 
 }  // namespace navigation
