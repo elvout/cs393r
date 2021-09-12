@@ -66,7 +66,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0),
       target_displacement_(0),
-      planner() {
+      planner(),
+      drive_msg_hist_() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
   local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
@@ -128,21 +129,41 @@ void Navigation::Run() {
   }
 
   const float target_displacement = planner.target_displacement();
-  const float cur_displacement = (odom_loc_ - planner.start_loc()).norm();
-  const float cur_velocity = robot_vel_.norm();
+  float cur_displacement = (odom_loc_ - planner.start_loc()).norm();
+
+  // we're moving in a straight line, so for now directly modify the displacement
+  // instead of transforming the odometry location
+  for (const auto& msg : drive_msg_hist_) {
+    cur_displacement += msg.velocity / kUpdateFrequency;
+  }
+
+  // const float cur_velocity = robot_vel_.norm();
+  float last_velocity;
+  if (drive_msg_hist_.empty()) {
+    last_velocity = robot_vel_.norm();
+  } else {
+    last_velocity = drive_msg_hist_.back().velocity;
+  }
 
   printf("[Navigation::Run]: %.2f m / %.2f m @ %.2f m/s\n", cur_displacement, target_displacement,
-         cur_velocity);
+         last_velocity);
 
   if (cur_displacement < planner.decel_disp_threshold()) {
     drive_msg_.velocity =
-        std::min(planner.peak_speed(), cur_velocity + kMaxAccel / kUpdateFrequency);
+        std::min(planner.peak_speed(), last_velocity + kMaxAccel / kUpdateFrequency);
   } else {
-    drive_msg_.velocity = std::max(0.0f, cur_velocity + kMaxDecel / kUpdateFrequency);
+    drive_msg_.velocity = std::max(0.0f, last_velocity + kMaxDecel / kUpdateFrequency);
 
     if (drive_msg_.velocity == 0.0f) {
       nav_complete_ = true;
     }
+  }
+
+  printf("[Navigation::Run]: \tDrive Msg: <v = %.2f>\n", drive_msg_.velocity);
+
+  drive_msg_hist_.emplace_back(drive_msg_);
+  if (drive_msg_hist_.size() > kControlHistorySize) {
+    drive_msg_hist_.pop_front();
   }
 
   // The latest observed point cloud is accessible via "point_cloud_"

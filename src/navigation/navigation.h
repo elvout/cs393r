@@ -22,8 +22,10 @@
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
 
+#include <deque>
 #include <vector>
 
+#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "eigen3/Eigen/Dense"
 #include "navigation/toc.h"
 
@@ -33,10 +35,13 @@ class NodeHandle;
 
 namespace navigation {
 
-constexpr float kUpdateFrequency = 20.0f;
-constexpr float kMaxSpeed = 1.0f;
-constexpr float kMaxAccel = 4.0f;
-constexpr float kMaxDecel = -4.0f;
+constexpr float kUpdateFrequency = 20.0f;  // 1 / s
+constexpr float kMaxSpeed = 1.0f;          // m / s
+constexpr float kMaxAccel = 4.0f;          // m / s^2
+constexpr float kMaxDecel = -4.0f;         // m / s^2
+
+constexpr float kActuationLatency = 0.3f;  // s
+constexpr float kControlHistorySize = kActuationLatency * kUpdateFrequency;
 
 struct PathOption {
   float curvature;
@@ -108,6 +113,8 @@ class Navigation {
   float target_displacement_;
   // 1-D TOC Planner
   toc::Plan_1D planner;
+  // Drive Message History
+  std::deque<amrl_msgs::AckermannCurvatureDriveMsg> drive_msg_hist_;
 };
 
 }  // namespace navigation
