@@ -124,14 +124,51 @@ void Navigation::Run() {
   if (!odom_initialized_)
     return;
 
-  // The control iteration goes here.
-  // Feel free to make helper functions to structure the control appropriately.
+  if (nav_complete_) {
+    return;
+  }
+
+  // Update the remaining displacement.
+  // Eigen::Vector2f inst_disp = Eigen::Rotation2Df(odom_angle_).toRotationMatrix() * odom_loc_ -
+  //   Eigen::Rotation2Df(last_odom_pose_.angle).toRotationMatrix() * last_odom_pose_.translation;
+  Eigen::Vector2f inst_disp = odom_loc_ - last_odom_pose_.translation;
+  Eigen::Vector2f corrected_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * inst_disp;
+  float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
+  nav_goal_disp_ -= corrected_disp;
+  nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp).toRotationMatrix() * nav_goal_disp_;
+
+  float curvature = 2 * nav_goal_disp_.y() / (nav_goal_disp_.dot(nav_goal_disp_));
+  // TODO: edge case: curvature = 0
+
+  float remaining_angular_disp = 2 * std::asin(curvature * nav_goal_disp_.norm() / 2);
+  // arc length
+  float remaining_distance = remaining_angular_disp / curvature;
+
+  printf("[Navigation::Run]\n");
+  printf("\todom loc: [%.2f, %.2f]\n", odom_loc_.x(), odom_loc_.y());
+  printf("\theading: %.2fº\n", RadToDeg(odom_angle_));
+  printf("\tinstantaneous displacement: [%.4f, %.4f]\n", inst_disp.x(), inst_disp.y());
+  printf("\tinstantaneous displacement (corrected): [%.4f, %.4f]\n", corrected_disp.x(),
+         corrected_disp.y());
+  printf("\tinstantaneous angular difference: %.2fº\n", RadToDeg(inst_angular_disp));
+  printf("\tcurvature: %.2f\n", curvature);
+  printf("\tturning radius: %.2f\n", 1 / curvature);
+  printf("\tremaining displacement: [%.2f, %.2f]\n", nav_goal_disp_.x(), nav_goal_disp_.y());
+  printf("\tremaining angular displacement: %.2fº\n", RadToDeg(remaining_angular_disp));
+  printf("\tremaining arc length: %.2f\n", remaining_distance);
+
+  const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
+  const float cur_speed = robot_vel_.norm();
+  if (remaining_distance <= braking_distance) {
+    drive_msg_.velocity = std::max(0.0f, cur_speed + kMaxDecel / kUpdateFrequency);
+  } else {
+    drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
+  }
+  drive_msg_.curvature = curvature;
+
+  last_odom_pose_.Set(odom_angle_, odom_loc_);
 
   // The latest observed point cloud is accessible via "point_cloud_"
-
-  // Eventually, you will have to set the control values to issue drive commands:
-  // drive_msg_.curvature = ...;
-  // drive_msg_.velocity = ...;
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
