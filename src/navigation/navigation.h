@@ -71,10 +71,9 @@ class Navigation {
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
   /**
-   * Set the navigation goal based on displacement values in each
-   * axis of the odometry frame.
+   * Set the remaining displacement for navigation.
    */
-  void SetNavGoal(const float x_displacement, const float y_displacement);
+  void SetNavDisplacement(const float dx, const float dy);
 
   inline bool odom_initialized() const { return odom_initialized_; }
 
@@ -108,6 +107,8 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+  // Navigation goal remaining displacement.
+  Eigen::Vector2f nav_goal_disp_;
 };
 
 }  // namespace navigation

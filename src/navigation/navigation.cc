@@ -64,7 +64,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       robot_omega_(0),
       nav_complete_(true),
       nav_goal_loc_(0, 0),
-      nav_goal_angle_(0) {
+      nav_goal_angle_(0),
+      nav_goal_disp_(0, 0) {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
   local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
@@ -75,20 +76,10 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
 
 /**
- * Set the navigation goal based on displacement values in each
- * axis of the odometry frame.
+ * Set the remaining displacement for navigation.
  */
-void Navigation::SetNavGoal(const float x_displacement, const float y_displacement) {
-  // 2D counterclockwise rotation matrix
-  Eigen::Matrix2f Rot;
-  // clang-format off
-  Rot << std::cos(odom_angle_), -std::sin(odom_angle_),
-         std::sin(odom_angle_),  std::cos(odom_angle_);
-  // clang-format on
-
-  Eigen::Vector2f displacement = {x_displacement, y_displacement};
-  displacement = Rot * displacement;
-  nav_goal_loc_ = odom_loc_ + displacement;
+void Navigation::SetNavDisplacement(const float dx, const float dy) {
+  nav_goal_disp_ = {dx, dy};
   nav_complete_ = false;
 }
 
