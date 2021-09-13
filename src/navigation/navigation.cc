@@ -143,6 +143,9 @@ float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> po
   // This function, given a turning radius and an arbitrary point cloud,
   // returns the maximum distance travelable on an arc with the current positioning of the cart
 
+
+// #define DEBUG_OD 1
+
   Eigen::Vector2f turning_point_local(0, r);
 #ifdef DEBUG_OD
   visualization::DrawCross(turning_point_local, .1, 2, local_viz_msg_);
@@ -310,9 +313,6 @@ void Navigation::Run() {
   if (drive_msg_hist_.size() > kControlHistorySize) {
     drive_msg_hist_.pop_front();
   }
-
-  std::vector<Eigen::Vector2f> samplepoint = {Eigen::Vector2f(5, 5) + this->robot_loc_};
-  maxDistanceTravelable(5, samplepoint);
 
   // The latest observed point cloud is accessible via "point_cloud_"
 
