@@ -144,9 +144,10 @@ float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> po
   // returns the maximum distance travelable on an arc with the current positioning of the cart
 
   Eigen::Vector2f turning_point_local(0, r);
+#ifdef DEBUG_OD
   visualization::DrawCross(turning_point_local, .1, 2, local_viz_msg_);
-
-  visualization::DrawCross(turning_point_local, .3, 2, local_viz_msg_);
+  visualization::DrawCross(this->robot_loc_, .3, 2, local_viz_msg_);
+#endif
 
   // TODO: Get accurate measurements
   // TODO: Also add MOE?
@@ -159,18 +160,22 @@ float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> po
   Eigen::Vector2f side_west_vector_local(-base_to_front, base_to_side);
   Eigen::Vector2f side_east_vector_local(base_to_front, base_to_side);
 
+#ifdef DEBUG_OD
   visualization::DrawLine(side_west_vector_local, side_east_vector_local, 5, local_viz_msg_);
   visualization::DrawLine(front_south_vector_local, front_north_vector_local, 5, local_viz_msg_);
+#endif
 
   float front_north_radius = (turning_point_local - front_north_vector_local).norm();
   float front_south_radius = (turning_point_local - front_south_vector_local).norm();
   float side_west_radius = (turning_point_local - side_west_vector_local).norm();
   float side_east_radius = (turning_point_local - side_east_vector_local).norm();
 
+#ifdef DEBUG_OD
   visualization::DrawArc(turning_point_local, front_north_radius, 0, 2 * M_PI, 1, local_viz_msg_);
   visualization::DrawArc(turning_point_local, front_south_radius, 0, 2 * M_PI, 1, local_viz_msg_);
   visualization::DrawArc(turning_point_local, side_west_radius, 0, 2 * M_PI, 1, local_viz_msg_);
   visualization::DrawArc(turning_point_local, side_east_radius, 0, 2 * M_PI, 1, local_viz_msg_);
+#endif
 
   for (auto point : point_cloud_) {
     auto point_local = globalToLocal(point);
@@ -195,10 +200,13 @@ float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> po
 
       float alpha = collision_angle_total - beta;
 
+#ifdef DEBUG_OD
       visualization::DrawArc(turning_point_local, side_west_radius * .5, -M_PI / 2,
                              -M_PI / 2 + collision_angle_total, 6, local_viz_msg_);
       visualization::DrawArc(turning_point_local, side_west_radius * .4, -M_PI / 2,
                              -M_PI / 2 + alpha, 6, local_viz_msg_);
+#endif
+
       std::cout << "here " << beta;
       return alpha;
     }
