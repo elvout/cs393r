@@ -84,7 +84,8 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   vector<Vector2f> point_cloud_;
 
   float angle = msg.angle_min;
-  for (float r : msg.ranges){
+  for (size_t i = 0; i < msg.ranges.size(); i++, angle += msg.angle_increment) {
+    const float r = msg.ranges[i];
     if (r < msg.range_min || r > msg.range_max) {
       continue;
     }
@@ -92,14 +93,11 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     Vector2f point(r * std::cos(angle), r * std::sin(angle));
     point += kLaserLoc;
     point_cloud_.push_back(point);
-    
-    angle += msg.angle_increment;
   }
 
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 }
-
 
 void OdometryCallback(const nav_msgs::Odometry& msg) {
   if (FLAGS_v > 0) {
