@@ -81,11 +81,25 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // Location of the laser on the robot. Assumes the laser is forward-facing.
   const Vector2f kLaserLoc(0.2, 0);
 
-  static vector<Vector2f> point_cloud_;
-  // TODO Convert the LaserScan to a point cloud
+  vector<Vector2f> point_cloud_;
+
+  float angle = msg.angle_min;
+  for (float r : msg.ranges){
+    if (r < msg.range_min || r > msg.range_max) {
+      continue;
+    }
+
+    Vector2f point(r * std::cos(angle), r * std::sin(angle));
+    point += kLaserLoc;
+    point_cloud_.push_back(point);
+    
+    angle += msg.angle_increment;
+  }
+
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 }
+
 
 void OdometryCallback(const nav_msgs::Odometry& msg) {
   if (FLAGS_v > 0) {
