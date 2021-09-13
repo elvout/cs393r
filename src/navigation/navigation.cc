@@ -270,6 +270,20 @@ void Navigation::Run() {
   // assumes curvature stays constant
   for (const auto& msg : drive_msg_hist_) {
     remaining_distance -= msg.velocity / kUpdateFrequency;
+
+    // TODO: generalize this for multiple curvatures
+    // need to store variable curvature as part of previous states
+
+    // TODO: handle curvature = 0
+    float turning_radius = 1 / nav_curvature_;
+    float subtended_angle = (msg.velocity / kUpdateFrequency) / turning_radius;
+    for (auto& point : point_cloud_) {
+      float dx = turning_radius * std::sin(subtended_angle);
+      float dy = turning_radius - turning_radius * std::cos(subtended_angle);
+
+      point.x() -= dx;
+      point.y() -= dy;
+    }
   }
 
   printf("[Navigation::Run]\n");
