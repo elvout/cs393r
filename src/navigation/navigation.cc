@@ -143,8 +143,7 @@ float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> po
   // This function, given a turning radius and an arbitrary point cloud,
   // returns the maximum distance travelable on an arc with the current positioning of the cart
 
-
-// #define DEBUG_OD 1
+  // #define DEBUG_OD 1
 
   Eigen::Vector2f turning_point_local(0, r);
 #ifdef DEBUG_OD
@@ -152,10 +151,8 @@ float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> po
   visualization::DrawCross(this->robot_loc_, .3, 2, local_viz_msg_);
 #endif
 
-  // TODO: Get accurate measurements
-  // TODO: Also add MOE?
-  float base_to_front = .5;
-  float base_to_side = .3;
+  float base_to_front = .42 * 1.25;
+  float base_to_side = .14 * 1.25;
 
   // Using cardinal directions in car reference frame
   Eigen::Vector2f front_north_vector_local(base_to_front, base_to_side);
