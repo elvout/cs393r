@@ -114,6 +114,117 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
   point_cloud_ = cloud;
 }
 
+Eigen::Vector2f Navigation::localToGlobal(Eigen::Vector2f local) {
+  Eigen::Rotation2Df rot(robot_angle_);
+  Eigen::Vector2f rotated = rot * local;
+
+  return rotated + this->robot_loc_;
+}
+
+Eigen::Vector2f Navigation::globalToLocal(Eigen::Vector2f global) {
+  Eigen::Rotation2Df rot(-1 * robot_angle_);
+  return rot * (global - this->robot_loc_);
+}
+
+float angleAlongTurningPoint(Eigen::Vector2f a, Eigen::Vector2f turning_point_local) {
+  // Unit circle typaclly starts at 1, 0 but ours starts at 0, -1
+  auto norm = (a - turning_point_local).normalized();
+  Eigen::Rotation2Df rot(M_PI / 2);
+  norm = rot * norm;
+  int s = Sign(norm.y());
+  auto angle = acos(norm.x());
+  if (s == -1) {
+    angle = 2 * M_PI - angle;
+  }
+  return angle;
+}
+
+float Navigation::maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> point_cloud_) {
+  // This function, given a turning radius and an arbitrary point cloud,
+  // returns the maximum distance travelable on an arc with the current positioning of the cart
+
+  Eigen::Vector2f turning_point_local(0, r);
+  visualization::DrawCross(turning_point_local, .1, 2, local_viz_msg_);
+
+  visualization::DrawCross(turning_point_local, .3, 2, local_viz_msg_);
+
+  // TODO: Get accurate measurements
+  // TODO: Also add MOE?
+  float base_to_front = .5;
+  float base_to_side = .3;
+
+  // Using cardinal directions in car reference frame
+  Eigen::Vector2f front_north_vector_local(base_to_front, base_to_side);
+  Eigen::Vector2f front_south_vector_local(base_to_front, -base_to_side);
+  Eigen::Vector2f side_west_vector_local(-base_to_front, base_to_side);
+  Eigen::Vector2f side_east_vector_local(base_to_front, base_to_side);
+
+  visualization::DrawLine(side_west_vector_local, side_east_vector_local, 5, local_viz_msg_);
+  visualization::DrawLine(front_south_vector_local, front_north_vector_local, 5, local_viz_msg_);
+
+  float front_north_radius = (turning_point_local - front_north_vector_local).norm();
+  float front_south_radius = (turning_point_local - front_south_vector_local).norm();
+  float side_west_radius = (turning_point_local - side_west_vector_local).norm();
+  float side_east_radius = (turning_point_local - side_east_vector_local).norm();
+
+  visualization::DrawArc(turning_point_local, front_north_radius, 0, 2 * M_PI, 1, local_viz_msg_);
+  visualization::DrawArc(turning_point_local, front_south_radius, 0, 2 * M_PI, 1, local_viz_msg_);
+  visualization::DrawArc(turning_point_local, side_west_radius, 0, 2 * M_PI, 1, local_viz_msg_);
+  visualization::DrawArc(turning_point_local, side_east_radius, 0, 2 * M_PI, 1, local_viz_msg_);
+
+  for (auto point : point_cloud_) {
+    auto point_local = globalToLocal(point);
+
+    visualization::DrawCross(point_local, .3, 4, local_viz_msg_);
+
+    float point_radius = (turning_point_local - point_local).norm();
+
+    // Front hit case
+    bool front_collision = front_north_radius < point_radius && point_radius < front_south_radius;
+
+    if (front_collision) {
+      float collision_angle_total = angleAlongTurningPoint(point_local, turning_point_local);
+
+      // From brainstorm scan
+      float d = (turning_point_local - point_local).norm();
+      float p = (d - front_north_radius) / (front_south_radius - front_north_radius);
+
+      Eigen::Vector2f approx_hit_point_on_car(base_to_front, -base_to_side + 2 * base_to_side * p);
+      // TODO: Remove buggy anglenorm?
+      float beta = angleAlongTurningPoint(approx_hit_point_on_car, turning_point_local);
+
+      float alpha = collision_angle_total - beta;
+
+      visualization::DrawArc(turning_point_local, side_west_radius * .5, -M_PI / 2,
+                             -M_PI / 2 + collision_angle_total, 6, local_viz_msg_);
+      visualization::DrawArc(turning_point_local, side_west_radius * .4, -M_PI / 2,
+                             -M_PI / 2 + alpha, 6, local_viz_msg_);
+      std::cout << "here " << beta;
+      return alpha;
+    }
+
+    // Side hit case
+    bool side_collision = side_west_radius < point_radius && point_radius < side_east_radius;
+    if (side_collision) {
+      float collision_angle_total = angleAlongTurningPoint(point_local, turning_point_local);
+
+      // From brainstorm scan
+      // float d = (turning_point_local - point_local).norm();
+      // float p = (d - side_west_radius) / (side_east_radius - side_west_radius);
+
+      // TODO: Change from having anchor point in center of car
+      // TODO: Remove big approvimation
+      Eigen::Vector2f approx_hit_point_on_car(base_to_front, base_to_side);
+      float beta = angleAlongTurningPoint(approx_hit_point_on_car, turning_point_local);
+
+      float alpha = collision_angle_total - beta;
+      return alpha;
+    }
+  }
+
+  return 2 * M_PI;
+}
+
 void Navigation::Run() {
   // This function gets called `kUpdateFrequency` times a second to form the control loop.
 
@@ -189,6 +300,9 @@ void Navigation::Run() {
   if (drive_msg_hist_.size() > kControlHistorySize) {
     drive_msg_hist_.pop_front();
   }
+
+  std::vector<Eigen::Vector2f> samplepoint = {Eigen::Vector2f(5, 5) + this->robot_loc_};
+  maxDistanceTravelable(5, samplepoint);
 
   // The latest observed point cloud is accessible via "point_cloud_"
 

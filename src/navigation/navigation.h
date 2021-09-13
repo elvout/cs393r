@@ -76,6 +76,11 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
+  float maxDistanceTravelable(float c, std::vector<Eigen::Vector2f> point_cloud_);
+
+  Eigen::Vector2f localToGlobal(Eigen::Vector2f local);
+  Eigen::Vector2f globalToLocal(Eigen::Vector2f global);
+
   /**
    * Set the remaining displacement for navigation.
    */
