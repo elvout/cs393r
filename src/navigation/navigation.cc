@@ -257,12 +257,14 @@ void Navigation::Run() {
   nav_goal_disp_ -= corrected_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp).toRotationMatrix() * nav_goal_disp_;
 
-  // float curvature = 2 * nav_goal_disp_.y() / (nav_goal_disp_.dot(nav_goal_disp_));
-  // TODO: edge case: curvature = 0
-
   float remaining_angular_disp = 2 * std::asin(nav_curvature_ * nav_goal_disp_.norm() / 2);
   // arc length
-  float remaining_distance = remaining_angular_disp / nav_curvature_;
+  float remaining_distance;
+  if (std::abs(nav_curvature_) < kEpsilon) {
+    remaining_distance = nav_goal_disp_.norm();
+  } else {
+    remaining_distance = remaining_angular_disp / nav_curvature_;
+  }
 
   // subtract the arc length of each previous command
   // assumes curvature stays constant
