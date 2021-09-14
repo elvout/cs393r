@@ -308,32 +308,34 @@ void Navigation::Run() {
   nav_goal_disp_ -= corrected_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp).toRotationMatrix() * nav_goal_disp_;
 
-  // float curvature = 2 * nav_goal_disp_.y() / (nav_goal_disp_.dot(nav_goal_disp_));
-  // TODO: edge case: curvature = 0
-
-  float remaining_angular_disp = 2 * std::asin(nav_curvature_ * nav_goal_disp_.norm() / 2);
-  // arc length
-  float remaining_distance = remaining_angular_disp / nav_curvature_;
-
   // subtract the arc length of each previous command
-  // assumes curvature stays constant
+  Vector2f predicted_nav_goal_disp = nav_goal_disp_;
   for (const auto& msg : drive_msg_hist_) {
-    remaining_distance -= msg.velocity / kUpdateFrequency;
-
-    // TODO: generalize this for multiple curvatures
-    // need to store variable curvature as part of previous states
-
     // TODO: handle curvature = 0
-    float turning_radius = 1 / nav_curvature_;
+    float turning_radius = 1 / msg.curvature;
     float subtended_angle = (msg.velocity / kUpdateFrequency) / turning_radius;
-    for (auto& point : point_cloud_) {
-      float dx = turning_radius * std::sin(subtended_angle);
-      float dy = turning_radius - turning_radius * std::cos(subtended_angle);
+    Eigen::Rotation2Df rot(-subtended_angle);
 
+    float dx = turning_radius * std::sin(subtended_angle);
+    float dy = turning_radius - turning_radius * std::cos(subtended_angle);
+    Vector2f disp_vec(dx, dy);
+
+    predicted_nav_goal_disp -= disp_vec;
+    predicted_nav_goal_disp = rot * predicted_nav_goal_disp;
+
+    for (auto& point : point_cloud_) {
       point.x() -= dx;
       point.y() -= dy;
+
+      point = rot * point;
     }
   }
+
+  // TODO: use optimal curvature choice to to calculate remaining distance
+  float remaining_angular_disp =
+      2 * std::asin(nav_curvature_ * predicted_nav_goal_disp.norm() / 2);
+  // arc length
+  float remaining_distance = remaining_angular_disp / nav_curvature_;
 
   printf("[Navigation::Run]\n");
   printf("\todom loc: [%.2f, %.2f]\n", odom_loc_.x(), odom_loc_.y());
@@ -365,6 +367,7 @@ void Navigation::Run() {
   } else {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
+  // TODO: use the optimal-path curvature
   drive_msg_.curvature = nav_curvature_;
 
   last_odom_pose_.Set(odom_angle_, odom_loc_);
