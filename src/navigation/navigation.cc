@@ -115,25 +115,16 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
   point_cloud_ = cloud;
 }
 
-float angleAlongTurningPoint(Eigen::Vector2f a, float r) {
-  // Do everything in the positive domain. If we have a negative turning radius, since we only care
-  // about angular displacement, we can just translate that point such that it's a positive radius
-  Eigen::Vector2f turning_point_local(0, abs(r));
+float angleAlongTurningPoint(const Eigen::Vector2f& base_to_target, const float r) {
+  Vector2f base_to_center(0, r);
+  Vector2f center_to_base(0, -r);
 
-  if (r < 0) {
-    a.y() *= -1;
-  }
+  Vector2f center_to_target = base_to_target - base_to_center;
 
-  // Unit circle typaclly starts at 1, 0 but ours starts at 0, -1
-  auto norm = (a - turning_point_local).normalized();
-  Eigen::Rotation2Df rot(M_PI / 2);
-  norm = rot * norm;
-  auto angle = acos(norm.x());
-  // Count for the negative R case by flipping the sign logic
-  if (norm.y() < 0) {
-    angle = 2 * M_PI - angle;
-  }
-  return angle;
+  // generalize for angles greater than 180º
+
+  return std::acos((center_to_base.dot(center_to_target)) /
+                   (center_to_base.norm() * center_to_target.norm()));
 }
 
 void Navigation::maxDistanceTravelable(float r,
