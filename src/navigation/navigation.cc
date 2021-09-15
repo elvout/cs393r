@@ -255,7 +255,7 @@ void Navigation::maxDistanceTravelable(float r,
   float closest_angle_to_target = std::min(min_alpha, max_angle_should_travel);
   path_option.closest_angle_to_target = closest_angle_to_target;
   path_option.closest_point =
-      Eigen::Vector2f(r * cos(closest_angle_to_target), r * sin(closest_angle_to_target));
+      Eigen::Vector2f(r * sin(closest_angle_to_target), r - r * cos(closest_angle_to_target));
   path_option.obstruction = min_alpha_point;
 }
 
