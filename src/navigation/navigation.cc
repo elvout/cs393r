@@ -351,15 +351,8 @@ void Navigation::Run() {
   nav_goal_disp_ -= reference_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
 
-  // TODO: use optimal curvature choice to to calculate remaining distance
-  float remaining_angular_disp, remaining_distance;
-  if (nav_curvature_ == 0) {
-    remaining_angular_disp = 0;
-    remaining_distance = predicted_nav_goal_disp.norm();
-  } else {
-    remaining_angular_disp = 2 * std::asin(nav_curvature_ * predicted_nav_goal_disp.norm() / 2);
-    remaining_distance = remaining_angular_disp / nav_curvature_;
-  }
+  assert(minDistPathOption.curvature != 0.0f);
+  float remaining_distance = minDistPathOption.alpha_collision / minDistPathOption.curvature;
 
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
   float cur_speed;
@@ -377,8 +370,7 @@ void Navigation::Run() {
   } else {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
-  // TODO: use the optimal-path curvature
-  drive_msg_.curvature = nav_curvature_;
+  drive_msg_.curvature = minDistPathOption.curvature;
 
   last_odom_pose_.Set(odom_angle_, odom_loc_);
 
@@ -397,7 +389,6 @@ void Navigation::Run() {
   printf("\tcommand speed: %.2f\n", drive_msg_.velocity);
   printf("\tremaining displacement: [%.2f, %.2f]\n", predicted_nav_goal_disp.x(),
          predicted_nav_goal_disp.y());
-  printf("\tremaining angular displacement: %.2fº\n", RadToDeg(remaining_angular_disp));
   printf("\tremaining arc length: %.2f\n", remaining_distance);
 
   // Add timestamps to all messages.
