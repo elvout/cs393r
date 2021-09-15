@@ -243,8 +243,11 @@ void Navigation::maxDistanceTravelable(float r,
   path_option.alpha_collision = min_alpha;
   float closest_angle_to_target = std::min(min_alpha, max_angle_should_travel);
   path_option.closest_angle_to_target = closest_angle_to_target;
-  path_option.closest_point =
-      Eigen::Vector2f(r * sin(closest_angle_to_target), r - r * cos(closest_angle_to_target));
+  path_option.closest_point = Eigen::Vector2f(std::abs(r) * sin(closest_angle_to_target),
+                                              r - r * cos(closest_angle_to_target));
+
+  // draw the target point
+  visualization::DrawCross(path_option.closest_point, 0.03, 3, local_viz_msg_);
   path_option.obstruction = min_alpha_point;
 }
 
