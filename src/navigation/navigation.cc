@@ -82,7 +82,6 @@ void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
  */
 void Navigation::SetNavDisplacement(const float dx, const float dy) {
   nav_goal_disp_ = {dx, dy};
-  nav_curvature_ = 2 * dy / (Sq(dx) + Sq(dy));
   last_odom_pose_.Set(odom_angle_, odom_loc_);
   nav_complete_ = false;
 }
