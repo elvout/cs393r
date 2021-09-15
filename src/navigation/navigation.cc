@@ -302,30 +302,29 @@ void Navigation::Run() {
 
   // TODO: radius scales with the inverse of curvature
   // when curvature is small, dc changes radius more
-  const float dc = .1f;
-  const float r_max = 1.1;
-  const float c_max = 1.0f / r_max;
-  const float c_start = -c_max + .00001;
-  const float c_end = c_max;
 
-  int num_points = (c_end - c_start) / dc;
+  std::vector<PathOption> pathOptions;
 
-  static std::vector<PathOption> pathOptions(num_points, PathOption{});
-
-  float c = c_start;
-
-  float minDist = FP_INFINITE;
+  float minDist = std::numeric_limits<float>::max();
   int minDistIndex = 0;
 
-  for (int i = 0; i < num_points; ++i, c += dc) {
-    float r = 1 / c;
-    pathOptions[i].curvature = c;
-    this->maxDistanceTravelable(r, point_cloud_, pathOptions[i]);
+  constexpr float kWheelBase = 0.33;  // m
+  const float min_steering_angle = atan(kWheelBase / -1.1);
+  const float max_steering_angle = atan(kWheelBase / 1.1);
+  const float angle_step_size = (max_steering_angle - min_steering_angle) / 50;
 
-    float distToPoint = (pathOptions[i].closest_point - this->nav_goal_disp_).norm();
+  for (float steering_angle = min_steering_angle; steering_angle <= max_steering_angle;
+       steering_angle += angle_step_size) {
+    float r = kWheelBase / tan(steering_angle);
+    pathOptions.emplace_back();
+    pathOptions.back().curvature = 1 / r;
+    maxDistanceTravelable(r, point_cloud_, pathOptions.back());
+
+    // TODO: use predicted nav goal displacement
+    float distToPoint = (pathOptions.back().closest_point - nav_goal_disp_).norm();
     if (distToPoint < minDist) {
       minDist = distToPoint;
-      minDistIndex = i;
+      minDistIndex = pathOptions.size() - 1;
     }
   }
 
