@@ -315,7 +315,6 @@ void Navigation::Run() {
     if (distToPoint < minDist) {
       minDist = distToPoint;
       minDistPathOption = cur_option;
-      printf("[Navigation::Run]: PATH SELECTION IF BLOCK\n");
     }
   }
 
@@ -323,8 +322,6 @@ void Navigation::Run() {
   auto closest_angle_to_target = minDistPathOption->closest_angle_to_target;
 
   Eigen::Vector2f turning_point_local(0, maxDistPathRadius);
-
-  std::cout << "radius-    " << maxDistPathRadius << "\n";
 
   if (maxDistPathRadius > 0)
     visualization::DrawArc(turning_point_local, maxDistPathRadius, -M_PI / 2,
