@@ -352,7 +352,8 @@ void Navigation::Run() {
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
 
   assert(minDistPathOption.curvature != 0.0f);
-  float remaining_distance = minDistPathOption.alpha_collision / minDistPathOption.curvature;
+  float remaining_distance =
+      minDistPathOption.alpha_collision / std::abs(minDistPathOption.curvature);
 
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
   float cur_speed;
