@@ -298,44 +298,46 @@ void Navigation::Run() {
     }
   }
 
-  std::vector<PathOption> pathOptions;
-
-  float minDist = std::numeric_limits<float>::max();
-  int minDistIndex = 0;
-
   constexpr float kWheelBase = 0.33;  // m
   const float min_steering_angle = atan(kWheelBase / -1.1);
   const float max_steering_angle = atan(kWheelBase / 1.1);
-  const float angle_step_size = (max_steering_angle - min_steering_angle) / 50;
+  const size_t kNumSteps = 50;
+  const float angle_step_size = (max_steering_angle - min_steering_angle) / kNumSteps;
 
-  for (float steering_angle = min_steering_angle; steering_angle <= max_steering_angle;
-       steering_angle += angle_step_size) {
+  std::vector<PathOption> pathOptions(kNumSteps);
+  float maxDist = 0;
+  auto maxDistPathOption = pathOptions.begin();
+
+  for (size_t i = 0; i < kNumSteps; i++) {
+    auto cur_option = pathOptions.begin() + i;
+
+    float steering_angle = min_steering_angle + angle_step_size * i;
     float r = kWheelBase / tan(steering_angle);
-    pathOptions.emplace_back();
-    pathOptions.back().curvature = 1 / r;
-    maxDistanceTravelable(r, point_cloud_, pathOptions.back());
+
+    cur_option->curvature = 1 / r;
+    maxDistanceTravelable(r, point_cloud_, *cur_option);
 
     // TODO: use predicted nav goal displacement
-    float distToPoint = (pathOptions.back().closest_point - nav_goal_disp_).norm();
-    if (distToPoint < minDist) {
-      minDist = distToPoint;
-      minDistIndex = pathOptions.size() - 1;
+    float distToPoint = (cur_option->closest_point - nav_goal_disp_).norm();
+    if (distToPoint > maxDist) {
+      maxDist = distToPoint;
+      maxDistPathOption = cur_option;
+      printf("[Navigation::Run]: PATH SELECTION IF BLOCK\n");
     }
   }
 
-  auto minDistPathOption = pathOptions[minDistIndex];
-  auto minDistPathRadius = 1 / minDistPathOption.curvature;
-  auto closest_angle_to_target = minDistPathOption.closest_angle_to_target;
+  auto maxDistPathRadius = 1 / maxDistPathOption->curvature;
+  auto closest_angle_to_target = maxDistPathOption->closest_angle_to_target;
 
-  Eigen::Vector2f turning_point_local(0, minDistPathRadius);
+  Eigen::Vector2f turning_point_local(0, maxDistPathRadius);
 
-  std::cout << "radius-    " << minDistPathRadius << "\n";
+  std::cout << "radius-    " << maxDistPathRadius << "\n";
 
-  if (minDistPathRadius > 0)
-    visualization::DrawArc(turning_point_local, minDistPathRadius, -M_PI / 2,
+  if (maxDistPathRadius > 0)
+    visualization::DrawArc(turning_point_local, maxDistPathRadius, -M_PI / 2,
                            -M_PI / 2 + closest_angle_to_target, 6, local_viz_msg_);
   else
-    visualization::DrawArc(turning_point_local, minDistPathRadius,
+    visualization::DrawArc(turning_point_local, maxDistPathRadius,
                            M_PI / 2 - closest_angle_to_target, M_PI / 2, 6, local_viz_msg_);
 
   // Update the remaining displacement based on odometry data.
@@ -345,9 +347,9 @@ void Navigation::Run() {
   nav_goal_disp_ -= reference_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
 
-  assert(minDistPathOption.curvature != 0.0f);
+  assert(maxDistPathOption->curvature != 0.0f);
   float remaining_distance =
-      minDistPathOption.alpha_collision / std::abs(minDistPathOption.curvature);
+      maxDistPathOption->alpha_collision / std::abs(maxDistPathOption->curvature);
 
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
   float cur_speed;
@@ -365,7 +367,7 @@ void Navigation::Run() {
   } else {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
-  drive_msg_.curvature = minDistPathOption.curvature;
+  drive_msg_.curvature = maxDistPathOption->curvature;
 
   last_odom_pose_.Set(odom_angle_, odom_loc_);
 
