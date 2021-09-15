@@ -21,6 +21,7 @@
 
 #include "navigation.h"
 #include <cmath>
+#include <limits>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
@@ -206,9 +207,6 @@ void Navigation::maxDistanceTravelable(float r,
 
       float alpha = collision_angle_total - beta;
       assert(alpha > 0);
-      if (r < 0) {
-        std::cout << alpha << std::endl;
-      }
 
       if (alpha < min_alpha) {
         min_alpha = alpha;
@@ -299,9 +297,6 @@ void Navigation::Run() {
       point = rot * point;
     }
   }
-
-  // TODO: radius scales with the inverse of curvature
-  // when curvature is small, dc changes radius more
 
   std::vector<PathOption> pathOptions;
 
