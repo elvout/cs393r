@@ -326,10 +326,14 @@ void Navigation::Run() {
   }
 
   // TODO: use optimal curvature choice to to calculate remaining distance
-  float remaining_angular_disp =
-      2 * std::asin(nav_curvature_ * predicted_nav_goal_disp.norm() / 2);
-  // arc length
-  float remaining_distance = remaining_angular_disp / nav_curvature_;
+  float remaining_angular_disp, remaining_distance;
+  if (nav_curvature_ == 0) {
+    remaining_angular_disp = 0;
+    remaining_distance = predicted_nav_goal_disp.norm();
+  } else {
+    remaining_angular_disp = 2 * std::asin(nav_curvature_ * predicted_nav_goal_disp.norm() / 2);
+    remaining_distance = remaining_angular_disp / nav_curvature_;
+  }
 
   printf("[Navigation::Run]\n");
   printf("\todom loc: [%.2f, %.2f]\n", odom_loc_.x(), odom_loc_.y());
