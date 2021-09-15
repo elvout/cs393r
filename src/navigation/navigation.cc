@@ -248,7 +248,7 @@ void Navigation::maxDistanceTravelable(float r,
     visualization::DrawArc(turning_point_local, anchor_radius, -M_PI / 2, -M_PI / 2 + min_alpha, 6,
                            local_viz_msg_);
   else
-    visualization::DrawArc(turning_point_local, anchor_radius,  M_PI / 2 - min_alpha, M_PI / 2, 6,
+    visualization::DrawArc(turning_point_local, anchor_radius, M_PI / 2 - min_alpha, M_PI / 2, 6,
                            local_viz_msg_);
 
   path_option.alpha_collision = min_alpha;
@@ -306,13 +306,18 @@ void Navigation::Run() {
 
   auto minDistPathOption = pathOptions[minDistIndex];
   auto minDistPathRadius = 1 / minDistPathOption.curvature;
+  auto closest_angle_to_target = minDistPathOption.closest_angle_to_target;
 
   Eigen::Vector2f turning_point_local(0, minDistPathRadius);
 
   std::cout << "radius-    " << minDistPathRadius << "\n";
 
-  visualization::DrawArc(turning_point_local, minDistPathRadius, -M_PI / 2,
-                         -M_PI / 2 + minDistPathOption.closest_angle_to_target, 6, local_viz_msg_);
+  if (minDistPathRadius > 0)
+    visualization::DrawArc(turning_point_local, minDistPathRadius, -M_PI / 2,
+                           -M_PI / 2 + closest_angle_to_target, 6, local_viz_msg_);
+  else
+    visualization::DrawArc(turning_point_local, minDistPathRadius,
+                           M_PI / 2 - closest_angle_to_target, M_PI / 2, 6, local_viz_msg_);
 
   // Update the remaining displacement based on odometry data.
   const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
