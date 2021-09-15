@@ -114,14 +114,22 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
   point_cloud_ = cloud;
 }
 
-float angleAlongTurningPoint(Eigen::Vector2f a, Eigen::Vector2f turning_point_local) {
+float angleAlongTurningPoint(Eigen::Vector2f a, float r) {
+  // Do everything in the positive domain. If we have a negative turning radius, since we only care
+  // about angular displacement, we can just translate that point such that it's a positive radius
+  Eigen::Vector2f turning_point_local(0, abs(r));
+
+  if (r < 0) {
+    a.y() *= -1;
+  }
+
   // Unit circle typaclly starts at 1, 0 but ours starts at 0, -1
   auto norm = (a - turning_point_local).normalized();
   Eigen::Rotation2Df rot(M_PI / 2);
   norm = rot * norm;
-  int s = Sign(norm.y());
   auto angle = acos(norm.x());
-  if (s == -1) {
+  // Count for the negative R case by flipping the sign logic
+  if (norm.y() < 0) {
     angle = 2 * M_PI - angle;
   }
   return angle;
@@ -144,21 +152,23 @@ void Navigation::maxDistanceTravelable(float r,
   float base_to_front = .42 * 1.25;
   float base_to_side = .14 * 1.25;
 
+  // TODO: Non-uniform car width
+
   // Using cardinal directions in car reference frame
-  Eigen::Vector2f front_north_vector_local(base_to_front, base_to_side);
-  Eigen::Vector2f front_south_vector_local(base_to_front, -base_to_side);
-  Eigen::Vector2f side_west_vector_local(-base_to_front, base_to_side);
-  Eigen::Vector2f side_east_vector_local(base_to_front, base_to_side);
+  Eigen::Vector2f ne_vector(base_to_front, base_to_side);
+  Eigen::Vector2f se_vector(base_to_front, -base_to_side);
+  Eigen::Vector2f nw_vector(-base_to_front, base_to_side);
+  Eigen::Vector2f sw_vector(-base_to_front, -base_to_side);
 
 #ifdef DEBUG_OD
   visualization::DrawLine(side_west_vector_local, side_east_vector_local, 5, local_viz_msg_);
   visualization::DrawLine(front_south_vector_local, front_north_vector_local, 5, local_viz_msg_);
 #endif
 
-  float front_north_radius = (turning_point_local - front_north_vector_local).norm();
-  float front_south_radius = (turning_point_local - front_south_vector_local).norm();
-  float side_west_radius = (turning_point_local - side_west_vector_local).norm();
-  float side_east_radius = (turning_point_local - side_east_vector_local).norm();
+  float ne_radius = (turning_point_local - ne_vector).norm();
+  float se_radius = (turning_point_local - se_vector).norm();
+  float nw_radius = (turning_point_local - nw_vector).norm();
+  float sw_radius = (turning_point_local - sw_vector).norm();
 
 #ifdef DEBUG_OD
   visualization::DrawArc(turning_point_local, front_north_radius, 0, 2 * M_PI, 1, local_viz_msg_);
@@ -167,32 +177,38 @@ void Navigation::maxDistanceTravelable(float r,
   visualization::DrawArc(turning_point_local, side_east_radius, 0, 2 * M_PI, 1, local_viz_msg_);
 #endif
 
-  float max_angle_should_travel =
-      angleAlongTurningPoint(this->nav_goal_disp_, turning_point_local);
+  float max_angle_should_travel = angleAlongTurningPoint(this->nav_goal_disp_, r);
 
   float min_alpha = 2 * M_PI;
   // TODO: What to do with this when there's no collision?
   Eigen::Vector2f min_alpha_point;
 
   for (auto point : point_cloud_) {
-    visualization::DrawPoint(point, 4, local_viz_msg_);
+    // visualization::DrawPoint(point, 4, local_viz_msg_);
 
     float point_radius = (turning_point_local - point).norm();
 
     // Front hit case
-    bool front_collision = front_north_radius < point_radius && point_radius < front_south_radius;
+    // r0 < r1
+    float r0_front = r > 0 ? ne_radius : se_radius;
+    float r1_front = r > 0 ? se_radius : ne_radius;
+    bool front_collision = r0_front < point_radius && point_radius < r1_front;
 
     if (front_collision) {
-      float collision_angle_total = angleAlongTurningPoint(point, turning_point_local);
+      float collision_angle_total = angleAlongTurningPoint(point, r);
 
       // From brainstorm scan
       float d = (turning_point_local - point).norm();
-      float p = (d - front_north_radius) / (front_south_radius - front_north_radius);
+      float p = (d - r0_front) / (r1_front - r0_front);
 
       Eigen::Vector2f approx_hit_point_on_car(base_to_front, -base_to_side + 2 * base_to_side * p);
-      float beta = angleAlongTurningPoint(approx_hit_point_on_car, turning_point_local);
+      float beta = angleAlongTurningPoint(approx_hit_point_on_car, r);
 
       float alpha = collision_angle_total - beta;
+      assert(alpha > 0);
+      if (r < 0) {
+        std::cout << alpha << std::endl;
+      }
 
       if (alpha < min_alpha) {
         min_alpha = alpha;
@@ -201,14 +217,15 @@ void Navigation::maxDistanceTravelable(float r,
     }
 
     // Side hit case
-    bool side_collision = side_west_radius < point_radius && point_radius < side_east_radius;
+    float r0_side = r > 0 ? nw_radius : sw_radius;
+    float r1_side = r > 0 ? ne_radius : se_radius;
+    bool side_collision = r0_side < point_radius && point_radius < r1_side;
     if (side_collision) {
-      float collision_angle_total = angleAlongTurningPoint(point, turning_point_local);
+      float collision_angle_total = angleAlongTurningPoint(point, r);
 
-      // TODO: Change from having anchor point in center of car
-      // TODO: Remove big approvimation
-      Eigen::Vector2f approx_hit_point_on_car(base_to_front, base_to_side);
-      float beta = angleAlongTurningPoint(approx_hit_point_on_car, turning_point_local);
+      // TODO: Potentially problematic
+      Eigen::Vector2f approx_hit_point_on_car(0, base_to_side * Sign(r));
+      float beta = angleAlongTurningPoint(approx_hit_point_on_car, r);
 
       float alpha = collision_angle_total - beta;
 
@@ -224,8 +241,15 @@ void Navigation::maxDistanceTravelable(float r,
     // #endif
   }
 
-  visualization::DrawArc(turning_point_local, side_west_radius, -M_PI / 2, -M_PI / 2 + min_alpha,
-                         6, local_viz_msg_);
+  assert(min_alpha > 0);
+
+  float anchor_radius = (turning_point_local).norm();
+  if (r > 0)
+    visualization::DrawArc(turning_point_local, anchor_radius, -M_PI / 2, -M_PI / 2 + min_alpha, 6,
+                           local_viz_msg_);
+  else
+    visualization::DrawArc(turning_point_local, anchor_radius,  M_PI / 2 - min_alpha, M_PI / 2, 6,
+                           local_viz_msg_);
 
   path_option.alpha_collision = min_alpha;
   float closest_angle_to_target = std::min(min_alpha, max_angle_should_travel);
@@ -255,7 +279,7 @@ void Navigation::Run() {
   const float dc = .1f;
   const float r_max = 1.1;
   const float c_max = 1.0f / r_max;
-  const float c_start = 0.1;  // TODO: generalize for non-positive c
+  const float c_start = -c_max + .00001;
   const float c_end = c_max;
 
   int num_points = (c_end - c_start) / dc;
