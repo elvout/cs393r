@@ -335,21 +335,7 @@ void Navigation::Run() {
     remaining_distance = remaining_angular_disp / nav_curvature_;
   }
 
-  printf("[Navigation::Run]\n");
-  printf("\todom loc: [%.2f, %.2f]\n", odom_loc_.x(), odom_loc_.y());
-  printf("\theading: %.2fº\n", RadToDeg(odom_angle_));
-  printf("\tinstantaneous displacement: [%.4f, %.4f]\n", inst_disp.x(), inst_disp.y());
-  printf("\tinstantaneous displacement (corrected): [%.4f, %.4f]\n", corrected_disp.x(),
-         corrected_disp.y());
-  printf("\tinstantaneous angular difference: %.2fº\n", RadToDeg(inst_angular_disp));
-  printf("\tcurvature: %.2f\n", nav_curvature_);
-  printf("\tturning radius: %.2f\n", 1 / nav_curvature_);
-  printf("\tremaining displacement: [%.2f, %.2f]\n", nav_goal_disp_.x(), nav_goal_disp_.y());
-  printf("\tremaining angular displacement: %.2fº\n", RadToDeg(remaining_angular_disp));
-  printf("\tremaining arc length: %.2f\n", remaining_distance);
-
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
-  // const float cur_speed = robot_vel_.norm();
   float cur_speed;
   if (drive_msg_hist_.empty()) {
     cur_speed = robot_vel_.norm();
@@ -375,7 +361,18 @@ void Navigation::Run() {
     drive_msg_hist_.pop_front();
   }
 
-  // The latest observed point cloud is accessible via "point_cloud_"
+  printf("[Navigation::Run]\n");
+  printf("\tinstantaneous displacement (odom): [%.4f, %.4f]\n", inst_disp.x(), inst_disp.y());
+  printf("\tinstantaneous displacement (reference): [%.4f, %.4f]\n", corrected_disp.x(),
+         corrected_disp.y());
+  printf("\tinstantaneous angular difference: %.2fº\n", RadToDeg(inst_angular_disp));
+  printf("\tcommand curvature: %.2f\n", drive_msg_.curvature);
+  printf("\tcommand turning radius: %.2f\n", 1 / drive_msg_.curvature);
+  printf("\tcommand speed: %.2f\n", drive_msg_.velocity);
+  printf("\tremaining displacement: [%.2f, %.2f]\n", predicted_nav_goal_disp.x(),
+         predicted_nav_goal_disp.y());
+  printf("\tremaining angular displacement: %.2fº\n", RadToDeg(remaining_angular_disp));
+  printf("\tremaining arc length: %.2f\n", remaining_distance);
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
