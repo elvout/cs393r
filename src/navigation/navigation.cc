@@ -299,25 +299,28 @@ void Navigation::Run() {
   nav_goal_disp_ -= corrected_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp).toRotationMatrix() * nav_goal_disp_;
 
-  // subtract the arc length of each previous command
+  // Transform predicted remaining displacement and point cloud
+  // based on previous commands.
   Vector2f predicted_nav_goal_disp = nav_goal_disp_;
   for (const auto& msg : drive_msg_hist_) {
-    // TODO: handle curvature = 0
-    float turning_radius = 1 / msg.curvature;
-    float subtended_angle = (msg.velocity / kUpdateFrequency) / turning_radius;
+    const float arc_len = msg.velocity / kUpdateFrequency;
+    const float turning_radius = 1 / msg.curvature;
+    const float subtended_angle = arc_len / turning_radius;
     Eigen::Rotation2Df rot(-subtended_angle);
 
-    float dx = turning_radius * std::sin(subtended_angle);
-    float dy = turning_radius - turning_radius * std::cos(subtended_angle);
-    Vector2f disp_vec(dx, dy);
+    Vector2f disp_vec(0, 0);
+    if (msg.curvature == 0) {
+      disp_vec.x() = arc_len;
+    } else {
+      disp_vec.x() = turning_radius * std::sin(subtended_angle);
+      disp_vec.y() = turning_radius - turning_radius * std::cos(subtended_angle);
+    }
 
     predicted_nav_goal_disp -= disp_vec;
     predicted_nav_goal_disp = rot * predicted_nav_goal_disp;
 
     for (auto& point : point_cloud_) {
-      point.x() -= dx;
-      point.y() -= dy;
-
+      point -= disp_vec;
       point = rot * point;
     }
   }
