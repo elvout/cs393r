@@ -274,6 +274,32 @@ void Navigation::Run() {
     return;
   }
 
+  // Transform predicted remaining displacement and point cloud
+  // based on previous commands.
+  Vector2f predicted_nav_goal_disp = nav_goal_disp_;
+  for (const auto& msg : drive_msg_hist_) {
+    const float arc_len = msg.velocity / kUpdateFrequency;
+    const float turning_radius = 1 / msg.curvature;
+    const float subtended_angle = arc_len / turning_radius;
+    Eigen::Rotation2Df rot(-subtended_angle);
+
+    Vector2f disp_vec(0, 0);
+    if (msg.curvature == 0) {
+      disp_vec.x() = arc_len;
+    } else {
+      disp_vec.x() = turning_radius * std::sin(subtended_angle);
+      disp_vec.y() = turning_radius - turning_radius * std::cos(subtended_angle);
+    }
+
+    predicted_nav_goal_disp -= disp_vec;
+    predicted_nav_goal_disp = rot * predicted_nav_goal_disp;
+
+    for (auto& point : point_cloud_) {
+      point -= disp_vec;
+      point = rot * point;
+    }
+  }
+
   // TODO: radius scales with the inverse of curvature
   // when curvature is small, dc changes radius more
   const float dc = .1f;
@@ -291,7 +317,6 @@ void Navigation::Run() {
   float minDist = FP_INFINITE;
   int minDistIndex = 0;
 
-  // TODO: transform point cloud first
   for (int i = 0; i < num_points; ++i, c += dc) {
     float r = 1 / c;
     pathOptions[i].curvature = c;
@@ -325,32 +350,6 @@ void Navigation::Run() {
   const float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
   nav_goal_disp_ -= reference_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
-
-  // Transform predicted remaining displacement and point cloud
-  // based on previous commands.
-  Vector2f predicted_nav_goal_disp = nav_goal_disp_;
-  for (const auto& msg : drive_msg_hist_) {
-    const float arc_len = msg.velocity / kUpdateFrequency;
-    const float turning_radius = 1 / msg.curvature;
-    const float subtended_angle = arc_len / turning_radius;
-    Eigen::Rotation2Df rot(-subtended_angle);
-
-    Vector2f disp_vec(0, 0);
-    if (msg.curvature == 0) {
-      disp_vec.x() = arc_len;
-    } else {
-      disp_vec.x() = turning_radius * std::sin(subtended_angle);
-      disp_vec.y() = turning_radius - turning_radius * std::cos(subtended_angle);
-    }
-
-    predicted_nav_goal_disp -= disp_vec;
-    predicted_nav_goal_disp = rot * predicted_nav_goal_disp;
-
-    for (auto& point : point_cloud_) {
-      point -= disp_vec;
-      point = rot * point;
-    }
-  }
 
   // TODO: use optimal curvature choice to to calculate remaining distance
   float remaining_angular_disp, remaining_distance;
