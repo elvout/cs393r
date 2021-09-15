@@ -262,10 +262,12 @@ void Navigation::Run() {
     return;
   }
 
+  // TODO: radius scales with the inverse of curvature
+  // when curvature is small, dc changes radius more
   const float dc = .1f;
   const float r_max = 1.1;
   const float c_max = 1.0f / r_max;
-  const float c_start = 0.1;
+  const float c_start = 0.1;  // TODO: generalize for non-positive c
   const float c_end = c_max;
 
   int num_points = (c_end - c_start) / dc;
@@ -277,6 +279,7 @@ void Navigation::Run() {
   float minDist = FP_INFINITE;
   int minDistIndex = 0;
 
+  // TODO: transform point cloud first
   for (int i = 0; i < num_points; ++i, c += dc) {
     float r = 1 / c;
     pathOptions[i].curvature = c;
