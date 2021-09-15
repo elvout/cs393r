@@ -299,8 +299,8 @@ void Navigation::Run() {
   const float angle_step_size = (max_steering_angle - min_steering_angle) / kNumSteps;
 
   std::vector<PathOption> pathOptions(kNumSteps);
-  float maxDist = 0;
-  auto maxDistPathOption = pathOptions.begin();
+  float minDist = std::numeric_limits<float>::max();
+  auto minDistPathOption = pathOptions.begin();
 
   for (size_t i = 0; i < kNumSteps; i++) {
     auto cur_option = pathOptions.begin() + i;
@@ -313,15 +313,15 @@ void Navigation::Run() {
 
     // TODO: use predicted nav goal displacement
     float distToPoint = (cur_option->closest_point - nav_goal_disp_).norm();
-    if (distToPoint > maxDist) {
-      maxDist = distToPoint;
-      maxDistPathOption = cur_option;
+    if (distToPoint < minDist) {
+      minDist = distToPoint;
+      minDistPathOption = cur_option;
       printf("[Navigation::Run]: PATH SELECTION IF BLOCK\n");
     }
   }
 
-  auto maxDistPathRadius = 1 / maxDistPathOption->curvature;
-  auto closest_angle_to_target = maxDistPathOption->closest_angle_to_target;
+  auto maxDistPathRadius = 1 / minDistPathOption->curvature;
+  auto closest_angle_to_target = minDistPathOption->closest_angle_to_target;
 
   Eigen::Vector2f turning_point_local(0, maxDistPathRadius);
 
@@ -341,9 +341,8 @@ void Navigation::Run() {
   nav_goal_disp_ -= reference_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
 
-  assert(maxDistPathOption->curvature != 0.0f);
   float remaining_distance =
-      maxDistPathOption->alpha_collision / std::abs(maxDistPathOption->curvature);
+      minDistPathOption->alpha_collision / std::abs(minDistPathOption->curvature);
 
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
   float cur_speed;
@@ -361,7 +360,7 @@ void Navigation::Run() {
   } else {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
-  drive_msg_.curvature = maxDistPathOption->curvature;
+  drive_msg_.curvature = minDistPathOption->curvature;
 
   last_odom_pose_.Set(odom_angle_, odom_loc_);
 
