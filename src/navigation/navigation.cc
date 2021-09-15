@@ -377,6 +377,9 @@ void Navigation::Run() {
          predicted_nav_goal_disp.y());
   printf("\tremaining arc length: %.2f\n", remaining_distance);
 
+  // draw the target location
+  visualization::DrawCross(nav_goal_disp_, 1, 0xff0000, local_viz_msg_);
+
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
   global_viz_msg_.header.stamp = ros::Time::now();
