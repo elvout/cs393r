@@ -80,9 +80,6 @@ class Navigation {
 
   void maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> point_cloud_, PathOption& t);
 
-  Eigen::Vector2f localToGlobal(Eigen::Vector2f local);
-  Eigen::Vector2f globalToLocal(Eigen::Vector2f global);
-
   /**
    * Set the remaining displacement for navigation.
    */

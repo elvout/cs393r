@@ -114,18 +114,6 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
   point_cloud_ = cloud;
 }
 
-Eigen::Vector2f Navigation::localToGlobal(Eigen::Vector2f local) {
-  Eigen::Rotation2Df rot(robot_angle_);
-  Eigen::Vector2f rotated = rot * local;
-
-  return rotated + this->robot_loc_;
-}
-
-Eigen::Vector2f Navigation::globalToLocal(Eigen::Vector2f global) {
-  Eigen::Rotation2Df rot(-1 * robot_angle_);
-  return rot * (global - this->robot_loc_);
-}
-
 float angleAlongTurningPoint(Eigen::Vector2f a, Eigen::Vector2f turning_point_local) {
   // Unit circle typaclly starts at 1, 0 but ours starts at 0, -1
   auto norm = (a - turning_point_local).normalized();
