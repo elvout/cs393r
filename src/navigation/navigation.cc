@@ -290,14 +290,12 @@ void Navigation::Run() {
   visualization::DrawArc(turning_point_local, minDistPathRadius, -M_PI / 2,
                          -M_PI / 2 + minDistPathOption.closest_angle_to_target, 6, local_viz_msg_);
 
-  // Update the remaining displacement.
-  // Eigen::Vector2f inst_disp = Eigen::Rotation2Df(odom_angle_).toRotationMatrix() * odom_loc_ -
-  //   Eigen::Rotation2Df(last_odom_pose_.angle).toRotationMatrix() * last_odom_pose_.translation;
-  Eigen::Vector2f inst_disp = odom_loc_ - last_odom_pose_.translation;
-  Eigen::Vector2f corrected_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * inst_disp;
-  float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
-  nav_goal_disp_ -= corrected_disp;
-  nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp).toRotationMatrix() * nav_goal_disp_;
+  // Update the remaining displacement based on odometry data.
+  const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
+  const Eigen::Vector2f reference_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * odom_disp;
+  const float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
+  nav_goal_disp_ -= reference_disp;
+  nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
 
   // Transform predicted remaining displacement and point cloud
   // based on previous commands.
@@ -362,9 +360,9 @@ void Navigation::Run() {
   }
 
   printf("[Navigation::Run]\n");
-  printf("\tinstantaneous displacement (odom): [%.4f, %.4f]\n", inst_disp.x(), inst_disp.y());
-  printf("\tinstantaneous displacement (reference): [%.4f, %.4f]\n", corrected_disp.x(),
-         corrected_disp.y());
+  printf("\tinstantaneous displacement (odom): [%.4f, %.4f]\n", odom_disp.x(), odom_disp.y());
+  printf("\tinstantaneous displacement (reference): [%.4f, %.4f]\n", reference_disp.x(),
+         reference_disp.y());
   printf("\tinstantaneous angular difference: %.2fº\n", RadToDeg(inst_angular_disp));
   printf("\tcommand curvature: %.2f\n", drive_msg_.curvature);
   printf("\tcommand turning radius: %.2f\n", 1 / drive_msg_.curvature);
