@@ -19,7 +19,15 @@
 */
 //========================================================================
 
+// Force `assert` statements to work.
+// Some of the compiler flags in the shared libraries define NDEBUG.
+// TODO: do this more gracefully
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include "navigation.h"
+#include <cassert>
 #include <cmath>
 #include <limits>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
