@@ -30,6 +30,7 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
+#include <type_traits>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
 #include "amrl_msgs/VisualizationMsg.h"
@@ -60,6 +61,21 @@ VisualizationMsg global_viz_msg_;
 AckermannCurvatureDriveMsg drive_msg_;
 // Epsilon value for handling limited numerical precision.
 const float kEpsilon = 1e-5;
+
+/**
+ * Return an angle specfied in radians constrained to the range [0, 2PI).
+ *
+ * TODO: move this to the shared math library?
+ */
+template <typename T>
+T constrainAngle(T angle) {
+  static_assert(std::is_floating_point<T>::value, "");
+
+  angle = fmod(angle, M_2PI);
+  // angle can still be negative, but its absolute value will be < 2PI
+  return fmod(angle + M_2PI, M_2PI);
+}
+
 }  // namespace
 
 namespace navigation {
@@ -122,16 +138,39 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
   point_cloud_ = cloud;
 }
 
-float angleAlongTurningPoint(const Eigen::Vector2f& base_to_target, const float r) {
-  Vector2f base_to_center(0, r);
-  Vector2f center_to_base(0, -r);
+/**
+ * Returns the angular distance in radians between the base link of the
+ * car and an arbitrary point as viewed from the center of turning.
+ *
+ * `point` is a coordinate in the base link reference frame.
+ *
+ * `radius` is the turning radius of the car. A positive value indicates
+ * a left turn and a negative value indicates a right turn.
+ */
+float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
+  Vector2f center_to_base(0, -radius);
 
-  Vector2f center_to_target = base_to_target - base_to_center;
+  // Transform vectors into the reference frame of the center of turning,
+  // in which the vector from the center of turning to the base link is
+  // the x-axis.
+  Eigen::Rotation2Df rot(std::asin(Sign(radius)));
+  point = rot * point;
+  center_to_base = rot * center_to_base;
 
-  // generalize for angles greater than 180º
+  assert(center_to_base.x() >= 0);
+  assert(std::abs(center_to_base.y()) < kEpsilon);
 
-  return std::acos((center_to_base.dot(center_to_target)) /
-                   (center_to_base.norm() * center_to_target.norm()));
+  float angular_dist = std::atan2(point.y(), point.x());
+  angular_dist = constrainAngle(angular_dist);
+
+  // `angular_dist` describes a counterclockwise angle from the x-axis in the
+  // center-of-turning reference frame. In the case of a right turn, return
+  // the clockwise angle.
+  if (radius >= 0) {
+    return angular_dist;
+  } else {
+    return M_2PI - angular_dist;
+  }
 }
 
 void Navigation::maxDistanceTravelable(float r,
@@ -176,7 +215,7 @@ void Navigation::maxDistanceTravelable(float r,
   visualization::DrawArc(turning_point_local, side_east_radius, 0, 2 * M_PI, 1, local_viz_msg_);
 #endif
 
-  float max_angle_should_travel = angleAlongTurningPoint(this->nav_goal_disp_, r);
+  float max_angle_should_travel = angularDistanceToPoint(this->nav_goal_disp_, r);
 
   float min_alpha = 2 * M_PI;
   // TODO: What to do with this when there's no collision?
@@ -194,14 +233,14 @@ void Navigation::maxDistanceTravelable(float r,
     bool front_collision = r0_front < point_radius && point_radius < r1_front;
 
     if (front_collision) {
-      float collision_angle_total = angleAlongTurningPoint(point, r);
+      float collision_angle_total = angularDistanceToPoint(point, r);
 
       // From brainstorm scan
       float d = (turning_point_local - point).norm();
       float p = (d - r0_front) / (r1_front - r0_front);
 
       Eigen::Vector2f approx_hit_point_on_car(base_to_front, -base_to_side + 2 * base_to_side * p);
-      float beta = angleAlongTurningPoint(approx_hit_point_on_car, r);
+      float beta = angularDistanceToPoint(approx_hit_point_on_car, r);
 
       float alpha = collision_angle_total - beta;
       assert(alpha > 0);
@@ -217,11 +256,11 @@ void Navigation::maxDistanceTravelable(float r,
     float r1_side = r > 0 ? ne_radius : se_radius;
     bool side_collision = r0_side < point_radius && point_radius < r1_side;
     if (side_collision) {
-      float collision_angle_total = angleAlongTurningPoint(point, r);
+      float collision_angle_total = angularDistanceToPoint(point, r);
 
       // TODO: Potentially problematic
       Eigen::Vector2f approx_hit_point_on_car(0, base_to_side * Sign(r));
-      float beta = angleAlongTurningPoint(approx_hit_point_on_car, r);
+      float beta = angularDistanceToPoint(approx_hit_point_on_car, r);
 
       float alpha = collision_angle_total - beta;
 
