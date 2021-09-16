@@ -150,6 +150,10 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
   Vector2f center_to_base(0, -radius);
 
+  if (radius == std::numeric_limits<float>::infinity()) {
+    center_to_base.y() = -1e6f;
+  }
+
   // Transform vectors into the reference frame of the center of turning,
   // in which the vector from the center of turning to the base link is
   // the x-axis.
@@ -158,7 +162,9 @@ float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
   center_to_base = rot * center_to_base;
 
   assert(center_to_base.x() >= 0);
-  assert(std::abs(center_to_base.y()) < kEpsilon);
+  // Slight precision issues for large radii, check the quotient of y / x
+  // instead of magnitude of y.
+  assert(std::abs(center_to_base.y() / center_to_base.x()) < kEpsilon);
 
   float angular_dist = std::atan2(point.y(), point.x());
   angular_dist = constrainAngle(angular_dist);
