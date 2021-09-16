@@ -61,21 +61,6 @@ VisualizationMsg global_viz_msg_;
 AckermannCurvatureDriveMsg drive_msg_;
 // Epsilon value for handling limited numerical precision.
 const float kEpsilon = 1e-5;
-
-/**
- * Return an angle specfied in radians constrained to the range [0, 2PI).
- *
- * TODO: move this to the shared math library?
- */
-template <typename T>
-T constrainAngle(T angle) {
-  static_assert(std::is_floating_point<T>::value, "");
-
-  angle = fmod(angle, M_2PI);
-  // angle can still be negative, but its absolute value will be < 2PI
-  return fmod(angle + M_2PI, M_2PI);
-}
-
 }  // namespace
 
 namespace navigation {
@@ -139,236 +124,48 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
 }
 
 /**
- * Returns the angular distance in radians between the base link of the
- * car and an arbitrary point as viewed from the center of turning.
+ * Return the best path to the target to take based on point cloud data.
  *
- * `point` is a coordinate in the base link reference frame.
+ * The best path is defined as the path with minimal distace of closest
+ * approach (if completely disjoint or externally tangent) or periapsis
+ * (if intersecting) to the target.
  *
- * `radius` is the turning radius of the car. A positive value indicates
- * a left turn and a negative value indicates a right turn.
+ * TODO: factor in clearance
  */
-float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
-  Vector2f center_to_base(0, -radius);
+PathOption findBestPath(const std::vector<Vector2f>& point_cloud, const Vector2f& target) {
+  constexpr float kWheelBase = 0.33;  // m
+  const float min_steering_angle = atan(kWheelBase / -1.1);
+  const float max_steering_angle = atan(kWheelBase / 1.1);
+  constexpr size_t kNumSteps = 50;
+  const float angle_step_size = (max_steering_angle - min_steering_angle) / kNumSteps;
 
-  if (radius == std::numeric_limits<float>::infinity()) {
-    center_to_base.y() = -1e6f;
+  std::vector<PathOption> path_options;
+  path_options.reserve(kNumSteps);
+
+  for (size_t i = 0; i < kNumSteps; i++) {
+    float steering_angle = min_steering_angle + angle_step_size * i;
+    float curvature = tan(steering_angle) / kWheelBase;
+
+    path_options.emplace_back(curvature, point_cloud, target);
   }
 
-  // Transform vectors into the reference frame of the center of turning,
-  // in which the vector from the center of turning to the base link is
-  // the x-axis.
-  Eigen::Rotation2Df rot(std::asin(Sign(radius)));
-  point = rot * (center_to_base + point);
-  center_to_base = rot * center_to_base;
+  PathOption& closest_approach_path = path_options[0];
+  float min_dist_of_closest_approach =
+      (closest_approach_path.closest_point_to_target - target).norm();
 
-  assert(center_to_base.x() >= 0);
-  // Slight precision issues for large radii, check the quotient of y / x
-  // instead of magnitude of y.
-  assert(std::abs(center_to_base.y() / center_to_base.x()) < kEpsilon);
-
-  float angular_dist = std::atan2(point.y(), point.x());
-  angular_dist = constrainAngle(angular_dist);
-
-  // `angular_dist` describes a counterclockwise angle from the x-axis in the
-  // center-of-turning reference frame. In the case of a right turn, return
-  // the clockwise angle.
-  if (radius >= 0) {
-    return angular_dist;
-  } else {
-    return M_2PI - angular_dist;
-  }
-}
-
-void Navigation::maxDistanceTravelable(const float r,
-                                       const std::vector<Eigen::Vector2f>& point_cloud_,
-                                       PathOption& path_option) {
-  // This function, given a turning radius and an arbitrary point cloud,
-  // returns the maximum distance travelable on an arc with the current positioning of the cart
-
-  // #define DEBUG_OD 1
-
-  Eigen::Vector2f center_of_turning(0, r);
-#ifdef DEBUG_OD
-  visualization::DrawCross(turning_point_local, .1, 2, local_viz_msg_);
-  visualization::DrawCross(this->robot_loc_, .3, 2, local_viz_msg_);
-#endif
-
-  float car_x_length = 0.5;    // m
-  float base_to_front = 0.42;  // m
-  float base_to_back = car_x_length - base_to_front;
-  float base_to_side = 0.14;  // m
-  float safety_margin = 0.1;  // m
-
-  // TODO: Non-uniform car width
-
-  // Using quadrants in the base_link reference frame
-  Eigen::Vector2f q1_corner(base_to_front + safety_margin, base_to_side + safety_margin);
-  Eigen::Vector2f q2_corner(-base_to_back - safety_margin, base_to_side + safety_margin);
-  Eigen::Vector2f q3_corner(-base_to_back - safety_margin, -base_to_side - safety_margin);
-  Eigen::Vector2f q4_corner(base_to_front + safety_margin, -base_to_side - safety_margin);
-
-  if (r == std::numeric_limits<float>::infinity()) {
-    // Edge case: the car is driving straight.
-
-    float min_y = q4_corner.y();
-    float max_y = q1_corner.y();
-    assert(min_y < max_y);
-
-    float distance_of_closest_approach = this->nav_goal_disp_.x();
-
-    float min_dist = std::numeric_limits<float>::max();
-    Eigen::Vector2f min_dist_point;
-
-    for (const auto& point : point_cloud_) {
-      bool collision = min_y <= point.y() && point.y() <= max_y;
-      if (collision) {
-        // TODO: angular displacement does not make sense in this case
-        // We should instead directly compute the max travel distance
-        float dist = point.x() - base_to_front;
-        if (dist < min_dist) {
-          min_dist = dist;
-          min_dist_point = point;
-        }
-      }
+  for (const PathOption& path : path_options) {
+    float dist_of_closest_approach = (path.closest_point_to_target - target).norm();
+    if (dist_of_closest_approach < min_dist_of_closest_approach) {
+      min_dist_of_closest_approach = dist_of_closest_approach;
+      closest_approach_path = path;
     }
 
-    float free_path_length = std::min(distance_of_closest_approach, min_dist);
-    path_option = {
-        0.0f, 0.0f, free_path_length, 0.0f, Vector2f(free_path_length, 0),
-    };
-    // TODO: draw line
-  } else {
-    // General case: the car is making a turn.
-
-    // The angle of the closest point along the turning arc to the target.
-    // Misusing terminology from astronomy.
-    float angle_of_closest_approach = angularDistanceToPoint(this->nav_goal_disp_, r);
-
-    float min_alpha = 2 * M_PI;
-    // TODO: What to do with this when there's no collision?
-    Eigen::Vector2f min_alpha_point;
-
-    for (const auto& point : point_cloud_) {
-      const float point_radius = (center_of_turning - point).norm();
-
-      // Front hit case if turning
-      {
-        // Inner and outer radii depend on which direction the car is turning
-        float inner_radius = (center_of_turning - q1_corner).norm();
-        float outer_radius = (center_of_turning - q4_corner).norm();
-
-        if (r < 0) {
-          // TODO: hacky fix
-          std::swap(inner_radius, outer_radius);
-        }
-
-        assert(inner_radius < outer_radius);
-
-        bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
-        if (collision) {
-          float angle_to_point = angularDistanceToPoint(point, r);
-
-          // Estimate where the point lies between the two radii as a proportion.
-          float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q1_corner + p * q4_corner;
-          float angle_between_base_and_hit_point =
-              angularDistanceToPoint(approx_hit_point_on_car, r);
-
-          float alpha = angle_to_point - angle_between_base_and_hit_point;
-          assert(alpha > 0);
-
-          if (alpha < min_alpha) {
-            min_alpha = alpha;
-            min_alpha_point = point;
-          }
-        }
-      }
-
-      // Left side hit case for left turns
-      if (r > 0) {
-        float inner_radius = (center_of_turning - q2_corner).norm();
-        float outer_radius = (center_of_turning - q1_corner).norm();
-        assert(inner_radius < outer_radius);
-
-        bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
-        if (collision) {
-          float angle_to_point = angularDistanceToPoint(point, r);
-
-          // Estimate where the point lies between the two radii as a proportion.
-          float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          // Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q2_corner + p * q1_corner;
-          Eigen::Vector2f approx_hit_point_on_car = p * q1_corner;
-          float angle_between_base_and_hit_point =
-              angularDistanceToPoint(approx_hit_point_on_car, r);
-
-          float alpha = angle_to_point - angle_between_base_and_hit_point;
-          // TODO: edge case: point is behind the base link
-          assert(alpha > 0);
-
-          if (alpha < min_alpha) {
-            min_alpha = alpha;
-            min_alpha_point = point;
-          }
-        }
-      }
-
-      // Right side hit case for right turns
-      if (r < 0) {
-        float inner_radius = (center_of_turning - q3_corner).norm();
-        float outer_radius = (center_of_turning - q4_corner).norm();
-        assert(inner_radius < outer_radius);
-
-        bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
-        if (collision) {
-          float angle_to_point = angularDistanceToPoint(point, r);
-
-          // Estimate where the point lies between the two radii as a proportion.
-          float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          // Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q3_corner + p * q4_corner;
-          Eigen::Vector2f approx_hit_point_on_car = p * q4_corner;
-          float angle_between_base_and_hit_point =
-              angularDistanceToPoint(approx_hit_point_on_car, r);
-
-          float alpha = angle_to_point - angle_between_base_and_hit_point;
-          // fprintf(stderr, "%.2f, %.2f [%.2f, %.2f]\n", angle_to_point,
-          //         angle_between_base_and_hit_point, approx_hit_point_on_car.x(),
-          //         approx_hit_point_on_car.y());
-          // fprintf(stderr, "%.2f; [%.2f, %.2f]\n", r, center_of_turning.x(),
-          // center_of_turning.y()); fprintf(stderr, "alpha: %.5f\n", alpha);
-          // TODO: edge case: point is behind the base link
-          assert(alpha > 0);
-
-          if (alpha < min_alpha) {
-            min_alpha = alpha;
-            min_alpha_point = point;
-          }
-        }
-      }
-    }
-
-    assert(min_alpha > 0);
-
-    float anchor_radius = (center_of_turning).norm();
-    if (r > 0)
-      visualization::DrawArc(center_of_turning, anchor_radius, -M_PI / 2, -M_PI / 2 + min_alpha, 6,
-                             local_viz_msg_);
-    else
-      visualization::DrawArc(center_of_turning, anchor_radius, M_PI / 2 - min_alpha, M_PI / 2, 6,
-                             local_viz_msg_);
-
-    float closest_angle_to_target = std::min(min_alpha, angle_of_closest_approach);
-    path_option = {
-        1 / r,
-        0.0f,
-        closest_angle_to_target * std::abs(r),
-        closest_angle_to_target,
-        Eigen::Vector2f(std::abs(r) * sin(closest_angle_to_target),
-                        r - r * cos(closest_angle_to_target)),
-    };
-
-    // draw the target point
-    visualization::DrawCross(path_option.closest_point_to_target, 0.03, 3, local_viz_msg_);
+    path.visualize(local_viz_msg_, 0x000000);
   }
+
+  // visualize the best path in green
+  closest_approach_path.visualize(local_viz_msg_, 0x00ff00);
+  return closest_approach_path;
 }
 
 void Navigation::Run() {
@@ -412,44 +209,8 @@ void Navigation::Run() {
     }
   }
 
-  constexpr float kWheelBase = 0.33;  // m
-  const float min_steering_angle = atan(kWheelBase / -1.1);
-  const float max_steering_angle = atan(kWheelBase / 1.1);
-  const size_t kNumSteps = 50;
-  const float angle_step_size = (max_steering_angle - min_steering_angle) / kNumSteps;
-
-  std::vector<PathOption> pathOptions(kNumSteps);
-  float minDist = std::numeric_limits<float>::max();
-  auto minDistPathOption = pathOptions.begin();
-
-  for (size_t i = 0; i < kNumSteps; i++) {
-    auto cur_option = pathOptions.begin() + i;
-
-    float steering_angle = min_steering_angle + angle_step_size * i;
-    float r = kWheelBase / tan(steering_angle);
-
-    cur_option->curvature = 1 / r;
-    maxDistanceTravelable(r, point_cloud_, *cur_option);
-
-    // TODO: use predicted nav goal displacement
-    float distToPoint = (cur_option->closest_point_to_target - nav_goal_disp_).norm();
-    if (distToPoint < minDist) {
-      minDist = distToPoint;
-      minDistPathOption = cur_option;
-    }
-  }
-
-  auto maxDistPathRadius = 1 / minDistPathOption->curvature;
-  auto closest_angle_to_target = minDistPathOption->closest_angle_to_target;
-
-  Eigen::Vector2f turning_point_local(0, maxDistPathRadius);
-
-  if (maxDistPathRadius > 0)
-    visualization::DrawArc(turning_point_local, maxDistPathRadius, -M_PI / 2,
-                           -M_PI / 2 + closest_angle_to_target, 6, local_viz_msg_);
-  else
-    visualization::DrawArc(turning_point_local, maxDistPathRadius,
-                           M_PI / 2 - closest_angle_to_target, M_PI / 2, 6, local_viz_msg_);
+  // TODO: use predicted nav goal displacement and point cloud
+  PathOption best_path = findBestPath(point_cloud_, nav_goal_disp_);
 
   // Update the remaining displacement based on odometry data.
   const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
@@ -458,7 +219,7 @@ void Navigation::Run() {
   nav_goal_disp_ -= reference_disp;
   nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
 
-  float remaining_distance = minDistPathOption->free_path_length;
+  float remaining_distance = best_path.free_path_length;
 
   const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
   float cur_speed;
@@ -476,7 +237,7 @@ void Navigation::Run() {
   } else {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
-  drive_msg_.curvature = minDistPathOption->curvature;
+  drive_msg_.curvature = best_path.curvature;
 
   last_odom_pose_.Set(odom_angle_, odom_loc_);
 

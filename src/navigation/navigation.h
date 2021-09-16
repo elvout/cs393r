@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
+#include "amrl_msgs/VisualizationMsg.h"
 #include "eigen3/Eigen/Dense"
 #include "shared/math/poses_2d.h"
 
@@ -49,9 +50,23 @@ struct PathOption {
   float curvature;
   float clearance;
   float free_path_length;
-  float closest_angle_to_target;
+  float free_path_subtended_angle;
   Eigen::Vector2f closest_point_to_target;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
+  PathOption() = default;
+  PathOption(const float curvature,
+             const std::vector<Eigen::Vector2f>& point_cloud,
+             const Eigen::Vector2f& target);
+
+  /**
+   * Visualize this path with an arc of length `free_path_length`.
+   *
+   * `msg` should be the `VisualizationMsg` for the robot's local reference frame.
+   *
+   * `color` is a hex color code for the path.
+   */
+  void visualize(amrl_msgs::VisualizationMsg& msg, uint32_t color) const;
 };
 
 class Navigation {
@@ -75,10 +90,6 @@ class Navigation {
   void Run();
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
-
-  void maxDistanceTravelable(const float r,
-                             const std::vector<Eigen::Vector2f>& point_cloud_,
-                             PathOption& t);
 
   /**
    * Set the remaining displacement for navigation.
