@@ -183,9 +183,18 @@ void Navigation::Run() {
     return;
   }
 
+  // Update the displacement target based on new odometry data.
+  const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
+  const Eigen::Vector2f reference_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * odom_disp;
+  const float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
+  nav_goal_disp_ -= reference_disp;
+  nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
+  last_odom_pose_.Set(odom_angle_, odom_loc_);
+
   // Transform predicted remaining displacement and point cloud
   // based on previous commands.
   Vector2f predicted_nav_goal_disp = nav_goal_disp_;
+  std::vector<Vector2f> predicted_point_cloud = point_cloud_;
   for (const auto& msg : drive_msg_hist_) {
     const float arc_len = msg.velocity / kUpdateFrequency;
     const float turning_radius = 1 / msg.curvature;
@@ -203,21 +212,13 @@ void Navigation::Run() {
     predicted_nav_goal_disp -= disp_vec;
     predicted_nav_goal_disp = rot * predicted_nav_goal_disp;
 
-    for (auto& point : point_cloud_) {
+    for (auto& point : predicted_point_cloud) {
       point -= disp_vec;
       point = rot * point;
     }
   }
 
-  // TODO: use predicted nav goal displacement and point cloud
-  PathOption best_path = findBestPath(point_cloud_, nav_goal_disp_);
-
-  // Update the remaining displacement based on odometry data.
-  const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
-  const Eigen::Vector2f reference_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * odom_disp;
-  const float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
-  nav_goal_disp_ -= reference_disp;
-  nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
+  PathOption best_path = findBestPath(predicted_point_cloud, predicted_nav_goal_disp);
 
   float remaining_distance = best_path.free_path_length;
 
@@ -238,8 +239,6 @@ void Navigation::Run() {
     drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
   }
   drive_msg_.curvature = best_path.curvature;
-
-  last_odom_pose_.Set(odom_angle_, odom_loc_);
 
   drive_msg_hist_.emplace_back(drive_msg_);
   if (drive_msg_hist_.size() > kControlHistorySize) {
