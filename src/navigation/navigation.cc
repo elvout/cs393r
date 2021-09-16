@@ -154,7 +154,7 @@ float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
   // in which the vector from the center of turning to the base link is
   // the x-axis.
   Eigen::Rotation2Df rot(std::asin(Sign(radius)));
-  point = rot * point;
+  point = rot * (center_to_base + point);
   center_to_base = rot * center_to_base;
 
   assert(center_to_base.x() >= 0);
