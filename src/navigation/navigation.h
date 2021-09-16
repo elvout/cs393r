@@ -48,11 +48,9 @@ constexpr float kControlHistorySize = kActuationLatency * kUpdateFrequency;
 struct PathOption {
   float curvature;
   float clearance;
-  // float free_path_length;
-  float alpha_collision;
+  float free_path_length;
   float closest_angle_to_target;
-  Eigen::Vector2f obstruction;
-  Eigen::Vector2f closest_point;
+  Eigen::Vector2f closest_point_to_target;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
@@ -78,7 +76,9 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
-  void maxDistanceTravelable(float r, std::vector<Eigen::Vector2f> point_cloud_, PathOption& t);
+  void maxDistanceTravelable(const float r,
+                             const std::vector<Eigen::Vector2f>& point_cloud_,
+                             PathOption& t);
 
   /**
    * Set the remaining displacement for navigation.
