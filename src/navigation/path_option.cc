@@ -236,6 +236,50 @@ PathOption::PathOption(const float curvature,
                           turning_radius - turning_radius * std::cos(free_path_subtended_angle));
     }
   }
+
+  // Clearance detection
+  // Now that we know our max point on an arc, determine where the closest points are tangent
+  // to each side of that arc until its end
+
+  {
+    const float turning_radius = 1 / curvature;
+    const Eigen::Vector2f center_of_turning(0, turning_radius);
+
+    // TODO: Should these be higher?
+    // clearance value?
+    float clearance_towards_center = 1;
+    float clearance_away_center = 1;
+    // TODO: Edge case: point is in front of the base link at the end of the arc_len
+    // Maybe modify free_path_subtended_angle to represent the front of the car.
+    for (const auto& point : point_cloud) {
+      const float point_subtended_angle = angularDistanceToPoint(point, turning_radius);
+      if (point_subtended_angle < free_path_subtended_angle) {
+        // Determine the distance of the tangent line from the point to the car's path
+        const float point_radius = (center_of_turning - point).norm();
+
+        // Can/should be negative
+        const float radius_delta = point_radius - turning_radius;
+
+        if (radius_delta < 0 && std::abs(radius_delta) < clearance_towards_center) {
+          clearance_towards_center = std::abs(radius_delta);
+        }
+        // TODO: 0 case?
+        // TODO: Collision case?
+        else if (radius_delta >= 0 && radius_delta < clearance_away_center) {
+          clearance_away_center = radius_delta;
+        }
+      }
+      // Special case if there's a point on the complete opposite side of the turning sphere
+      // that will be tangent with the car
+      // TODO: Is this even needed if our min radius is 1m?
+      // } else if (point_subtended_angle >= free_path_subtended_angle &&
+      //            point_subtended_angle > M_PI) {
+
+      // }
+    }
+
+    clearance = std::abs(clearance_away_center - clearance_towards_center);
+  }
 }
 
 /**
