@@ -188,16 +188,14 @@ PathOption::PathOption(const float curvature,
 
           // Estimate where the point lies between the two radii as a proportion.
           float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          // TODO: edge case: point is behind the base link
-          // Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q2_corner + p * q1_corner;
-          Eigen::Vector2f approx_hit_point_on_car = p * q1_corner;
+          Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q2_corner + p * q1_corner;
+          // Edge case: The hit point has a negative `y`.
+          // This angle will appear to be large since it's range-constrained.
           float angle_between_base_and_hit_point =
               angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
 
-          float path_subtended_angle = angle_to_point - angle_between_base_and_hit_point;
-          // TODO: edge case: point is behind the base link
-          assert(path_subtended_angle > 0);  // TODO: does this assertion even make sense?
-
+          float path_subtended_angle =
+              constrainAngle(angle_to_point - angle_between_base_and_hit_point);
           free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
         }
       }
@@ -214,16 +212,14 @@ PathOption::PathOption(const float curvature,
 
           // Estimate where the point lies between the two radii as a proportion.
           float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          // TODO: edge case: point is behind the base link
-          // Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q3_corner + p * q4_corner;
-          Eigen::Vector2f approx_hit_point_on_car = p * q4_corner;
+          Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q3_corner + p * q4_corner;
+          // Edge case: The hit point has a negative `y`.
+          // This angle will appear to be large since it's range-constrained.
           float angle_between_base_and_hit_point =
               angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
 
-          float path_subtended_angle = angle_to_point - angle_between_base_and_hit_point;
-          // TODO: edge case: point is behind the base link
-          assert(path_subtended_angle > 0);  // TODO: does this assertion even make sense?
-
+          float path_subtended_angle =
+              constrainAngle(angle_to_point - angle_between_base_and_hit_point);
           free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
         }
       }
