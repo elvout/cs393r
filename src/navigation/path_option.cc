@@ -131,10 +131,6 @@ PathOption::PathOption(const float curvature,
   } else {
     // General case: The car is making a turn.
 
-    // TODO: define a lambda function to reduce code redundancy
-    // Currently blocked due to `approx_hit_point_on_car` edge cases
-    // for left and right turns.
-
     const float turning_radius = 1 / curvature;
     const Eigen::Vector2f center_of_turning(0, turning_radius);
 
@@ -143,94 +139,50 @@ PathOption::PathOption(const float curvature,
     // will begin to move away from the target.
     free_path_subtended_angle = angularDistanceToPoint(target, turning_radius);
 
-    for (const auto& point : point_cloud) {
+    // Subroutine to calculate the subtended angle of the base link when the car
+    // collides with a point and update the free path subtended angle accordingly.
+    auto update_free_path_angle = [&](const Eigen::Vector2f& inner_corner,
+                                      const Eigen::Vector2f& outer_corner,
+                                      const Eigen::Vector2f& point) {
       const float point_radius = (center_of_turning - point).norm();
+      const float angle_to_point = angularDistanceToPoint(point, turning_radius);
 
-      // Front hit case if turning
-      {
-        // Inner and outer radii are defined differently depending on the
-        // direction the car is turning.
-        float inner_radius = (center_of_turning - q1_corner).norm();
-        float outer_radius = (center_of_turning - q4_corner).norm();
-        if (turning_radius < 0) {
-          // TODO: this is a hacky fix
-          // Reorder parameters to a lambda function instead.
-          std::swap(inner_radius, outer_radius);
-        }
-        assert(inner_radius < outer_radius);
+      const float inner_radius = (center_of_turning - inner_corner).norm();
+      const float outer_radius = (center_of_turning - outer_corner).norm();
+      assert(inner_radius < outer_radius);
 
-        bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
-        if (collision) {
-          float angle_to_point = angularDistanceToPoint(point, turning_radius);
+      const bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
+      if (collision) {
+        // Estimate where the point lies between the two radii as a proportion.
+        const float p = (point_radius - inner_radius) / (outer_radius / inner_radius);
+        // Calculate the corresponding point on the side of the car.
+        const Eigen::Vector2f approx_hit_point_on_car = (1 - p) * inner_corner + p * outer_corner;
+        const float angle_between_base_and_hit_point =
+            angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
 
-          // Estimate where the point lies between the two radii as a proportion.
-          float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q1_corner + p * q4_corner;
-          float angle_between_base_and_hit_point =
-              angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
-
-          float path_subtended_angle = angle_to_point - angle_between_base_and_hit_point;
-          assert(path_subtended_angle > 0);
-
-          free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
-        }
+        float path_subtended_angle =
+            constrainAngle(angle_to_point - angle_between_base_and_hit_point);
+        free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
       }
+    };
 
-      // Left turn left side hit case
+    for (const auto& point : point_cloud) {
       if (turning_radius > 0) {
-        const float inner_radius = (center_of_turning - q2_corner).norm();
-        const float outer_radius = (center_of_turning - q1_corner).norm();
-        assert(inner_radius < outer_radius);
-
-        bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
-        if (collision) {
-          float angle_to_point = angularDistanceToPoint(point, turning_radius);
-
-          // Estimate where the point lies between the two radii as a proportion.
-          float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q2_corner + p * q1_corner;
-          // Edge case: The hit point has a negative `y`.
-          // This angle will appear to be large since it's range-constrained.
-          float angle_between_base_and_hit_point =
-              angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
-
-          float path_subtended_angle =
-              constrainAngle(angle_to_point - angle_between_base_and_hit_point);
-          free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
-        }
+        update_free_path_angle(q1_corner, q4_corner, point);  // Front side hit
+        update_free_path_angle(q2_corner, q1_corner, point);  // Left side hit
+      } else {
+        update_free_path_angle(q4_corner, q1_corner, point);  // Front side hit
+        update_free_path_angle(q3_corner, q4_corner, point);  // Right side hit
       }
 
-      // Right turn right side hit case
-      if (turning_radius < 0) {
-        const float inner_radius = (center_of_turning - q3_corner).norm();
-        const float outer_radius = (center_of_turning - q4_corner).norm();
-        assert(inner_radius < outer_radius);
-
-        bool collision = inner_radius <= point_radius && point_radius <= outer_radius;
-        if (collision) {
-          float angle_to_point = angularDistanceToPoint(point, turning_radius);
-
-          // Estimate where the point lies between the two radii as a proportion.
-          float p = (point_radius - inner_radius) / (outer_radius - inner_radius);
-          Eigen::Vector2f approx_hit_point_on_car = (1 - p) * q3_corner + p * q4_corner;
-          // Edge case: The hit point has a negative `y`.
-          // This angle will appear to be large since it's range-constrained.
-          float angle_between_base_and_hit_point =
-              angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
-
-          float path_subtended_angle =
-              constrainAngle(angle_to_point - angle_between_base_and_hit_point);
-          free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
-        }
-      }
-
-      assert(free_path_subtended_angle >= 0);
-
-      free_path_length = free_path_subtended_angle * std::abs(turning_radius);
-      closest_point_to_target =
-          Eigen::Vector2f(std::abs(turning_radius) * std::sin(free_path_subtended_angle),
-                          turning_radius - turning_radius * std::cos(free_path_subtended_angle));
+      // TODO: invalid assertion? What if this path would head directly into an obstacle?
+      // assert(free_path_subtended_angle >= 0);
     }
+
+    free_path_length = free_path_subtended_angle * std::abs(turning_radius);
+    closest_point_to_target =
+        Eigen::Vector2f(std::abs(turning_radius) * std::sin(free_path_subtended_angle),
+                        turning_radius - turning_radius * std::cos(free_path_subtended_angle));
   }
 }
 
