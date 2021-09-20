@@ -123,4 +123,73 @@ Let
         d_{stop} &= \frac{\lVert v \rVert^2}{2a}
     \end{align*}
 \end{enumerate}
+
+\section{Algorithm Details}
+
+\subsection{Parameters}
+
+We define the following as constants:
+\begin{itemize}
+    \item Size of the car.
+    \item Safety margin around the car.
+    \item Limits of the car's steering angle.
+    \item Steering angle step size for testing different constant-curvature arcs.
+    \item The maximum magnitude of velocity, acceleration, and deceleration.
+    \item Actuation latency.
+    \item Location of the LIDAR sensor.
+\end{itemize}
+
+Our path-selection algorithm uses the following properties of each path option:
+\begin{itemize}
+    \item The free path length.
+    \item The point on the free path closest to the navigation goal.
+\end{itemize}
+
+\subsubsection{Parameter Tuning}
+
+We measured the physical dimensions of the car and the location of the LIDAR
+sensor in the base link reference frame. We tuned actuation latency by trial and
+error, testing multiple latencies until the car was able to travel in a straight
+path of 2 meters within an acceptable margin of error.
+
+\subsection{Limitations and Improvements}
+
+We observed that our latency compensation was able to achieve a relatively low
+displacement error when we only take into account actuation latency. However, we
+noticed that the navigation target would shift a lot in the visualization. We
+are not sure whether this is due to observation latency or noise and precision
+errors in our transformation code, and we plan on correcting for observation
+latency to rule it out as a factor.
+
+\bigskip
+\noindent
+We observed that our path-finding algorithm worked well without factoring in
+clearance to the path-selection heuristic since the safety margin enforces an
+lower bound on the clearance for each path. However, we plan on merging
+clearance code into our main development branch to make our algorithm more
+robust in complex environments.
+
+% code performance?
+
+\subsection{Challenges}
+
+Upon running the car for the first time, we found that the steering was heavily
+biased to the left. We had to set the
+\texttt{steering\_angle\_to\_servo\_offset} higher than the suggested range for
+steering to be symmetric.
+
+We encountered a lot of bugs due to infinite radii in the straight-line-path
+case. Most of our functions perform separate computations for this edge case.
+
+\section{Repository Link}
+
+\section{Demonstration}
+
+\section{Contributions}
+
+When we began, Aidan worked on obstacle detection and path selection and Elvin
+worked on time optimal control and latency compensation. We spent a significant
+amount of time working as a group to figure out math, integrate our
+components together, and test our code on the physical car.
+
 \end{document}
