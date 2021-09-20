@@ -1,0 +1,126 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fullpage}
+\usepackage{geometry}
+\usepackage[utf8]{inputenc}
+
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+
+\DeclareMathOperator{\sgn}{sgn}
+
+\title{CS 393R Autonomous Robots \\ \large Assignment 1: Obstacle Avoidance}
+\author{Aidan Dunlap, Elvin Yang}
+\date{September 20, 2021}
+
+\begin{document}
+\maketitle
+
+\section{Questions}
+
+Let
+\begin{itemize}
+    \item
+    $l$, $w$, $b$, $d$, and $m$ represent the car's length, width, wheel base,
+    track width, and obstacle safety margin, respectively.
+
+    \item
+    $r$ represent the car's radius of turning. Negative $r$ signifies a right
+    turn.
+
+    \item
+    $p = (x, y)$ represent an observed point in the base\_link reference frame.
+
+    \item
+    $a = \frac{l - b}{2}$ represent the distance between the front axle and the
+    front end of the car as well as the distance between the rear axle and the
+    rear end of the car.
+
+    % \item
+    % $c_1, c_2, c_3, c_4$ represent the corners of the car in each respective
+    % quadrant of the base\_link reference frame.
+\end{itemize}
+
+\begin{enumerate}[leftmargin=*]
+    \item
+    Which point of the car traces an arc of maximum radius? What is that radius,
+    in terms of $r$ and other car parameters?
+
+    The front corner of the car that is farthest from the center of turning
+    traces an arc of maximum radius. It has radius
+    $$ r_{max} = \sgn(r) \sqrt{\left(l + a\right)^2 + \left(\lvert r \rvert + \frac{w}{2}\right)^2} $$
+
+    \item
+    Which point of the car traces an arc of minimum radius? What is that radius,
+    in terms of $r$ and other car parameters?
+
+    The rear corner of the car closest to the center of turning traces an
+    arc of minimum radius. It has radius
+    $$ r_{min} = \sgn(r) \sqrt{\left(l - a \right)^2 + \left(\lvert r \rvert - \frac{w}{2}\right)^2} $$
+
+    \item
+    Under what conditions will $p$ first hit the inner side (the side closer to
+    the center of turning) of the car as the car drives forward?
+
+    % mention case where r == \inf?
+
+    Let $r_1, r_2$ represent the distances from the endpoints of the inner side
+    of the car to the center of turning, where $r_1 < r_2$.  Let $d_p$ represent
+    the distance from $p$ to the center of turning.
+
+    If $r_1 < d_p < r_2$, then $p$ will hit the inner side of the car.
+
+    \item
+    Under what conditions will $p$ first hit the front of the car as the car
+    drives forward?
+
+    % mention case where r == \inf?
+
+    Let $r_1, r_2$ represent the distances from the endpoints of the front side
+    of the car to the center of turning, where $r_1 < r_2$.  Let $d_p$ represent
+    the distance from $p$ to the center of turning.
+
+    If $r_1 < d_p < r_2$, then $p$ will hit the front side of the car.
+
+    \item
+    Under what conditions will $p$ first hit the outer side (the side farther to
+    the center of turning) of the car as the car drives forward?
+
+    The instantaneous direction of a point on the car is perpendicular to the
+    vector from the center of turning to that point. Without loss of generality,
+    for left turns, the instantaneous velocity of the rear corner of the outer
+    side has a negative $y$ component and the instantaneous velocity of the
+    front corner of the outer side has a positive $y$ component.
+
+    If $p$ is sufficiently close to the rear corner of the outer side of the
+    car, it will hit the outer side of the car.
+
+    % mathematical explanation as well?
+    % y in -a to a
+    % x max is r_3 - |r|
+
+    \item
+    What is the maximum distance (the free path length) the car can move forward
+    along the arc before it hits the point $p$?
+
+    Let $\theta$ represent the angle formed by the base link, center of turning,
+    and $p$.
+    % how to find the hit location?
+    Let $\beta$ represent the angle formed by the base link, center of turning,
+    and location on the perimeter of the car where $p$ will hit.  Define
+    $\alpha$ as $\theta - \beta$, or the angle subtended by the base link when
+    the car hits $p$.
+
+    The free path length is $\alpha \lvert r \rvert$, the arc length of the
+    angle subtended by the base link.
+
+    \item
+    If the current velocity of the car is $v$, and the maximum magnitude of
+    deceleration is $a$, what is the minimum stopping distance of the car?
+    \begin{align*}
+        \lVert v_f \rVert^2 &= \lVert v_i \rVert^2 - 2ad_{stop} \\
+        0 &= \lVert v \rVert^2 - 2 a d_{stop} \\
+        d_{stop} &= \frac{\lVert v \rVert^2}{2a}
+    \end{align*}
+\end{enumerate}
+\end{document}
