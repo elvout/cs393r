@@ -103,15 +103,11 @@ Let
     \item
     What is the maximum distance (the free path length) the car can move forward
     along the arc before it hits the point $p$?
-
-    Let $\theta$ represent the angle formed by the base link, center of turning,
-    and $p$.
-    % how to find the hit location?
-    Let $\beta$ represent the angle formed by the base link, center of turning,
-    and location on the perimeter of the car where $p$ will hit.  Define
-    $\alpha$ as $\theta - \beta$, or the angle subtended by the base link when
-    the car hits $p$.
-
+    
+    Find the angle between the hit point and the vector from the base of the car to the turning point, called $c$ (math in code). Use the method discussed in questions 3-4 to determine if a point will hit the car at all. If so, handle the next step by cases depending on whether there was a hit on the side or front of the car. 
+    
+    If there was a hit on the front of the car, approximate the hit point on the car as follows: let $p = \frac{d_1 - r_1}{r_2 - r_2}$, where $d_1$ is the distance between the collision point and the turning point. Let $c_1$ be the south-east of the car, and $c_2$ the north-east. We can calculate $\beta$, the angle between the base link and the hit point projected onto the car, calculated as $c_1 + p * \vec{c_1 c_2}$  in the base link, using the same method as per $c$. Using this, calculate the angle from the base frame to the base frame on collision, $\alpha = c - \beta$.     For side hits, do a similar process, or approximate a standard hit point like the middle of the side given the smaller area for points to hit at a time. For negative radii, do about the same thing except for nuances in vector angle calculations (also in code). 
+    
     The free path length is $\alpha \lvert r \rvert$, the arc length of the
     angle subtended by the base link.
 
