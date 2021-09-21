@@ -3,6 +3,7 @@
 \usepackage{enumitem}
 \usepackage{fullpage}
 \usepackage{geometry}
+\usepackage{hyperref}
 \usepackage[utf8]{inputenc}
 
 \geometry{top=1in, bottom=1in, left=1in, right=1in}
@@ -10,7 +11,7 @@
 \DeclareMathOperator{\sgn}{sgn}
 
 \title{CS 393R Autonomous Robots \\ \large Assignment 1: Obstacle Avoidance}
-\author{Aidan Dunlap, Elvin Yang}
+\author{Elvin Yang, Aidan Dunlap}
 \date{September 20, 2021}
 
 \begin{document}
@@ -131,18 +132,27 @@ Let
 We define the following as constants:
 \begin{itemize}
     \item Size of the car.
+    \\ We measured these with a tape measure. We used these for a variety of uses from collision detection to path planning, multiplied by a margin-of-safety coefficient (c > 1) that increased the size of the car.
     \item Safety margin around the car.
+    \\ We manually searched for a safety margin  coefficient that we thought managed both safety and flexibility effectively.  
     \item Limits of the car's steering angle.
+    \\ We measured this with a tape measure with the car's maximum controllable turning radius. This was used for a lower/upper bound on the car's turning angle which we used to search for potential paths. 
     \item Steering angle step size for testing different constant-curvature arcs.
+    \\ This was a hand-tuned parameter that we adjusted to balance turning flexibility and route calculation latency
     \item The maximum magnitude of velocity, acceleration, and deceleration.
+    \\ We used this to plan our time-optimal control paths. We never used or tested the maximum velocity of the car and instead stuck to safe but also challenging velocities.  
     \item Actuation latency.
+    \\ We used this for latency compensation (see more below)
     \item Location of the LIDAR sensor.
+    \\ We used this to translate LIDAR points back into the base link/predicted base link reference frame
 \end{itemize}
 
 Our path-selection algorithm uses the following properties of each path option:
 \begin{itemize}
     \item The free path length.
+    \\The distance the car could travel such that it both does not collide with an obstacle and also doesn't drive past the closest point on the circle to the target. 
     \item The point on the free path closest to the navigation goal.
+    \\We used this to determine the smallest absolute displacement between the car on its path and the target.
 \end{itemize}
 
 \subsubsection{Parameter Tuning}
@@ -182,8 +192,10 @@ We encountered a lot of bugs due to infinite radii in the straight-line-path
 case. Most of our functions perform separate computations for this edge case.
 
 \section{Repository Link}
+\href{http://github.com/elvout/cs393r-a1}{http://github.com/elvout/cs393r-a1}
 
 \section{Demonstration}
+Videos \href{https://drive.google.com/drive/folders/1Z8qGX_YRjMb96KEpW027cGvmGeLOB8BU}{here}
 
 \section{Contributions}
 
