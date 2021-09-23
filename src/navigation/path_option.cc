@@ -25,7 +25,7 @@ constexpr float kCarXLength = 0.5;                         // m
 constexpr float kBaseToFront = 0.42;                       // m
 constexpr float kBaseToBack = kCarXLength - kBaseToFront;  // m
 constexpr float kBaseToSide = 0.14;                        // m
-constexpr float kSafetyMargin = 0.1;                       // m
+constexpr float kSafetyMargin = 0.05;                      // m
 
 // Define the boundaries of the car in terms of its corners
 // in each quadrant of the base_link reference frame.
@@ -107,9 +107,10 @@ PathOption::PathOption(const float curvature,
       free_path_length(0),
       free_path_subtended_angle(0),
       closest_point_to_target(0, 0) {
-  if (curvature == 0) {
+  if (std::abs(curvature) <= kEpsilon) {
+    this->curvature = 0;
     // Edge case: The car is driving straight.
-    // An obstace can only hit the front of the car.
+    // An obstacle can only hit the front of the car.
 
     const float min_y = q4_corner.y();
     const float max_y = q1_corner.y();

@@ -218,6 +218,10 @@ void Navigation::Run() {
     }
   }
 
+  for (auto& point : predicted_point_cloud) {
+    visualization::DrawPoint(point, 0x000000, local_viz_msg_);
+  }
+
   PathOption best_path = findBestPath(predicted_point_cloud, predicted_nav_goal_disp);
 
   float remaining_distance = best_path.free_path_length;
