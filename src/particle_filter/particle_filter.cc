@@ -145,8 +145,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Call the Update and Resample steps as necessary.
 }
 
-void ParticleFilter::Predict(const Vector2f& odom_loc,
-                             const float odom_angle) {
+void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   // Implement the predict step of the particle filter here.
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles

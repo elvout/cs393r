@@ -68,9 +68,7 @@ using visualization::DrawPoint;
 // Create command line arguements
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
 DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
-DEFINE_string(init_topic,
-              "/set_pose",
-              "Name of ROS topic for initialization");
+DEFINE_string(init_topic, "/set_pose", "Name of ROS topic for initialization");
 
 DECLARE_int32(v);
 
@@ -171,8 +169,7 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
     printf("Odometry t=%f\n", msg.header.stamp.toSec());
   }
   const Vector2f odom_loc(msg.pose.pose.position.x, msg.pose.pose.position.y);
-  const float odom_angle =
-      2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
+  const float odom_angle = 2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
   particle_filter_.Predict(odom_loc, odom_angle);
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
@@ -189,10 +186,7 @@ void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
   const Vector2f init_loc(msg.pose.x, msg.pose.y);
   const float init_angle = msg.pose.theta;
   const string map = "maps/" + msg.map + ".txt";
-  printf("Initialize: %s (%f,%f) %f\u00b0\n",
-         map.c_str(),
-         init_loc.x(),
-         init_loc.y(),
+  printf("Initialize: %s (%f,%f) %f\u00b0\n", map.c_str(), init_loc.x(), init_loc.y(),
          RadToDeg(init_angle));
   particle_filter_.Initialize(map, init_loc, init_angle);
   trajectory_points_.clear();
