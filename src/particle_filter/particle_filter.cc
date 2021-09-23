@@ -145,7 +145,9 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Call the Update and Resample steps as necessary.
 }
 
-void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
+void ParticleFilter::Predict(const Vector2f& odom_loc,
+                             const float odom_angle) {
+  // Implement the predict step of the particle filter here.
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
@@ -164,6 +166,7 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   // The "set_pose" button on the GUI was clicked, or an initialization message
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
+  map_.Load(map_file);
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, float* angle_ptr) const {

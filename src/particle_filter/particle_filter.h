@@ -51,8 +51,9 @@ class ParticleFilter {
                     float angle_min,
                     float angle_max);
 
-  // Observe new odometry-reported location.
-  void ObserveOdometry(const Eigen::Vector2f& odom_loc, const float odom_angle);
+  // Predict particle motion based on odometry.
+  void Predict(const Eigen::Vector2f& odom_loc,
+                       const float odom_angle);
 
   // Initialize the robot location.
   void Initialize(const std::string& map_file, const Eigen::Vector2f& loc, const float angle);
