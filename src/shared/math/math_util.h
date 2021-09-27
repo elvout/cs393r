@@ -18,19 +18,19 @@
 // If not, see <http://www.gnu.org/licenses/>.
 // ========================================================================
 
+#ifndef SRC_MATH_MATH_UTIL_H_
+#define SRC_MATH_MATH_UTIL_H_
+
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <type_traits>
 #include "glog/logging.h"
-
-#ifndef SRC_MATH_MATH_UTIL_H_
-#define SRC_MATH_MATH_UTIL_H_
 
 #define M_2PI (2.0 * M_PI)
 
 namespace math_util {
 
-// Convert angle in radians to degrees.
 template <typename T>
 T Clamp(const T value, const T min, const T max) {
   return std::max(min, std::min(value, max));
@@ -38,13 +38,15 @@ T Clamp(const T value, const T min, const T max) {
 
 // Convert angle in radians to degrees.
 template <typename T>
-T RadToDeg(T angle) {
+constexpr T RadToDeg(T angle) {
+  static_assert(std::is_floating_point<T>::value, "Angle conversion requires floating-point type");
   return (angle / M_PI * 180.0);
 }
 
 // Convert angle in degrees to radians.
 template <typename T>
 constexpr T DegToRad(T angle) {
+  static_assert(std::is_floating_point<T>::value, "Angle conversion requires floating-point type");
   return (angle / 180.0 * M_PI);
 }
 
