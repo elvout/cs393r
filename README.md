@@ -21,7 +21,8 @@ We use [clang-format](https://clang.llvm.org/docs/ClangFormat.html) in a
 files. The file must first be symlinked into the local .git folder.
 
 ```shell
-ln -s ../../.githooks/pre-commit ./git/hooks/
+# In the top-level directory:
+$ ln -s ../../.githooks/pre-commit .git/hooks/
 ```
 
 ## Code Overview
