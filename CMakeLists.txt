@@ -6,7 +6,7 @@ MESSAGE(STATUS "Using compiler: ${CMAKE_CXX_COMPILER}")
 MESSAGE(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 MESSAGE(STATUS "Arch: ${CMAKE_SYSTEM_PROCESSOR}")
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror")
+SET(CMAKE_CXX_FLAGS "-std=c++17 -pthread -Wall")
 
 IF(${CMAKE_BUILD_TYPE} MATCHES "Release")
   MESSAGE(STATUS "Additional Flags for Release mode")
@@ -38,16 +38,16 @@ ADD_SUBDIRECTORY(src/shared)
 INCLUDE_DIRECTORIES(src/shared)
 INCLUDE_DIRECTORIES(src)
 
-#ROSBUILD_ADD_EXECUTABLE(slam
-#                        src/slam/slam_main.cc
-#                        src/slam/slam.cc)
-#TARGET_LINK_LIBRARIES(slam shared_library ${libs})
+ROSBUILD_ADD_EXECUTABLE(slam
+                       src/slam/slam_main.cc
+                       src/slam/slam.cc)
+TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 
 
-#ROSBUILD_ADD_EXECUTABLE(particle_filter
-#                        src/particle_filter/particle_filter_main.cc
-#                        src/particle_filter/particle_filter.cc)
-#TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
+ROSBUILD_ADD_EXECUTABLE(particle_filter
+                       src/particle_filter/particle_filter_main.cc
+                       src/particle_filter/particle_filter.cc)
+TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
@@ -55,8 +55,8 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/path_option.cc)
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 
-#ADD_EXECUTABLE(eigen_tutorial
-#               src/eigen_tutorial.cc)
+ADD_EXECUTABLE(eigen_tutorial
+              src/eigen_tutorial.cc)
 
-#ADD_EXECUTABLE(simple_queue_test
-#               src/navigation/simple_queue_test.cc)
+ADD_EXECUTABLE(simple_queue_test
+              src/navigation/simple_queue_test.cc)
