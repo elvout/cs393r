@@ -6,7 +6,7 @@ SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 SET(libs glog pthread)
 
-SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++17 -pthread")
 
 ADD_LIBRARY(amrl-shared-lib
             util/helpers.cc

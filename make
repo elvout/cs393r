@@ -36,5 +36,25 @@ function fix-ros-path() {
 }
 
 
+function use-clang() {
+    # clang tends to compile the project in less time and using less
+    # memory than gcc. This function tries to set the environment
+    # variables used by the Makefile to the latest version of clang,
+    # if it exists on the system.
+
+    # On Ubuntu 20.04, the latest version of clang is 12.
+    for VERSION in {12..10}; do
+        if [[ -x /usr/bin/clang-$VERSION ]]; then
+            export C_compiler="/usr/bin/clang-$VERSION"
+            export CXX_compiler="/usr/bin/clang++-$VERSION"
+            break
+        fi
+    done
+}
+
+
+if [[ $(uname -m) == "x86_64" ]]; then
+    use-clang
+fi
 fix-ros-path
 make -j
