@@ -43,8 +43,6 @@ function use-clang() {
     # if it exists on the system.
 
     # On Ubuntu 20.04, the latest version of clang is 12.
-    # I had trouble compiling the project with clang 10, but try
-    # using it anyway.
     for VERSION in {12..10}; do
         if [[ -x /usr/bin/clang-$VERSION ]]; then
             export C_compiler="/usr/bin/clang-$VERSION"
