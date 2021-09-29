@@ -173,11 +173,11 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   for (Particle& p : particles_) {
     const Eigen::Vector2f translate_err(rng_.Gaussian(0, translate_std),
                                         rng_.Gaussian(0, translate_std));
-    const double err_th = rng_.Gaussian(0, rotate_std);
+    const double rotate_err = rng_.Gaussian(0, rotate_std);
 
     // Rotate the translation to occur in the particle's frame.
     p.loc += Eigen::Rotation2Df(p.angle) * (base_disp + translate_err);
-    p.angle += angular_disp + err_th;
+    p.angle += angular_disp + rotate_err;
   }
 
   prev_odom_loc_ = odom_loc;
