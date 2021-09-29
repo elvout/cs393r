@@ -185,6 +185,10 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   PublishVisualization();
 }
 
+/**
+ * This function is called after the "Set Pose" button is clicked in the
+ * web interface.
+ */
 void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
   const Vector2f init_loc(msg.pose.x, msg.pose.y);
   const float init_angle = msg.pose.theta;

@@ -37,6 +37,10 @@ struct Particle {
   Eigen::Vector2f loc;
   float angle;
   double weight;
+
+  Particle() = default;
+  Particle(Eigen::Vector2f loc, float angle, double weight)
+      : loc(std::move(loc)), angle(angle), weight(weight) {}
 };
 
 class ParticleFilter {
