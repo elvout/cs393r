@@ -65,7 +65,7 @@ using visualization::DrawLine;
 using visualization::DrawParticle;
 using visualization::DrawPoint;
 
-// Create command line arguements
+// Create command line arguments
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
 DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
 DEFINE_string(init_topic, "/set_pose", "Name of ROS topic for initialization");
@@ -77,6 +77,8 @@ CONFIG_STRING(map_name_, "map");
 CONFIG_FLOAT(init_x_, "init_x");
 CONFIG_FLOAT(init_y_, "init_y");
 CONFIG_FLOAT(init_r_, "init_r");
+
+namespace {
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 bool run_ = true;
@@ -88,6 +90,7 @@ VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
 
 vector<Vector2f> trajectory_points_;
+}  // namespace
 
 void InitializeMsgs() {
   std_msgs::Header header;
