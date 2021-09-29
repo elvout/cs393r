@@ -108,10 +108,9 @@ void PublishParticles() {
 }
 
 void PublishPredictedScan() {
-  const uint32_t kColor = 0xd67d00;
-  Vector2f robot_loc(0, 0);
-  float robot_angle(0);
-  particle_filter_.GetLocation(&robot_loc, &robot_angle);
+  constexpr uint32_t kColor = 0xd67d00;
+
+  const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
   vector<Vector2f> predicted_scan;
   particle_filter_.GetPredictedPointCloud(robot_loc, robot_angle, last_laser_msg_.ranges.size(),
                                           last_laser_msg_.range_min, last_laser_msg_.range_max,
@@ -123,11 +122,11 @@ void PublishPredictedScan() {
 }
 
 void PublishTrajectory() {
-  const uint32_t kColor = 0xadadad;
-  Vector2f robot_loc(0, 0);
-  float robot_angle(0);
-  particle_filter_.GetLocation(&robot_loc, &robot_angle);
+  constexpr uint32_t kColor = 0xadadad;
+
   static Vector2f last_loc_(0, 0);
+
+  const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
   if (!trajectory_points_.empty() && (last_loc_ - robot_loc).squaredNorm() > Sq(1.5)) {
     trajectory_points_.clear();
   }
@@ -173,9 +172,8 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   const Vector2f odom_loc(msg.pose.pose.position.x, msg.pose.pose.position.y);
   const float odom_angle = 2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
   particle_filter_.Predict(odom_loc, odom_angle);
-  Vector2f robot_loc(0, 0);
-  float robot_angle(0);
-  particle_filter_.GetLocation(&robot_loc, &robot_angle);
+
+  const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
   amrl_msgs::Localization2DMsg localization_msg;
   localization_msg.pose.x = robot_loc.x();
   localization_msg.pose.y = robot_loc.y();

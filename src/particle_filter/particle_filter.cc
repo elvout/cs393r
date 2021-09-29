@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <utility>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
@@ -200,14 +201,26 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   }
 }
 
-void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, float* angle_ptr) const {
-  Vector2f& loc = *loc_ptr;
-  float& angle = *angle_ptr;
-  // Compute the best estimate of the robot's location based on the current set
-  // of particles. The computed values must be set to the `loc` and `angle`
-  // variables to return them. Modify the following assignments:
-  loc = Vector2f(0, 0);
-  angle = 0;
+/**
+ * Computes the best estimate of the robot's location based on the
+ * current set of particles.
+ */
+std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
+  // Compute the mean of all the particles.
+  // TODO: the computation is surely more complex than this
+
+  Vector2f mean_loc(0, 0);
+  double mean_angle = 0;
+
+  for (const Particle& p : particles_) {
+    mean_loc += p.loc;
+    mean_angle += p.angle;
+  }
+
+  mean_loc /= particles_.size();
+  mean_angle /= particles_.size();
+
+  return std::make_pair(std::move(mean_loc), mean_angle);
 }
 
 }  // namespace particle_filter
