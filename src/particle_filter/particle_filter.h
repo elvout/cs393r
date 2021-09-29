@@ -37,6 +37,10 @@ struct Particle {
   Eigen::Vector2f loc;
   float angle;
   double weight;
+
+  Particle() = default;
+  Particle(Eigen::Vector2f loc, float angle, double weight)
+      : loc(std::move(loc)), angle(angle), weight(weight) {}
 };
 
 class ParticleFilter {
@@ -58,7 +62,7 @@ class ParticleFilter {
   void Initialize(const std::string& map_file, const Eigen::Vector2f& loc, const float angle);
 
   // Return the list of particles.
-  void GetParticles(std::vector<Particle>* particles) const;
+  const std::vector<Particle>& GetParticles() const;
 
   // Get robot's current location.
   void GetLocation(Eigen::Vector2f* loc, float* angle) const;

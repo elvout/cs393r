@@ -101,8 +101,7 @@ void InitializeMsgs() {
 }
 
 void PublishParticles() {
-  vector<particle_filter::Particle> particles;
-  particle_filter_.GetParticles(&particles);
+  const auto& particles = particle_filter_.GetParticles();
   for (const particle_filter::Particle& p : particles) {
     DrawParticle(p.loc, p.angle, vis_msg_);
   }
@@ -185,6 +184,10 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   PublishVisualization();
 }
 
+/**
+ * This function is called after the "Set Pose" button is clicked in the
+ * web interface.
+ */
 void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
   const Vector2f init_loc(msg.pose.x, msg.pose.y);
   const float init_angle = msg.pose.theta;

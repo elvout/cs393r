@@ -46,7 +46,7 @@ using std::swap;
 using std::vector;
 using vector_map::VectorMap;
 
-DEFINE_double(num_particles, 50, "Number of particles");
+DEFINE_uint32(num_particles, 50, "Number of particles");
 
 namespace particle_filter {
 
@@ -55,8 +55,8 @@ config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 ParticleFilter::ParticleFilter()
     : prev_odom_loc_(0, 0), prev_odom_angle_(0), odom_initialized_(false) {}
 
-void ParticleFilter::GetParticles(vector<Particle>* particles) const {
-  *particles = particles_;
+const std::vector<Particle>& ParticleFilter::GetParticles() const {
+  return particles_;
 }
 
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
@@ -89,8 +89,8 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     // You can create a new line segment instance as follows, for :
     line2f my_line(1, 2, 3, 4);  // Line segment from (1,2) to (3.4).
     // Access the end points using `.p0` and `.p1` members:
-    printf("P0: %f, %f P1: %f,%f\n", my_line.p0.x(), my_line.p0.y(), my_line.p1.x(),
-           my_line.p1.y());
+    // printf("P0: %f, %f P1: %f,%f\n", my_line.p0.x(), my_line.p0.y(), my_line.p1.x(),
+    //        my_line.p1.y());
 
     // Check for intersections:
     bool intersects = map_line.Intersects(my_line);
@@ -99,9 +99,9 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     Vector2f intersection_point;  // Return variable
     intersects = map_line.Intersection(my_line, &intersection_point);
     if (intersects) {
-      printf("Intersects at %f,%f\n", intersection_point.x(), intersection_point.y());
+      // printf("Intersects at %f,%f\n", intersection_point.x(), intersection_point.y());
     } else {
-      printf("No intersection\n");
+      // printf("No intersection\n");
     }
   }
 }
@@ -133,7 +133,7 @@ void ParticleFilter::Resample() {
   // You will need to use the uniform random number generator provided. For
   // example, to generate a random number between 0 and 1:
   float x = rng_.UniformRandom(0, 1);
-  printf("Random number drawn from uniform distribution between 0 and 1: %f\n", x);
+  // printf("Random number drawn from uniform distribution between 0 and 1: %f\n", x);
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
@@ -155,10 +155,10 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
   float x = rng_.Gaussian(0.0, 2.0);
-  printf(
-      "Random number drawn from Gaussian distribution with 0 mean and "
-      "standard deviation of 2 : %f\n",
-      x);
+  // printf(
+  //     "Random number drawn from Gaussian distribution with 0 mean and "
+  //     "standard deviation of 2 : %f\n",
+  //     x);
 }
 
 void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, const float angle) {
@@ -166,6 +166,16 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
+
+  constexpr double kNoiseStdDev = 0.1;  // meters
+  const double init_weight = 1.0 / FLAGS_num_particles;
+
+  particles_.clear();
+  for (size_t i = 0; i < FLAGS_num_particles; i++) {
+    Vector2f noisy_loc(loc.x() + rng_.Gaussian(0, kNoiseStdDev),
+                       loc.y() + rng_.Gaussian(0, kNoiseStdDev));
+    particles_.emplace_back(std::move(noisy_loc), angle, init_weight);
+  }
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, float* angle_ptr) const {
