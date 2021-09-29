@@ -55,8 +55,8 @@ config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 ParticleFilter::ParticleFilter()
     : prev_odom_loc_(0, 0), prev_odom_angle_(0), odom_initialized_(false) {}
 
-void ParticleFilter::GetParticles(vector<Particle>* particles) const {
-  *particles = particles_;
+const std::vector<Particle>& ParticleFilter::GetParticles() const {
+  return particles_;
 }
 
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
