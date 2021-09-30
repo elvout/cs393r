@@ -61,13 +61,24 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
 }
 
 /**
- * TODO: doc
+ * Computes what the predicted point cloud (sensor readings) would be
+ * if the car was at the pose (loc, angle) with sensor characteristics
+ * defined by the remaining parameters.
  *
+ * This function is used as part of the Observation Likelihood Model and
+ * Update step.
  *
  * Parameters:
- *  - loc, angle are in the map frame
+ *  - loc: the location of the base link of the car in the map frame
+ *  - angle: the angle of the base link of the car in the map frame
+ *  - num_ranges: the number of individual laser readings
+ *  - range_min: the closest meaningful reading value
+ *  - range_max: the farthest meaningful reading value
+ *  - angle_min: the minimum laser scan angle (ccw)
+ *  - angle_max: the maximum laser scan angle (ccw)
  *
- * Return val should contain points in the map frame.
+ * Returns:
+ *  A std::vector containing a point cloud in the map frame.
  */
 std::vector<Eigen::Vector2f> ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                                                     const float angle,
@@ -76,12 +87,6 @@ std::vector<Eigen::Vector2f> ParticleFilter::GetPredictedPointCloud(const Vector
                                                                     const float range_max,
                                                                     const float angle_min,
                                                                     const float angle_max) const {
-  // Compute what the predicted point cloud would be, if the car was at the pose
-  // loc, angle, with the sensor characteristics defined by the provided
-  // parameters.
-  // This is NOT the motion model predict step: it is the prediction of the
-  // expected observations, to be used for the update step.
-
   static const Eigen::Vector2f laser_offset(0.2, 0);
   const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * laser_offset;
 
