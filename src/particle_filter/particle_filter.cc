@@ -60,15 +60,14 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
   return particles_;
 }
 
-void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
-                                            const float angle,
-                                            int num_ranges,
-                                            float range_min,
-                                            float range_max,
-                                            float angle_min,
-                                            float angle_max,
-                                            vector<Vector2f>* scan_ptr) {
-  vector<Vector2f>& scan = *scan_ptr;
+std::vector<Eigen::Vector2f> ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
+                                                                    const float angle,
+                                                                    const int num_ranges,
+                                                                    const float range_min,
+                                                                    const float range_max,
+                                                                    const float angle_min,
+                                                                    const float angle_max) const {
+  std::vector<Vector2f> scan;
   // Compute what the predicted point cloud would be, if the car was at the pose
   // loc, angle, with the sensor characteristics defined by the provided
   // parameters.
@@ -105,6 +104,8 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
       // printf("No intersection\n");
     }
   }
+
+  return scan;
 }
 
 void ParticleFilter::Update(const vector<float>& ranges,

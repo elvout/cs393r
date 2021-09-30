@@ -111,11 +111,9 @@ void PublishPredictedScan() {
   constexpr uint32_t kColor = 0xd67d00;
 
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
-  vector<Vector2f> predicted_scan;
-  particle_filter_.GetPredictedPointCloud(robot_loc, robot_angle, last_laser_msg_.ranges.size(),
-                                          last_laser_msg_.range_min, last_laser_msg_.range_max,
-                                          last_laser_msg_.angle_min, last_laser_msg_.angle_max,
-                                          &predicted_scan);
+  std::vector<Vector2f> predicted_scan = particle_filter_.GetPredictedPointCloud(
+      robot_loc, robot_angle, last_laser_msg_.ranges.size(), last_laser_msg_.range_min,
+      last_laser_msg_.range_max, last_laser_msg_.angle_min, last_laser_msg_.angle_max);
   for (const Vector2f& p : predicted_scan) {
     DrawPoint(p, kColor, vis_msg_);
   }
