@@ -223,7 +223,8 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
     Vector2f noisy_loc(loc.x() + rng_.Gaussian(0, kNoiseStdDev),
                        loc.y() + rng_.Gaussian(0, kNoiseStdDev));
-    particles_.emplace_back(std::move(noisy_loc), angle, init_weight);
+    // initialize with noise adding to loc and angle
+    particles_.emplace_back(std::move(noisy_loc), rng_.Gaussian(angle, M_PI/6), init_weight);
   }
 }
 
