@@ -20,6 +20,7 @@
 //========================================================================
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -80,13 +81,13 @@ class ParticleFilter {
   void Resample();
 
   // For debugging: get predicted point cloud from current location.
-  std::vector<Eigen::Vector2f> GetPredictedPointCloud(const Eigen::Vector2f& loc,
-                                                      const float angle,
-                                                      const int num_ranges,
-                                                      const float range_min,
-                                                      const float range_max,
-                                                      const float angle_min,
-                                                      const float angle_max) const;
+  std::vector<std::optional<Eigen::Vector2f>> GetPredictedPointCloud(const Eigen::Vector2f& loc,
+                                                                     const float angle,
+                                                                     const int num_ranges,
+                                                                     const float range_min,
+                                                                     const float range_max,
+                                                                     const float angle_min,
+                                                                     const float angle_max) const;
 
  private:
   // List of particles being tracked.

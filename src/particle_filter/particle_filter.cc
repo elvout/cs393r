@@ -78,28 +78,31 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
  *  - angle_max: the maximum laser scan angle (ccw)
  *
  * Returns:
- *  A std::vector containing a point cloud in the map frame.
+ *  A std::vector containing a point cloud in the map frame. The vector
+ *  contains exactly `num_ranges` elements, some of which may be empty,
+ *  indicating that no intersections were found for the corresponding
+ *  laser scans.
  */
-std::vector<Eigen::Vector2f> ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
-                                                                    const float angle,
-                                                                    const int num_ranges,
-                                                                    const float range_min,
-                                                                    const float range_max,
-                                                                    const float angle_min,
-                                                                    const float angle_max) const {
-  static const Eigen::Vector2f laser_offset(0.2, 0);
-  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * laser_offset;
+std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointCloud(
+    const Vector2f& loc,
+    const float angle,
+    const int num_ranges,
+    const float range_min,
+    const float range_max,
+    const float angle_min,
+    const float angle_max) const {
+  static const Eigen::Vector2f kLaserOffset(0.2, 0);
+  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
 
-  std::vector<Vector2f> scan;
-  scan.reserve(num_ranges);
+  std::vector<std::optional<Eigen::Vector2f>> point_cloud;
+  point_cloud.reserve(num_ranges);
 
   // For each laser scan, we want to find the closest line intersection within the
   // valid range interval.
-  //
-  // The starter code created a point for every laser scan, but that seems wasteful
-  // if there exist scans that do not have intersections.
   const float scan_res = (angle_max - angle_min) / num_ranges;
-  for (float scan_angle = angle_min; scan_angle < angle_max; scan_angle += scan_res) {
+  for (int i = 0; i < num_ranges; i++) {
+    const float scan_angle = angle_min + i * scan_res;
+
     float closest_intersect_dist = range_max + 1;
     std::optional<Eigen::Vector2f> closest_intersect_point;
 
@@ -121,11 +124,13 @@ std::vector<Eigen::Vector2f> ParticleFilter::GetPredictedPointCloud(const Vector
     }
 
     if (closest_intersect_point.has_value()) {
-      scan.push_back(std::move(*closest_intersect_point));
+      point_cloud.push_back(std::move(*closest_intersect_point));
+    } else {
+      point_cloud.emplace_back();
     }
   }
 
-  return scan;
+  return point_cloud;
 }
 
 void ParticleFilter::Update(const vector<float>& ranges,
