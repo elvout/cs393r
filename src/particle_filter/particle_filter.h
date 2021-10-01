@@ -20,6 +20,7 @@
 //========================================================================
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
@@ -65,7 +66,7 @@ class ParticleFilter {
   const std::vector<Particle>& GetParticles() const;
 
   // Get robot's current location.
-  void GetLocation(Eigen::Vector2f* loc, float* angle) const;
+  std::pair<Eigen::Vector2f, float> GetLocation() const;
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,

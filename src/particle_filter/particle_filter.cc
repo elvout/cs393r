@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <utility>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
@@ -145,20 +146,42 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Call the Update and Resample steps as necessary.
 }
 
+/**
+ * This function predicts the new pose of each particle using the motion
+ * model and new odometry data.
+ */
 void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
-  // Implement the predict step of the particle filter here.
-  // A new odometry value is available (in the odom frame)
-  // Implement the motion model predict step here, to propagate the particles
-  // forward based on odometry.
+  constexpr double k_1 = 0.5;  // error in translation from translation
+  constexpr double k_2 = 0.5;  // error in translation from rotation
+  constexpr double k_3 = 0.5;  // error in rotation from translation
+  constexpr double k_4 = 0.5;  // error in rotation from rotation
 
-  // You will need to use the Gaussian random number generator provided. For
-  // example, to generate a random number from a Gaussian with mean 0, and
-  // standard deviation 2:
-  float x = rng_.Gaussian(0.0, 2.0);
-  // printf(
-  //     "Random number drawn from Gaussian distribution with 0 mean and "
-  //     "standard deviation of 2 : %f\n",
-  //     x);
+  if (!odom_initialized_) {
+    prev_odom_loc_ = odom_loc;
+    prev_odom_angle_ = odom_angle;
+    odom_initialized_ = true;
+    return;
+  }
+
+  const Eigen::Vector2f odom_disp = odom_loc - prev_odom_loc_;
+  const Eigen::Vector2f base_disp = Eigen::Rotation2Df(-prev_odom_angle_) * odom_disp;
+  const float angular_disp = odom_angle - prev_odom_angle_;
+
+  const double translate_std = k_1 * base_disp.norm() + k_2 * std::abs(angular_disp);
+  const double rotate_std = k_3 * base_disp.norm() + k_4 * std::abs(angular_disp);
+
+  for (Particle& p : particles_) {
+    const Eigen::Vector2f translate_err(rng_.Gaussian(0, translate_std),
+                                        rng_.Gaussian(0, translate_std));
+    const double rotate_err = rng_.Gaussian(0, rotate_std);
+
+    // Rotate the translation to occur in the particle's frame.
+    p.loc += Eigen::Rotation2Df(p.angle) * (base_disp + translate_err);
+    p.angle += angular_disp + rotate_err;
+  }
+
+  prev_odom_loc_ = odom_loc;
+  prev_odom_angle_ = odom_angle;
 }
 
 void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, const float angle) {
@@ -178,14 +201,26 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   }
 }
 
-void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, float* angle_ptr) const {
-  Vector2f& loc = *loc_ptr;
-  float& angle = *angle_ptr;
-  // Compute the best estimate of the robot's location based on the current set
-  // of particles. The computed values must be set to the `loc` and `angle`
-  // variables to return them. Modify the following assignments:
-  loc = Vector2f(0, 0);
-  angle = 0;
+/**
+ * Computes the best estimate of the robot's location based on the
+ * current set of particles.
+ */
+std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
+  // Compute the mean of all the particles.
+  // TODO: the computation is surely more complex than this
+
+  Vector2f mean_loc(0, 0);
+  double mean_angle = 0;
+
+  for (const Particle& p : particles_) {
+    mean_loc += p.loc;
+    mean_angle += p.angle;
+  }
+
+  mean_loc /= particles_.size();
+  mean_angle /= particles_.size();
+
+  return std::make_pair(std::move(mean_loc), mean_angle);
 }
 
 }  // namespace particle_filter
