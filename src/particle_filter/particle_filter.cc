@@ -230,21 +230,33 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
 /**
  * Computes the best estimate of the robot's location based on the
  * current set of particles.
+ *
+ * CRITICAL: assumes particle weights are not log-likelihoods.
  */
 std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
-  // Compute the mean of all the particles.
-  // TODO: the computation is surely more complex than this
+  // Compute the weighted mean of all the particles.
+
+  // TODO: The mean is potentially suboptimal if the distribution of peaks
+  //  is multimodal. In class suggestion: cluster the points and find the
+  //  weighted mean of one of the clusters.
 
   Vector2f mean_loc(0, 0);
-  double mean_angle = 0;
+  double mean_angle_cos = 0;
+  double mean_angle_sin = 0;
+  double total_weight = 0;
 
   for (const Particle& p : particles_) {
-    mean_loc += p.loc;
-    mean_angle += p.angle;
+    mean_loc += p.loc * p.weight;
+    mean_angle_cos += std::cos(p.angle) * p.weight;
+    mean_angle_sin += std::sin(p.angle) * p.weight;
+    total_weight += p.weight;
   }
 
-  mean_loc /= particles_.size();
-  mean_angle /= particles_.size();
+  mean_loc /= total_weight;
+  mean_angle_cos /= total_weight;
+  mean_angle_sin /= total_weight;
+
+  const double mean_angle = std::atan2(mean_angle_sin, mean_angle_cos);
 
   return std::make_pair(std::move(mean_loc), mean_angle);
 }
