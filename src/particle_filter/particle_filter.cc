@@ -163,7 +163,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
   const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
                                                   range_min, range_max, angle_min, angle_max);
 
-  for (size_t i = 0; i < ranges.size(); i += 10) {
+  // ranges should be sampled prior to calling this function
+  for (size_t i = 0; i < ranges.size(); i++) {
     float actual_range = ranges[i];
     if (actual_range <= range_min || actual_range >= range_max) {
       continue;
@@ -208,6 +209,21 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   const float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
+
+  // Sample the sensor readings before computing point cloud estimations
+  // to improve performance.
+  std::vector<float> ranges_sample;
+  ranges_sample.reserve(ranges.size() / 10);
+  for (size_t i = 0; i < ranges.size(); i += 10) {
+    ranges_sample.push_back(ranges[i]);
+  }
+  const float sample_angle_max =
+      angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
+
+  std::vector<Particle> particles_copy(particles_);
+  for (Particle& p : particles_copy) {
+    Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
+  }
 }
 
 /**
