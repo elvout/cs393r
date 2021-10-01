@@ -163,7 +163,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
   const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
                                                   range_min, range_max, angle_min, angle_max);
 
-  for (size_t i = 0; i < ranges.size(); i++) {
+  for (size_t i = 0; i < ranges.size(); i += 10) {
     float actual_range = ranges[i];
     if (actual_range < range_min || actual_range > range_max) {
       continue;
