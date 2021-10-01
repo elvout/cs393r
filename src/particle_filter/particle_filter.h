@@ -52,10 +52,10 @@ class ParticleFilter {
 
   // Observe a new laser scan.
   void ObserveLaser(const std::vector<float>& ranges,
-                    float range_min,
-                    float range_max,
-                    float angle_min,
-                    float angle_max);
+                    const float range_min,
+                    const float range_max,
+                    const float angle_min,
+                    const float angle_max);
 
   // Predict particle motion based on odometry.
   void Predict(const Eigen::Vector2f& odom_loc, const float odom_angle);

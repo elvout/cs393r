@@ -202,10 +202,10 @@ void ParticleFilter::Resample() {
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
-                                  float range_min,
-                                  float range_max,
-                                  float angle_min,
-                                  float angle_max) {
+                                  const float range_min,
+                                  const float range_max,
+                                  const float angle_min,
+                                  const float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
 }
