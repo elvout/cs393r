@@ -134,15 +134,22 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
 }
 
 /**
- * TODO: doc
- * IMPORTANT: assigns the weight of the particle to a relative measurement
- *  of its log-likelihood.
+ * Updates the weight of the particle in-place using the observation
+ * likelihood model, the LIDAR sensor data, and the predicted point
+ * cloud at the particle.
  *
+ * The updated weight of the particle is a relative log-likelihood
+ * value.
  *
- * TODO: do we call this function NUM_PARTICLES times or should we reweight
- *  every particle in this function? The existing API suggests that we're only
- *  updating a signle particle.
- *
+ * Parameters:
+ *  - ranges: An ordered (from angle_min to angle_max) list of sensor
+ *      readings. If systematic sampling is desired, the sampled vector
+ *      should be passed as the parameter.
+ *  - range_min: The closest meaningful sensor value.
+ *  - range_max: The farthest meaningful sensor value.
+ *  - angle_min: The minimum laser scan angle. (ccw)
+ *  - angle_max: The maximum laser scan angle. (ccw)
+ *  - particle: The particle to update in-place.
  */
 void ParticleFilter::Update(const vector<float>& ranges,
                             const float range_min,
@@ -150,12 +157,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             const float angle_min,
                             const float angle_max,
                             Particle& particle) {
-  // Implement the update step of the particle filter here.
-  // You will have to use the `GetPredictedPointCloud` to predict the expected
-  // observations for each particle, and assign weights to the particles based
-  // on the observation likelihood computed by relating the observation to the
-  // predicted point cloud.
-
   constexpr double kLidarStddev = 0.1;  // meters, inflated
   constexpr double kLidarVar = kLidarStddev * kLidarStddev;
 
@@ -163,7 +164,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
   const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
                                                   range_min, range_max, angle_min, angle_max);
 
-  // ranges should be sampled prior to calling this function
   for (size_t i = 0; i < ranges.size(); i++) {
     float actual_range = ranges[i];
     if (actual_range <= range_min || actual_range >= range_max) {
