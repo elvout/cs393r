@@ -60,51 +60,72 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
   return particles_;
 }
 
-void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
-                                            const float angle,
-                                            int num_ranges,
-                                            float range_min,
-                                            float range_max,
-                                            float angle_min,
-                                            float angle_max,
-                                            vector<Vector2f>* scan_ptr) {
-  vector<Vector2f>& scan = *scan_ptr;
-  // Compute what the predicted point cloud would be, if the car was at the pose
-  // loc, angle, with the sensor characteristics defined by the provided
-  // parameters.
-  // This is NOT the motion model predict step: it is the prediction of the
-  // expected observations, to be used for the update step.
+/**
+ * Computes what the predicted point cloud (sensor readings) would be
+ * if the car was at the pose (loc, angle) with sensor characteristics
+ * defined by the remaining parameters.
+ *
+ * This function is used as part of the Observation Likelihood Model and
+ * Update step.
+ *
+ * Parameters:
+ *  - loc: the location of the base link of the car in the map frame
+ *  - angle: the angle of the base link of the car in the map frame
+ *  - num_ranges: the number of individual laser readings
+ *  - range_min: the closest meaningful reading value
+ *  - range_max: the farthest meaningful reading value
+ *  - angle_min: the minimum laser scan angle (ccw)
+ *  - angle_max: the maximum laser scan angle (ccw)
+ *
+ * Returns:
+ *  A std::vector containing a point cloud in the map frame.
+ */
+std::vector<Eigen::Vector2f> ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
+                                                                    const float angle,
+                                                                    const int num_ranges,
+                                                                    const float range_min,
+                                                                    const float range_max,
+                                                                    const float angle_min,
+                                                                    const float angle_max) const {
+  static const Eigen::Vector2f laser_offset(0.2, 0);
+  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * laser_offset;
 
-  // Note: The returned values must be set using the `scan` variable:
-  scan.resize(num_ranges);
-  // Fill in the entries of scan using array writes, e.g. scan[i] = ...
-  for (size_t i = 0; i < scan.size(); ++i) {
-    scan[i] = Vector2f(0, 0);
-  }
+  std::vector<Vector2f> scan;
+  scan.reserve(num_ranges);
 
-  // The line segments in the map are stored in the `map_.lines` variable. You
-  // can iterate through them as:
-  for (size_t i = 0; i < map_.lines.size(); ++i) {
-    const line2f map_line = map_.lines[i];
-    // The line2f class has helper functions that will be useful.
-    // You can create a new line segment instance as follows, for :
-    line2f my_line(1, 2, 3, 4);  // Line segment from (1,2) to (3.4).
-    // Access the end points using `.p0` and `.p1` members:
-    // printf("P0: %f, %f P1: %f,%f\n", my_line.p0.x(), my_line.p0.y(), my_line.p1.x(),
-    //        my_line.p1.y());
+  // For each laser scan, we want to find the closest line intersection within the
+  // valid range interval.
+  //
+  // The starter code created a point for every laser scan, but that seems wasteful
+  // if there exist scans that do not have intersections.
+  const float scan_res = (angle_max - angle_min) / num_ranges;
+  for (float scan_angle = angle_min; scan_angle < angle_max; scan_angle += scan_res) {
+    float closest_intersect_dist = range_max + 1;
+    std::optional<Eigen::Vector2f> closest_intersect_point;
 
-    // Check for intersections:
-    bool intersects = map_line.Intersects(my_line);
-    // You can also simultaneously check for intersection, and return the point
-    // of intersection:
-    Vector2f intersection_point;  // Return variable
-    intersects = map_line.Intersection(my_line, &intersection_point);
-    if (intersects) {
-      // printf("Intersects at %f,%f\n", intersection_point.x(), intersection_point.y());
-    } else {
-      // printf("No intersection\n");
+    const Eigen::Vector2f scan_start =
+        laser_loc + Eigen::Rotation2Df(scan_angle) * Eigen::Vector2f(range_min, 0);
+    const Eigen::Vector2f scan_end =
+        laser_loc + Eigen::Rotation2Df(scan_angle) * Eigen::Vector2f(range_max, 0);
+    const line2f scan_line(scan_start.x(), scan_start.y(), scan_end.x(), scan_end.y());
+
+    Eigen::Vector2f intersection_point;  // this could probably be static
+    for (const line2f& map_line : map_.lines) {
+      if (map_line.Intersection(scan_line, &intersection_point)) {
+        const float intersect_dist = (intersection_point - laser_loc).norm();
+        if (intersect_dist < closest_intersect_dist) {
+          closest_intersect_point = intersection_point;
+          closest_intersect_dist = intersect_dist;
+        }
+      }
+    }
+
+    if (closest_intersect_point.has_value()) {
+      scan.push_back(std::move(*closest_intersect_point));
     }
   }
+
+  return scan;
 }
 
 void ParticleFilter::Update(const vector<float>& ranges,

@@ -80,14 +80,13 @@ class ParticleFilter {
   void Resample();
 
   // For debugging: get predicted point cloud from current location.
-  void GetPredictedPointCloud(const Eigen::Vector2f& loc,
-                              const float angle,
-                              int num_ranges,
-                              float range_min,
-                              float range_max,
-                              float angle_min,
-                              float angle_max,
-                              std::vector<Eigen::Vector2f>* scan);
+  std::vector<Eigen::Vector2f> GetPredictedPointCloud(const Eigen::Vector2f& loc,
+                                                      const float angle,
+                                                      const int num_ranges,
+                                                      const float range_min,
+                                                      const float range_max,
+                                                      const float angle_min,
+                                                      const float angle_max) const;
 
  private:
   // List of particles being tracked.
