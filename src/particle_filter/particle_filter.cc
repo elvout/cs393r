@@ -165,7 +165,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
   for (size_t i = 0; i < ranges.size(); i += 10) {
     float actual_range = ranges[i];
-    if (actual_range < range_min || actual_range > range_max) {
+    if (actual_range <= range_min || actual_range >= range_max) {
       continue;
     }
 
