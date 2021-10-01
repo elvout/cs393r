@@ -71,11 +71,11 @@ class ParticleFilter {
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
-              float range_min,
-              float range_max,
-              float angle_min,
-              float angle_max,
-              Particle* p);
+              const float range_min,
+              const float range_max,
+              const float angle_min,
+              const float angle_max,
+              Particle& particle);
 
   // Resample particles.
   void Resample();

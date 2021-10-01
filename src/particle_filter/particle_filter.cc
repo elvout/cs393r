@@ -133,17 +133,55 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
   return point_cloud;
 }
 
+/**
+ * TODO: doc
+ * IMPORTANT: assigns the weight of the particle to a relative measurement
+ *  of its log-likelihood.
+ *
+ *
+ * TODO: do we call this function NUM_PARTICLES times or should we reweight
+ *  every particle in this function? The existing API suggests that we're only
+ *  updating a signle particle.
+ *
+ */
 void ParticleFilter::Update(const vector<float>& ranges,
-                            float range_min,
-                            float range_max,
-                            float angle_min,
-                            float angle_max,
-                            Particle* p_ptr) {
+                            const float range_min,
+                            const float range_max,
+                            const float angle_min,
+                            const float angle_max,
+                            Particle& particle) {
   // Implement the update step of the particle filter here.
   // You will have to use the `GetPredictedPointCloud` to predict the expected
   // observations for each particle, and assign weights to the particles based
   // on the observation likelihood computed by relating the observation to the
   // predicted point cloud.
+
+  constexpr double kLidarStddev = 0.1;  // meters, inflated
+  constexpr double kLidarVar = kLidarStddev * kLidarStddev;
+
+  double log_p = 0;
+  const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
+                                                  range_min, range_max, angle_min, angle_max);
+
+  for (size_t i = 0; i < ranges.size(); i++) {
+    float actual_range = ranges[i];
+    if (actual_range < range_min || actual_range > range_max) {
+      continue;
+    }
+
+    double range_diff = 0;
+    if (point_cloud[i].has_value()) {
+      range_diff = (particle.loc - *point_cloud[i]).norm() - actual_range;
+    } else {
+      // Incur a penalty using the range itself.
+      // TODO: does this need to be tuned?
+      range_diff = actual_range;
+    }
+
+    log_p += -(range_diff * range_diff) / kLidarVar;
+  }
+
+  particle.weight = log_p;
 }
 
 void ParticleFilter::Resample() {
