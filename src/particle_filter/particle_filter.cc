@@ -107,9 +107,9 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
     std::optional<Eigen::Vector2f> closest_intersect_point;
 
     const Eigen::Vector2f scan_start =
-        laser_loc + Eigen::Rotation2Df(scan_angle) * Eigen::Vector2f(range_min, 0);
+        laser_loc + Eigen::Rotation2Df(angle + scan_angle) * Eigen::Vector2f(range_min, 0);
     const Eigen::Vector2f scan_end =
-        laser_loc + Eigen::Rotation2Df(scan_angle) * Eigen::Vector2f(range_max, 0);
+        laser_loc + Eigen::Rotation2Df(angle + scan_angle) * Eigen::Vector2f(range_max, 0);
     const line2f scan_line(scan_start.x(), scan_start.y(), scan_end.x(), scan_end.y());
 
     Eigen::Vector2f intersection_point;  // this could probably be static
