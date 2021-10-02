@@ -225,12 +225,14 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
   }
 
-  std::sort(particles_copy.begin(), particles_copy.end(),
-            [](const Particle& a, const Particle& b) { return a.weight > b.weight; });
+  double max_log_likelihood = particles_copy.front().weight;
+  for (size_t i = 1; i < particles_copy.size(); i++) {
+    max_log_likelihood = std::max(max_log_likelihood, particles_copy[i].weight);
+  }
 
   // normalization step 1: normalize log-likelihoods using the maximum log-likelihood
   for (Particle& p : particles_copy) {
-    p.weight -= particles_copy.front().weight;
+    p.weight -= max_log_likelihood;
   }
 }
 
