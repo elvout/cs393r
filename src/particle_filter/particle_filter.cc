@@ -203,6 +203,7 @@ void ParticleFilter::Resample() {
 
   vector<Particle> new_particles;
   float running_sum = 0;
+  
   static vector<float> cumulative_weights(FLAGS_num_particles);
 
   // get cumulative sum
