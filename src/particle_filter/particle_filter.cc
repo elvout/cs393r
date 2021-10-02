@@ -210,6 +210,16 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
 
+  // Limit updates until the robot has traveled a significant distance
+  // to reduce overconfidence in the Observation Likelihood Model.
+  constexpr double kMinDistThreshold = 0.1;  // meters
+  static Eigen::Vector2f prev_update_loc;
+  if ((prev_odom_loc_ - prev_update_loc).norm() < kMinDistThreshold) {
+    return;
+  } else {
+    prev_update_loc = prev_odom_loc_;
+  }
+
   // Sample the sensor readings before computing point cloud estimations
   // to improve performance.
   std::vector<float> ranges_sample;
