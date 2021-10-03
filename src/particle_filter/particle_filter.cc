@@ -61,7 +61,7 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
 }
 
 namespace {
-  int num_of_updates_since_last_resample_ = 0;
+int num_of_updates_since_last_resample_ = 0;
 }
 
 /**
@@ -203,23 +203,28 @@ void ParticleFilter::Resample() {
 
   vector<Particle> new_particles;
   float running_sum = 0;
-  
+
   static vector<float> cumulative_weights(FLAGS_num_particles);
 
+  float max_particle_weight_ = -std::numeric_limits<float>::infinity();
+  for (const Particle& p : particles_) {
+    max_particle_weight_ = std::max(max_particle_weight_, static_cast<float>(p.weight));
+  }
+
   // get cumulative sum
-  for (size_t i=0; i < FLAGS_num_particles; i++){
+  for (size_t i = 0; i < FLAGS_num_particles; i++) {
     particles_[i].weight -= max_particle_weight_;
-    running_sum += exp(particles_[i].weight)
+    running_sum += exp(particles_[i].weight);
     cumulative_weights[i] = running_sum;
   }
 
   // pick initial random number and step with fixed step size
   float step_size = running_sum / FLAGS_num_particles;
-  float sample_point = rng_.UniformRandom(0,step_size);
+  float sample_point = rng_.UniformRandom(0, step_size);
 
   // Resample by stepping forward the pointer
-  for (size_t i=0; i < FLAGS_num_particles; i++){
-    while (cumulative_weights[i] > sample_point){
+  for (size_t i = 0; i < FLAGS_num_particles; i++) {
+    while (cumulative_weights[i] > sample_point) {
       new_particles.push_back(particles_[i]);
       sample_point += step_size;
     }
@@ -257,21 +262,16 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
       angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
 
   std::vector<Particle> particles_copy(particles_);
-  // initialize at -inf
-  float max_particle_weight_ = -std::numeric_limits<float>::infinity();
 
   for (Particle& p : particles_copy) {
     Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
-    if (p.weight > max_particle_weight_){
-      max_particle_weight_ = p.weight;
-    }
   }
 
   // Resample every n updates
-  if (num_of_updates_since_last_resample_ >= 5){
+  if (num_of_updates_since_last_resample_ >= 5) {
     Resample();
     num_of_updates_since_last_resample_ = 0;
-  }else{
+  } else {
     num_of_updates_since_last_resample_++;
   }
 }
