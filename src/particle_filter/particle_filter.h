@@ -71,7 +71,7 @@ class ParticleFilter {
   const std::vector<Particle>& GetParticles() const;
 
   // Get robot's current location.
-  std::pair<Eigen::Vector2f, float> GetLocation() const;
+  std::pair<Eigen::Vector2f, float> GetLocation();
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
