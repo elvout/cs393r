@@ -202,13 +202,13 @@ void ParticleFilter::Resample() {
   // particles_ = new_particles;
 
   vector<Particle> new_particles;
-  float running_sum = 0;
+  double running_sum = 0;
 
-  static vector<float> cumulative_weights(FLAGS_num_particles);
+  static vector<double> cumulative_weights(FLAGS_num_particles);
 
-  float max_particle_weight_ = -std::numeric_limits<float>::infinity();
+  double max_particle_weight_ = -std::numeric_limits<double>::infinity();
   for (const Particle& p : particles_) {
-    max_particle_weight_ = std::max(max_particle_weight_, static_cast<float>(p.weight));
+    max_particle_weight_ = std::max(max_particle_weight_, p.weight);
   }
 
   // get cumulative sum
@@ -219,8 +219,8 @@ void ParticleFilter::Resample() {
   }
 
   // pick initial random number and step with fixed step size
-  float step_size = running_sum / FLAGS_num_particles;
-  float sample_point = rng_.UniformRandom(0, step_size);
+  const double step_size = running_sum / FLAGS_num_particles;
+  double sample_point = rng_.UniformRandom(0, step_size);
 
   // Resample by stepping forward the pointer
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
