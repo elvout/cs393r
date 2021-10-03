@@ -60,6 +60,10 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
   return particles_;
 }
 
+namespace {
+int num_of_updates_since_last_resample_ = 0;
+}
+
 /**
  * Computes what the predicted point cloud (sensor readings) would be
  * if the car was at the pose (loc, angle) with sensor characteristics
@@ -182,7 +186,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
     log_p += -(range_diff * range_diff) / kLidarVar;
   }
 
-  particle.weight = log_p;
+  // also need to consider gamma
+  particle.weight += log_p;
 }
 
 void ParticleFilter::Resample() {
@@ -196,10 +201,36 @@ void ParticleFilter::Resample() {
   // After resampling:
   // particles_ = new_particles;
 
-  // You will need to use the uniform random number generator provided. For
-  // example, to generate a random number between 0 and 1:
-  float x = rng_.UniformRandom(0, 1);
-  // printf("Random number drawn from uniform distribution between 0 and 1: %f\n", x);
+  vector<Particle> new_particles;
+  double running_sum = 0;
+
+  static vector<double> cumulative_weights(FLAGS_num_particles);
+
+  double max_particle_weight_ = -std::numeric_limits<double>::infinity();
+  for (const Particle& p : particles_) {
+    max_particle_weight_ = std::max(max_particle_weight_, p.weight);
+  }
+
+  // get cumulative sum
+  for (size_t i = 0; i < FLAGS_num_particles; i++) {
+    particles_[i].weight -= max_particle_weight_;
+    running_sum += exp(particles_[i].weight);
+    cumulative_weights[i] = running_sum;
+  }
+
+  // pick initial random number and step with fixed step size
+  const double step_size = running_sum / FLAGS_num_particles;
+  double sample_point = rng_.UniformRandom(0, step_size);
+
+  // Resample by stepping forward the pointer
+  for (size_t i = 0; i < FLAGS_num_particles; i++) {
+    while (cumulative_weights[i] > sample_point) {
+      new_particles.emplace_back(particles_[i].loc, particles_[i].angle, 0.0);
+      sample_point += step_size;
+    }
+  }
+
+  particles_ = new_particles;
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
@@ -230,19 +261,16 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   const float sample_angle_max =
       angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
 
-  std::vector<Particle> particles_copy(particles_);
-  for (Particle& p : particles_copy) {
+  for (Particle& p : particles_) {
     Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
   }
 
-  double max_log_likelihood = particles_copy.front().weight;
-  for (size_t i = 1; i < particles_copy.size(); i++) {
-    max_log_likelihood = std::max(max_log_likelihood, particles_copy[i].weight);
-  }
-
-  // normalization step 1: normalize log-likelihoods using the maximum log-likelihood
-  for (Particle& p : particles_copy) {
-    p.weight -= max_log_likelihood;
+  // Resample every n updates
+  if (num_of_updates_since_last_resample_ >= 5) {
+    Resample();
+    num_of_updates_since_last_resample_ = 0;
+  } else {
+    num_of_updates_since_last_resample_++;
   }
 }
 
