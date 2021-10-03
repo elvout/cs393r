@@ -261,9 +261,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   const float sample_angle_max =
       angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
 
-  std::vector<Particle> particles_copy(particles_);
-
-  for (Particle& p : particles_copy) {
+  for (Particle& p : particles_) {
     Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
   }
 
