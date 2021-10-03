@@ -133,17 +133,56 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
   return point_cloud;
 }
 
+/**
+ * Updates the weight of the particle in-place using the observation
+ * likelihood model, the LIDAR sensor data, and the predicted point
+ * cloud at the particle.
+ *
+ * The updated weight of the particle is a relative log-likelihood
+ * value.
+ *
+ * Parameters:
+ *  - ranges: An ordered (from angle_min to angle_max) list of sensor
+ *      readings. If systematic sampling is desired, the sampled vector
+ *      should be passed as the parameter.
+ *  - range_min: The closest meaningful sensor value.
+ *  - range_max: The farthest meaningful sensor value.
+ *  - angle_min: The minimum laser scan angle. (ccw)
+ *  - angle_max: The maximum laser scan angle. (ccw)
+ *  - particle: The particle to update in-place.
+ */
 void ParticleFilter::Update(const vector<float>& ranges,
-                            float range_min,
-                            float range_max,
-                            float angle_min,
-                            float angle_max,
-                            Particle* p_ptr) {
-  // Implement the update step of the particle filter here.
-  // You will have to use the `GetPredictedPointCloud` to predict the expected
-  // observations for each particle, and assign weights to the particles based
-  // on the observation likelihood computed by relating the observation to the
-  // predicted point cloud.
+                            const float range_min,
+                            const float range_max,
+                            const float angle_min,
+                            const float angle_max,
+                            Particle& particle) {
+  constexpr double kLidarStddev = 0.1;  // meters, inflated
+  constexpr double kLidarVar = kLidarStddev * kLidarStddev;
+
+  double log_p = 0;
+  const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
+                                                  range_min, range_max, angle_min, angle_max);
+
+  for (size_t i = 0; i < ranges.size(); i++) {
+    float actual_range = ranges[i];
+    if (actual_range <= range_min || actual_range >= range_max) {
+      continue;
+    }
+
+    double range_diff = 0;
+    if (point_cloud[i].has_value()) {
+      range_diff = (particle.loc - *point_cloud[i]).norm() - actual_range;
+    } else {
+      // Incur a penalty using the range itself.
+      // TODO: does this need to be tuned?
+      range_diff = actual_range;
+    }
+
+    log_p += -(range_diff * range_diff) / kLidarVar;
+  }
+
+  particle.weight = log_p;
 }
 
 void ParticleFilter::Resample() {
@@ -164,12 +203,47 @@ void ParticleFilter::Resample() {
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
-                                  float range_min,
-                                  float range_max,
-                                  float angle_min,
-                                  float angle_max) {
+                                  const float range_min,
+                                  const float range_max,
+                                  const float angle_min,
+                                  const float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
+
+  // Limit updates until the robot has traveled a significant distance
+  // to reduce overconfidence in the Observation Likelihood Model.
+  constexpr double kMinDistThreshold = 0.1;  // meters
+  static Eigen::Vector2f prev_update_loc;
+  if ((prev_odom_loc_ - prev_update_loc).norm() < kMinDistThreshold) {
+    return;
+  } else {
+    prev_update_loc = prev_odom_loc_;
+  }
+
+  // Sample the sensor readings before computing point cloud estimations
+  // to improve performance.
+  std::vector<float> ranges_sample;
+  ranges_sample.reserve(ranges.size() / 10);
+  for (size_t i = 0; i < ranges.size(); i += 10) {
+    ranges_sample.push_back(ranges[i]);
+  }
+  const float sample_angle_max =
+      angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
+
+  std::vector<Particle> particles_copy(particles_);
+  for (Particle& p : particles_copy) {
+    Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
+  }
+
+  double max_log_likelihood = particles_copy.front().weight;
+  for (size_t i = 1; i < particles_copy.size(); i++) {
+    max_log_likelihood = std::max(max_log_likelihood, particles_copy[i].weight);
+  }
+
+  // normalization step 1: normalize log-likelihoods using the maximum log-likelihood
+  for (Particle& p : particles_copy) {
+    p.weight -= max_log_likelihood;
+  }
 }
 
 /**
