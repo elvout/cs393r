@@ -225,7 +225,7 @@ void ParticleFilter::Resample() {
   // Resample by stepping forward the pointer
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
     while (cumulative_weights[i] > sample_point) {
-      new_particles.push_back(particles_[i]);
+      new_particles.emplace_back(particles_[i].loc, particles_[i].angle, 0.0);
       sample_point += step_size;
     }
   }
