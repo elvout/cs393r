@@ -316,13 +316,12 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   map_.Load(map_file);
 
   constexpr double kNoiseStdDev = 0.1;  // meters
-  const double init_weight = 1.0 / FLAGS_num_particles;
 
   particles_.clear();
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
     Vector2f noisy_loc(loc.x() + rng_.Gaussian(0, kNoiseStdDev),
                        loc.y() + rng_.Gaussian(0, kNoiseStdDev));
-    particles_.emplace_back(std::move(noisy_loc), angle, init_weight);
+    particles_.emplace_back(std::move(noisy_loc), angle, 0.0);
   }
 }
 
