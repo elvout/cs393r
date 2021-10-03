@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <utility>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
@@ -206,14 +207,10 @@ void ParticleFilter::Resample() {
 
   static vector<double> cumulative_weights(FLAGS_num_particles);
 
-  double max_particle_weight_ = -std::numeric_limits<double>::infinity();
-  for (const Particle& p : particles_) {
-    max_particle_weight_ = std::max(max_particle_weight_, p.weight);
-  }
+  NormalizeParticles();
 
   // get cumulative sum
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
-    particles_[i].weight -= max_particle_weight_;
     running_sum += exp(particles_[i].weight);
     cumulative_weights[i] = running_sum;
   }
@@ -361,6 +358,29 @@ std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
   const double mean_angle = std::atan2(mean_angle_sin, mean_angle_cos);
 
   return std::make_pair(std::move(mean_loc), mean_angle);
+}
+
+/**
+ * Normalize the log-likelihood weights of all particles such that the
+ * maximum log-likelihood weight is 0.
+ */
+void ParticleFilter::NormalizeParticles() {
+  if (particles_.empty()) {
+    return;
+  }
+
+  double max_particle_weight = -std::numeric_limits<double>::infinity();
+  for (const Particle& p : particles_) {
+    max_particle_weight = std::max(max_particle_weight, p.weight);
+  }
+
+  if (max_particle_weight == 0) {
+    return;
+  }
+
+  for (Particle& p : particles_) {
+    p.weight -= max_particle_weight;
+  }
 }
 
 }  // namespace particle_filter
