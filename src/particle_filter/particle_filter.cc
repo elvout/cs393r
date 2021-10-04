@@ -63,7 +63,26 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
 
 namespace {
 int num_of_updates_since_last_resample_ = 0;
+
+/**
+ * Normalize the log-likelihood weights of all particles in place such
+ * that the maximum log-likelihood weight is 0.
+ */
+void NormalizeParticles(std::vector<Particle>& particles) {
+  double max_particle_weight = -std::numeric_limits<double>::infinity();
+  for (const Particle& p : particles) {
+    max_particle_weight = std::max(max_particle_weight, p.weight);
+  }
+
+  if (max_particle_weight == 0) {
+    return;
+  }
+
+  for (Particle& p : particles) {
+    p.weight -= max_particle_weight;
+  }
 }
+}  // namespace
 
 /**
  * Computes what the predicted point cloud (sensor readings) would be
@@ -207,7 +226,7 @@ void ParticleFilter::Resample() {
 
   static vector<double> cumulative_weights(FLAGS_num_particles);
 
-  NormalizeParticles();
+  NormalizeParticles(particles_);
 
   // get cumulative sum
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
@@ -329,7 +348,7 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
  * Computes the best estimate of the robot's location based on the
  * current set of particles.
  */
-std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() {
+std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
   // Compute the weighted mean of all the particles.
 
   // TODO: The mean is potentially suboptimal if the distribution of peaks
@@ -341,9 +360,11 @@ std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() {
   double mean_angle_sin = 0;
   double total_weight = 0;
 
-  NormalizeParticles();
+  // normalize a copy to avoid concurrent modification
+  std::vector<Particle> particles_copy(particles_);
+  NormalizeParticles(particles_copy);
 
-  for (const Particle& p : particles_) {
+  for (const Particle& p : particles_copy) {
     const double linear_weight = std::exp(p.weight);
     mean_loc += p.loc * linear_weight;
     mean_angle_cos += std::cos(p.angle) * linear_weight;
@@ -358,29 +379,6 @@ std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() {
   const double mean_angle = std::atan2(mean_angle_sin, mean_angle_cos);
 
   return std::make_pair(std::move(mean_loc), mean_angle);
-}
-
-/**
- * Normalize the log-likelihood weights of all particles such that the
- * maximum log-likelihood weight is 0.
- */
-void ParticleFilter::NormalizeParticles() {
-  if (particles_.empty()) {
-    return;
-  }
-
-  double max_particle_weight = -std::numeric_limits<double>::infinity();
-  for (const Particle& p : particles_) {
-    max_particle_weight = std::max(max_particle_weight, p.weight);
-  }
-
-  if (max_particle_weight == 0) {
-    return;
-  }
-
-  for (Particle& p : particles_) {
-    p.weight -= max_particle_weight;
-  }
 }
 
 }  // namespace particle_filter
