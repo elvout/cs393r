@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <utility>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
@@ -206,14 +207,10 @@ void ParticleFilter::Resample() {
 
   static vector<double> cumulative_weights(FLAGS_num_particles);
 
-  double max_particle_weight_ = -std::numeric_limits<double>::infinity();
-  for (const Particle& p : particles_) {
-    max_particle_weight_ = std::max(max_particle_weight_, p.weight);
-  }
+  NormalizeParticles();
 
   // get cumulative sum
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
-    particles_[i].weight -= max_particle_weight_;
     running_sum += exp(particles_[i].weight);
     cumulative_weights[i] = running_sum;
   }
@@ -319,23 +316,20 @@ void ParticleFilter::Initialize(const string& map_file, const Vector2f& loc, con
   map_.Load(map_file);
 
   constexpr double kNoiseStdDev = 0.1;  // meters
-  const double init_weight = 1.0 / FLAGS_num_particles;
 
   particles_.clear();
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
     Vector2f noisy_loc(loc.x() + rng_.Gaussian(0, kNoiseStdDev),
                        loc.y() + rng_.Gaussian(0, kNoiseStdDev));
-    particles_.emplace_back(std::move(noisy_loc), angle, init_weight);
+    particles_.emplace_back(std::move(noisy_loc), angle, 0.0);
   }
 }
 
 /**
  * Computes the best estimate of the robot's location based on the
  * current set of particles.
- *
- * CRITICAL: assumes particle weights are not log-likelihoods.
  */
-std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
+std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() {
   // Compute the weighted mean of all the particles.
 
   // TODO: The mean is potentially suboptimal if the distribution of peaks
@@ -347,11 +341,14 @@ std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
   double mean_angle_sin = 0;
   double total_weight = 0;
 
+  NormalizeParticles();
+
   for (const Particle& p : particles_) {
-    mean_loc += p.loc * p.weight;
-    mean_angle_cos += std::cos(p.angle) * p.weight;
-    mean_angle_sin += std::sin(p.angle) * p.weight;
-    total_weight += p.weight;
+    const double linear_weight = std::exp(p.weight);
+    mean_loc += p.loc * linear_weight;
+    mean_angle_cos += std::cos(p.angle) * linear_weight;
+    mean_angle_sin += std::sin(p.angle) * linear_weight;
+    total_weight += linear_weight;
   }
 
   mean_loc /= total_weight;
@@ -361,6 +358,29 @@ std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
   const double mean_angle = std::atan2(mean_angle_sin, mean_angle_cos);
 
   return std::make_pair(std::move(mean_loc), mean_angle);
+}
+
+/**
+ * Normalize the log-likelihood weights of all particles such that the
+ * maximum log-likelihood weight is 0.
+ */
+void ParticleFilter::NormalizeParticles() {
+  if (particles_.empty()) {
+    return;
+  }
+
+  double max_particle_weight = -std::numeric_limits<double>::infinity();
+  for (const Particle& p : particles_) {
+    max_particle_weight = std::max(max_particle_weight, p.weight);
+  }
+
+  if (max_particle_weight == 0) {
+    return;
+  }
+
+  for (Particle& p : particles_) {
+    p.weight -= max_particle_weight;
+  }
 }
 
 }  // namespace particle_filter

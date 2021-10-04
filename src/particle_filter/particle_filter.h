@@ -38,6 +38,10 @@ namespace particle_filter {
 struct Particle {
   Eigen::Vector2f loc;
   float angle;
+
+  // The log-likelihood probability that the car's true pose matches
+  // this particle. Only useful in relative comparisons with other
+  // particles.
   double weight;
 
   Particle() = default;
@@ -67,7 +71,7 @@ class ParticleFilter {
   const std::vector<Particle>& GetParticles() const;
 
   // Get robot's current location.
-  std::pair<Eigen::Vector2f, float> GetLocation() const;
+  std::pair<Eigen::Vector2f, float> GetLocation();
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
@@ -90,6 +94,9 @@ class ParticleFilter {
                                                                      const float angle_max) const;
 
  private:
+  // Normalize the log-likelihood weights of all particles.
+  void NormalizeParticles();
+
   // List of particles being tracked.
   std::vector<Particle> particles_;
 
