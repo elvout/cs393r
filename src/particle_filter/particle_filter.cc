@@ -23,6 +23,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <queue>
 #include <utility>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
@@ -82,6 +83,23 @@ void NormalizeParticles(std::vector<Particle>& particles) {
     p.weight -= max_particle_weight;
   }
 }
+
+double NormalPdf(const double val, const double mean, const double stddev) {
+  // precomputed value for (1 / sqrt(2pi))
+  constexpr double inv_sqrt2pi = 0.39894228040143267794;
+
+  double z = (val - mean) / stddev;
+  return inv_sqrt2pi / stddev * std::exp(-0.5 * z * z);
+}
+
+double NormalCdf(const double val, const double mean, const double stddev) {
+  // precomputed value for (1 / sqrt(2))
+  constexpr double inv_sqrt2 = 0.70710678118654752440;
+
+  double z = (val - mean) / stddev;
+  return 0.5 + 0.5 * std::erf(z * inv_sqrt2);
+}
+
 }  // namespace
 
 /**
@@ -184,30 +202,64 @@ void ParticleFilter::Update(const vector<float>& ranges,
   constexpr double kLidarStddev = 0.1;  // meters, inflated
   constexpr double kLidarVar = kLidarStddev * kLidarStddev;
 
+  // The bound around the expected LIDAR reading in which a Gaussian
+  // distribution is used.
+  constexpr double kGaussianLowerBound = -1.5 * kLidarStddev;
+  constexpr double kGaussianUpperBound = 1.5 * kLidarStddev;
+
   double log_p = 0;
   const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
                                                   range_min, range_max, angle_min, angle_max);
 
   for (size_t i = 0; i < ranges.size(); i++) {
-    float actual_range = ranges[i];
+    const double actual_range = static_cast<double>(ranges[i]);
     if (actual_range <= range_min || actual_range >= range_max) {
       continue;
     }
 
-    double range_diff = 0;
-    if (point_cloud[i].has_value()) {
-      range_diff = (particle.loc - *point_cloud[i]).norm() - actual_range;
+    double p_integral = 0;
+    // Integral for the lower interval.
+    p_integral += (actual_range + kGaussianLowerBound - range_min) *
+                  NormalPdf(kGaussianLowerBound, 0, kLidarStddev);
+    // Integral for the Gaussian interval.
+    p_integral += NormalCdf(kGaussianUpperBound, 0, kLidarStddev) -
+                  NormalCdf(kGaussianLowerBound, 0, kLidarStddev);
+    // Integral for the upper interval.
+    p_integral += (range_max - (actual_range + kGaussianUpperBound)) *
+                  NormalPdf(kGaussianUpperBound, 0, kLidarStddev);
+
+    // Calculate the linear probability since we need to normalize the value
+    // with the integral.
+    double p = 0;
+
+    if (!point_cloud[i].has_value()) {
+      // No intersection was found in the map file, but there is an
+      // object observed by the actual LIDAR scanner. Since this could
+      // be an object that was simply not included in the map (e.g. a chair),
+      // incur a penalty based on the upper interval.
+
+      p = NormalPdf(kGaussianUpperBound, 0, kLidarStddev);
     } else {
-      // Incur a penalty using the range itself.
-      // TODO: does this need to be tuned?
-      range_diff = actual_range;
+      const Eigen::Vector2f& expected_point = *point_cloud[i];
+      const double expected_range = static_cast<double>((particle.loc - expected_point).norm());
+
+      if (expected_range <= range_min || expected_range >= range_max) {
+        p = 0;
+      } else if (expected_range < actual_range + kGaussianLowerBound) {
+        p = NormalPdf(kGaussianLowerBound, 0, kLidarStddev);
+      } else if (expected_range > actual_range + kGaussianUpperBound) {
+        p = NormalPdf(kGaussianUpperBound, 0, kLidarStddev);
+      } else {
+        p = NormalPdf(expected_range, actual_range, kLidarStddev);
+      }
     }
 
-    log_p += -(range_diff * range_diff) / kLidarVar;
+    p /= p_integral;
+    log_p += std::log(p);
   }
 
   // also need to consider gamma
-  particle.weight += log_p;
+  particle.weight += 0.6 * log_p;
 }
 
 void ParticleFilter::Resample() {
@@ -227,6 +279,17 @@ void ParticleFilter::Resample() {
   static vector<double> cumulative_weights(FLAGS_num_particles);
 
   NormalizeParticles(particles_);
+
+  std::priority_queue<double> debug_weights;
+  for (const Particle& p : particles_) {
+    debug_weights.push(p.weight);
+  }
+
+  printf("[ParticleFilter::Resample]: top 5 log-likelihoods:\n");
+  for (size_t i = 0; !debug_weights.empty() && i < 5; i++) {
+    printf("\t%f\n", debug_weights.top());
+    debug_weights.pop();
+  }
 
   // get cumulative sum
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
@@ -295,7 +358,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
  * model and new odometry data.
  */
 void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
-  constexpr double k_1 = 0.5;  // error in translation from translation
+  constexpr double k_1 = 1;    // error in translation from translation
   constexpr double k_2 = 0.5;  // error in translation from rotation
   constexpr double k_3 = 0.5;  // error in rotation from translation
   constexpr double k_4 = 0.5;  // error in rotation from rotation
