@@ -7,3 +7,6 @@ data
 # clangd files
 .cache/
 compile_flags.txt
+
+# rosbag files
+*.bag
