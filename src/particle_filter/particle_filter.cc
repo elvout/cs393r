@@ -51,6 +51,16 @@ using vector_map::VectorMap;
 
 DEFINE_uint32(num_particles, 50, "Number of particles");
 
+// read configuration values from particle_filter.lua
+CONFIG_DOUBLE(k1, "motion_model_k1");
+CONFIG_DOUBLE(k2, "motion_model_k2");
+CONFIG_DOUBLE(k3, "motion_model_k3");
+CONFIG_DOUBLE(k4, "motion_model_k4");
+CONFIG_DOUBLE(LidarStddev, "lidar_stddev");
+CONFIG_DOUBLE(GaussianLowerBound, "sensor_model_d_short");
+CONFIG_DOUBLE(GaussianUpperBound, "sensor_model_d_long");
+CONFIG_DOUBLE(Gamma, "sensor_model_gamma");
+
 namespace particle_filter {
 
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
@@ -199,14 +209,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             const float angle_min,
                             const float angle_max,
                             Particle& particle) {
-  constexpr double kLidarStddev = 0.1;  // meters, inflated
-  constexpr double kLidarVar = kLidarStddev * kLidarStddev;
-
-  // The bound around the expected LIDAR reading in which a Gaussian
-  // distribution is used.
-  constexpr double kGaussianLowerBound = -1.5 * kLidarStddev;
-  constexpr double kGaussianUpperBound = 1.5 * kLidarStddev;
-
   double log_p = 0;
   const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
                                                   range_min, range_max, angle_min, angle_max);
@@ -219,14 +221,14 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     double p_integral = 0;
     // Integral for the lower interval.
-    p_integral += (actual_range + kGaussianLowerBound - range_min) *
-                  NormalPdf(kGaussianLowerBound, 0, kLidarStddev);
+    p_integral += (actual_range + CONFIG_GaussianLowerBound - range_min) *
+                  NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
     // Integral for the Gaussian interval.
-    p_integral += NormalCdf(kGaussianUpperBound, 0, kLidarStddev) -
-                  NormalCdf(kGaussianLowerBound, 0, kLidarStddev);
+    p_integral += NormalCdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev) -
+                  NormalCdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
     // Integral for the upper interval.
-    p_integral += (range_max - (actual_range + kGaussianUpperBound)) *
-                  NormalPdf(kGaussianUpperBound, 0, kLidarStddev);
+    p_integral += (range_max - (actual_range + CONFIG_GaussianUpperBound)) *
+                  NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
 
     // Calculate the linear probability since we need to normalize the value
     // with the integral.
@@ -238,19 +240,19 @@ void ParticleFilter::Update(const vector<float>& ranges,
       // be an object that was simply not included in the map (e.g. a chair),
       // incur a penalty based on the upper interval.
 
-      p = NormalPdf(kGaussianUpperBound, 0, kLidarStddev);
+      p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
     } else {
       const Eigen::Vector2f& expected_point = *point_cloud[i];
       const double expected_range = static_cast<double>((particle.loc - expected_point).norm());
 
       if (expected_range <= range_min || expected_range >= range_max) {
         p = 0;
-      } else if (expected_range < actual_range + kGaussianLowerBound) {
-        p = NormalPdf(kGaussianLowerBound, 0, kLidarStddev);
-      } else if (expected_range > actual_range + kGaussianUpperBound) {
-        p = NormalPdf(kGaussianUpperBound, 0, kLidarStddev);
+      } else if (expected_range < actual_range + CONFIG_GaussianLowerBound) {
+        p = NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
+      } else if (expected_range > actual_range + CONFIG_GaussianUpperBound) {
+        p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
       } else {
-        p = NormalPdf(expected_range, actual_range, kLidarStddev);
+        p = NormalPdf(expected_range, actual_range, CONFIG_LidarStddev);
       }
     }
 
@@ -258,8 +260,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
     log_p += std::log(p);
   }
 
-  // also need to consider gamma
-  particle.weight += 0.6 * log_p;
+  particle.weight += CONFIG_Gamma * log_p;
 }
 
 void ParticleFilter::Resample() {
@@ -358,11 +359,6 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
  * model and new odometry data.
  */
 void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
-  constexpr double k_1 = 1;    // error in translation from translation
-  constexpr double k_2 = 0.5;  // error in translation from rotation
-  constexpr double k_3 = 0.5;  // error in rotation from translation
-  constexpr double k_4 = 0.5;  // error in rotation from rotation
-
   if (!odom_initialized_) {
     prev_odom_loc_ = odom_loc;
     prev_odom_angle_ = odom_angle;
@@ -374,8 +370,8 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   const Eigen::Vector2f base_disp = Eigen::Rotation2Df(-prev_odom_angle_) * odom_disp;
   const float angular_disp = odom_angle - prev_odom_angle_;
 
-  const double translate_std = k_1 * base_disp.norm() + k_2 * std::abs(angular_disp);
-  const double rotate_std = k_3 * base_disp.norm() + k_4 * std::abs(angular_disp);
+  const double translate_std = CONFIG_k1 * base_disp.norm() + CONFIG_k2 * std::abs(angular_disp);
+  const double rotate_std = CONFIG_k3 * base_disp.norm() + CONFIG_k4 * std::abs(angular_disp);
 
   for (Particle& p : particles_) {
     const Eigen::Vector2f translate_err(rng_.Gaussian(0, translate_std),
