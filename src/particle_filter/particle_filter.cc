@@ -80,17 +80,23 @@ int num_of_updates_since_last_resample_ = 0;
  * that the maximum log-likelihood weight is 0.
  */
 void NormalizeParticles(std::vector<Particle>& particles) {
-  double max_particle_weight = -std::numeric_limits<double>::infinity();
+  constexpr double infinity = std::numeric_limits<double>::infinity();
+
+  double max_particle_weight = -infinity;
   for (const Particle& p : particles) {
     max_particle_weight = std::max(max_particle_weight, p.weight);
   }
 
   if (max_particle_weight == 0) {
     return;
-  }
-
-  for (Particle& p : particles) {
-    p.weight -= max_particle_weight;
+  } else if (max_particle_weight == -infinity) {
+    for (Particle& p : particles) {
+      p.weight = 0;
+    }
+  } else {
+    for (Particle& p : particles) {
+      p.weight -= max_particle_weight;
+    }
   }
 }
 
