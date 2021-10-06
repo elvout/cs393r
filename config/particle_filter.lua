@@ -8,16 +8,15 @@ motion_model_k1 = 0.4
 -- Error in translation caused by rotation.
 motion_model_k2 = 1.5
 -- Error in rotation caused by translation.
-motion_model_k3 = 0.4
+motion_model_k3 = 0.6
 -- Error in rotation caused by rotation.
 motion_model_k4 = 3
-
 
 lidar_stddev = 0.1  -- meters, inflated
 
 -- The bound around the expected LIDAR reading in which a Gaussian
 -- distribution is used.
 sensor_model_d_short = -2.5 * lidar_stddev
-sensor_model_d_long = 1.5 * lidar_stddev
+sensor_model_d_long = 2 * lidar_stddev
 
-sensor_model_gamma = 0.25
+sensor_model_gamma = 0.1
