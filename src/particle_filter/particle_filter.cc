@@ -74,6 +74,7 @@ const std::vector<Particle>& ParticleFilter::GetParticles() const {
 
 namespace {
 int num_of_updates_since_last_resample_ = 0;
+const Eigen::Vector2f kLaserOffset(0.2, 0);
 
 /**
  * Normalize the log-likelihood weights of all particles in place such
@@ -149,7 +150,6 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
     const float range_max,
     const float angle_min,
     const float angle_max) const {
-  static const Eigen::Vector2f kLaserOffset(0.2, 0);
   const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
 
   std::vector<std::optional<Eigen::Vector2f>> point_cloud;
@@ -218,6 +218,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
   double log_p = 0;
   const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
                                                   range_min, range_max, angle_min, angle_max);
+  const Eigen::Vector2f laser_loc =
+      particle.loc + Eigen::Rotation2Df(particle.angle) * kLaserOffset;
 
   for (size_t i = 0; i < ranges.size(); i++) {
     const double actual_range = static_cast<double>(ranges[i]);
@@ -248,17 +250,17 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
       p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
     } else {
-      const Eigen::Vector2f& expected_point = *point_cloud[i];
-      const double expected_range = static_cast<double>((particle.loc - expected_point).norm());
+      const Eigen::Vector2f& predicted_point = *point_cloud[i];
+      const double predicted_range = static_cast<double>((laser_loc - predicted_point).norm());
 
-      if (expected_range <= range_min || expected_range >= range_max) {
+      if (predicted_range <= range_min || predicted_range >= range_max) {
         p = 0;
-      } else if (expected_range < actual_range + CONFIG_GaussianLowerBound) {
+      } else if (predicted_range < actual_range + CONFIG_GaussianLowerBound) {
         p = NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-      } else if (expected_range > actual_range + CONFIG_GaussianUpperBound) {
+      } else if (predicted_range > actual_range + CONFIG_GaussianUpperBound) {
         p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
       } else {
-        p = NormalPdf(expected_range, actual_range, CONFIG_LidarStddev);
+        p = NormalPdf(predicted_range, actual_range, CONFIG_LidarStddev);
       }
     }
 
