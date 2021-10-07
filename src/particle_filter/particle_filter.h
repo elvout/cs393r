@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <shared_mutex>
 #include <utility>
 #include <vector>
 
@@ -96,6 +97,9 @@ class ParticleFilter {
  private:
   // List of particles being tracked.
   std::vector<Particle> particles_;
+
+  // Mutex to prevent race conditions with particles_
+  mutable std::shared_mutex particles_mutex_;
 
   // Map of the environment.
   vector_map::VectorMap map_;

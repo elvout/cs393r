@@ -24,6 +24,7 @@
 #include <iostream>
 #include <limits>
 #include <queue>
+#include <shared_mutex>
 #include <utility>
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
@@ -69,6 +70,8 @@ ParticleFilter::ParticleFilter()
     : prev_odom_loc_(0, 0), prev_odom_angle_(0), odom_initialized_(false) {}
 
 const std::vector<Particle>& ParticleFilter::GetParticles() const {
+  std::shared_lock lock(particles_mutex_);
+
   return particles_;
 }
 
@@ -347,6 +350,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   const float sample_angle_max =
       angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
 
+  std::unique_lock lock(particles_mutex_);
   for (Particle& p : particles_) {
     Update(ranges_sample, range_min, range_max, angle_min, sample_angle_max, p);
   }
@@ -379,6 +383,7 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   const double translate_std = CONFIG_k1 * base_disp.norm() + CONFIG_k2 * std::abs(angular_disp);
   const double rotate_std = CONFIG_k3 * base_disp.norm() + CONFIG_k4 * std::abs(angular_disp);
 
+  std::unique_lock lock(particles_mutex_);
   for (Particle& p : particles_) {
     const Eigen::Vector2f translate_err(rng_.Gaussian(0, translate_std),
                                         rng_.Gaussian(0, translate_std));
@@ -388,6 +393,7 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
     p.loc += Eigen::Rotation2Df(p.angle) * (base_disp + translate_err);
     p.angle += angular_disp + rotate_err;
   }
+  lock.unlock();
 
   prev_odom_loc_ = odom_loc;
   prev_odom_angle_ = odom_angle;
@@ -427,7 +433,9 @@ std::pair<Eigen::Vector2f, float> ParticleFilter::GetLocation() const {
   double total_weight = 0;
 
   // normalize a copy to avoid concurrent modification
+  std::shared_lock lock(particles_mutex_);
   std::vector<Particle> particles_copy(particles_);
+  lock.unlock();
   NormalizeParticles(particles_copy);
 
   for (const Particle& p : particles_copy) {
