@@ -35,20 +35,6 @@ const Eigen::Vector2f q3_corner(-kBaseToBack - kSafetyMargin, -kBaseToSide - kSa
 const Eigen::Vector2f q4_corner(kBaseToFront + kSafetyMargin, -kBaseToSide - kSafetyMargin);
 
 /**
- * Return an angle specfied in radians constrained to the range [0, 2PI).
- *
- * TODO: move this to the shared math library?
- */
-template <typename T>
-T constrainAngle(T angle) {
-  static_assert(std::is_floating_point<T>::value, "");
-
-  angle = fmod(angle, M_2PI);
-  // `angle` can still be negative, but its absolute value will be < 2PI
-  return fmod(angle + M_2PI, M_2PI);
-}
-
-/**
  * Returns the angular distance in radians between the base link of the
  * car and an arbitrary point as viewed from the center of turning.
  *
@@ -77,7 +63,7 @@ float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
   assert(std::abs(center_to_base.y() / center_to_base.x()) < kEpsilon);
 
   float angular_dist = std::atan2(point.y(), point.x());
-  angular_dist = constrainAngle(angular_dist);
+  angular_dist = math_util::ConstrainAngle(angular_dist);
 
   // `angular_dist` describes a counterclockwise angle from the x-axis in the
   // center-of-turning reference frame. In the case of a right turn, return
@@ -162,7 +148,7 @@ PathOption::PathOption(const float curvature,
             angularDistanceToPoint(approx_hit_point_on_car, turning_radius);
 
         float path_subtended_angle =
-            constrainAngle(angle_to_point - angle_between_base_and_hit_point);
+            math_util::ConstrainAngle(angle_to_point - angle_between_base_and_hit_point);
         free_path_subtended_angle = std::min(free_path_subtended_angle, path_subtended_angle);
       }
     };

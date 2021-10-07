@@ -50,6 +50,38 @@ constexpr T DegToRad(T angle) {
   return (angle / 180.0 * M_PI);
 }
 
+/**
+ * Return an angle specified in radians constrained to the range [0, 2PI).
+ */
+template <typename T>
+T ConstrainAngle(T angle) {
+  static_assert(std::is_floating_point<T>::value, "ConstrainAngle requires floating-point type");
+
+  angle = std::fmod(angle, M_2PI);
+  // `angle` can still be negative, but its absolute value will be < 2PI.
+  return std::fmod(angle + M_2PI, M_2PI);
+}
+
+/**
+ * Convert a reflex angle to its negative convex equivalent.
+ */
+template <typename T>
+T ReflexToConvexAngle(T angle) {
+  static_assert(std::is_floating_point<T>::value,
+                "ReflexToConvexAngle requires floating-point type");
+
+  if (std::abs(angle) <= M_PI) {
+    return angle;
+  }
+
+  angle = ConstrainAngle(angle);
+  if (angle <= M_PI) {
+    return angle;
+  } else {
+    return angle - M_2PI;
+  }
+}
+
 template <typename T>
 T AngleMod(T angle) {
   angle -= M_2PI * rint(angle / M_2PI);
