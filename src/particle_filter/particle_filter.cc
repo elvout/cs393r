@@ -374,7 +374,7 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
 
   const Eigen::Vector2f odom_disp = odom_loc - prev_odom_loc_;
   const Eigen::Vector2f base_disp = Eigen::Rotation2Df(-prev_odom_angle_) * odom_disp;
-  const float angular_disp = odom_angle - prev_odom_angle_;
+  const float angular_disp = math_util::ReflexToConvexAngle(odom_angle - prev_odom_angle_);
 
   const double translate_std = CONFIG_k1 * base_disp.norm() + CONFIG_k2 * std::abs(angular_disp);
   const double rotate_std = CONFIG_k3 * base_disp.norm() + CONFIG_k4 * std::abs(angular_disp);
