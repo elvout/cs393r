@@ -10,7 +10,7 @@ motion_model_k2 = 1.6
 -- Error in rotation caused by translation.
 motion_model_k3 = 0.65
 -- Error in rotation caused by rotation.
-motion_model_k4 = 3
+motion_model_k4 = 2.3
 
 lidar_stddev = 0.1  -- meters, inflated
 
@@ -19,4 +19,4 @@ lidar_stddev = 0.1  -- meters, inflated
 sensor_model_d_short = -2.5 * lidar_stddev
 sensor_model_d_long = 2.5 * lidar_stddev
 
-sensor_model_gamma = 0.1
+sensor_model_gamma = 0.12
