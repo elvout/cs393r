@@ -329,14 +329,20 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
 
-  // Limit updates until the robot has traveled a significant distance
+  // Limit updates until the robot's pose has changed significantly
   // to reduce overconfidence in the Observation Likelihood Model.
-  constexpr double kMinDistThreshold = 0.1;  // meters
+  constexpr double kMinDistThreshold = 0.15;               // meters
+  constexpr double kMinAngleDistThreshold = 0.1745329252;  // 10 degrees
   static Eigen::Vector2f prev_update_loc;
-  if ((prev_odom_loc_ - prev_update_loc).norm() < kMinDistThreshold) {
-    return;
-  } else {
+  static float prev_update_angle;
+
+  if ((prev_odom_loc_ - prev_update_loc).norm() >= kMinDistThreshold ||
+      std::abs(math_util::ReflexToConvexAngle(prev_odom_angle_ - prev_update_angle)) >=
+          kMinAngleDistThreshold) {
     prev_update_loc = prev_odom_loc_;
+    prev_update_angle = prev_odom_angle_;
+  } else {
+    return;
   }
 
   // Sample the sensor readings before computing point cloud estimations
@@ -354,11 +360,10 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // Resample every n updates
+  num_of_updates_since_last_resample_++;
   if (num_of_updates_since_last_resample_ >= 5) {
     Resample();
     num_of_updates_since_last_resample_ = 0;
-  } else {
-    num_of_updates_since_last_resample_++;
   }
 }
 
