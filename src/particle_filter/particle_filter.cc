@@ -331,7 +331,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   // Limit updates until the robot's pose has changed significantly
   // to reduce overconfidence in the Observation Likelihood Model.
-  constexpr double kMinDistThreshold = 0.15;               // meters
+  constexpr double kMinDistThreshold = 0.1;                // meters
   constexpr double kMinAngleDistThreshold = 0.1745329252;  // 10 degrees
   static Eigen::Vector2f prev_update_loc;
   static float prev_update_angle;
