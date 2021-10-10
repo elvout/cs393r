@@ -40,7 +40,7 @@ std::vector<std::shared_ptr<concurrent::ForkJoinTask>> allocate_tasks() {
 }
 
 std::vector<std::shared_ptr<concurrent::ForkJoinTask>> tasks = allocate_tasks();
-concurrent::ForkJoin executor(tasks);
+concurrent::ForkJoin executor(tasks, "obslaser ");
 
 }  // namespace
 

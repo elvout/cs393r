@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -49,8 +50,9 @@ class ForkJoin {
    * Construct a ForkJoin.
    *
    * The constructor should be called with `vector<shared_ptr<DerivedTask>>`.
+   * `name` has a soft max-length of 9.
    */
-  ForkJoin(std::vector<std::shared_ptr<ForkJoinTask>>& tasks);
+  ForkJoin(std::vector<std::shared_ptr<ForkJoinTask>>& tasks, std::string name = "");
   ~ForkJoin();
 
   void fork();
