@@ -16,23 +16,20 @@ ForkJoin::ForkJoin(std::vector<std::shared_ptr<ForkJoinTask>>& tasks)
   const size_t N_THREADS = tasks.size();
 
   threads_.reserve(N_THREADS);
-  Barrier* start_exec_p = &start_exec_;
-  Barrier* end_exec_p = &end_exec_;
-  const bool* run_p = &run_;
   for (size_t i = 0; i < N_THREADS; i++) {
-    std::shared_ptr task_p = tasks[i];
+    std::shared_ptr<ForkJoinTask> task_p = tasks[i];
 
     /**
      * Wrap the caller's task with fork-join synchronization.
      */
     threads_.emplace_back([=] {
       while (true) {
-        start_exec_p->wait();
-        if (!(*run_p)) {
+        this->start_exec_.wait();
+        if (!(this->run_)) {
           break;
         }
         (*task_p)();
-        end_exec_p->wait();
+        this->end_exec_.wait();
       }
     });
   }
