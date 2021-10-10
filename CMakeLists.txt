@@ -47,7 +47,9 @@ INCLUDE_DIRECTORIES(src)
 ROSBUILD_ADD_EXECUTABLE(particle_filter
                        src/particle_filter/particle_filter_main.cc
                        src/particle_filter/particle_filter.cc
-                       src/particle_filter/observe_laser.cc)
+                       src/particle_filter/observe_laser.cc
+                       src/concurrent/barrier.cc
+                       src/concurrent/fork_join.cc)
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(navigation
