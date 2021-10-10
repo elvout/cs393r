@@ -49,6 +49,7 @@
 #include "shared/util/timer.h"
 
 #include "particle_filter.h"
+#include "util/profiling.h"
 #include "visualization/visualization.h"
 
 using amrl_msgs::VisualizationMsg;
@@ -91,6 +92,7 @@ VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
 
 vector<Vector2f> trajectory_points_;
+util::DurationDistribution runtime_dist_;
 }  // namespace
 
 void InitializeMsgs() {
@@ -112,9 +114,13 @@ void PublishPredictedScan() {
   constexpr uint32_t kColor = 0xd67d00;
 
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
+
+  runtime_dist_.start_lap("GetPredictedPointCloud (full scan)");
   std::vector<std::optional<Vector2f>> predicted_scan = particle_filter_.GetPredictedPointCloud(
       robot_loc, robot_angle, last_laser_msg_.ranges.size(), last_laser_msg_.range_min,
       last_laser_msg_.range_max, last_laser_msg_.angle_min, last_laser_msg_.angle_max);
+  runtime_dist_.end_lap("GetPredictedPointCloud (full scan)");
+
   for (const auto& p : predicted_scan) {
     if (p.has_value()) {
       DrawPoint(*p, kColor, vis_msg_);
@@ -161,8 +167,10 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     printf("Laser t=%f\n", msg.header.stamp.toSec());
   }
   last_laser_msg_ = msg;
+  runtime_dist_.start_lap("ObserveLaser");
   particle_filter_.ObserveLaser(msg.ranges, msg.range_min, msg.range_max, msg.angle_min,
                                 msg.angle_max);
+  runtime_dist_.end_lap("ObserveLaser");
   PublishVisualization();
 }
 
@@ -172,9 +180,15 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   }
   const Vector2f odom_loc(msg.pose.pose.position.x, msg.pose.pose.position.y);
   const float odom_angle = 2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
-  particle_filter_.Predict(odom_loc, odom_angle);
 
+  runtime_dist_.start_lap("Predict");
+  particle_filter_.Predict(odom_loc, odom_angle);
+  runtime_dist_.end_lap("Predict");
+
+  runtime_dist_.start_lap("GetLocation");
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
+  runtime_dist_.end_lap("GetLocation");
+
   amrl_msgs::Localization2DMsg localization_msg;
   localization_msg.pose.x = robot_loc.x();
   localization_msg.pose.y = robot_loc.y();
@@ -215,6 +229,7 @@ void SignalHandler(int) {
   }
   printf("Exiting.\n");
   run_ = false;
+  printf("%s\n", runtime_dist_.summary().c_str());
 }
 
 int main(int argc, char** argv) {
