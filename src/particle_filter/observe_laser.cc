@@ -60,14 +60,13 @@ struct WorkerArgs {
   WorkerArgs(size_t id) : id(id) {}
 };
 
-std::vector<WorkerArgs> worker_args;
-std::vector<std::thread> threads;
-Barrier work_ready(N_THREADS + 1);
-Barrier comp_done(N_THREADS + 1);
-
-void worker_function(WorkerArgs* args) {
+void worker_function(WorkerArgs* args, Barrier* start_exec, Barrier* end_exec, const bool* run_) {
   while (true) {
-    work_ready.wait();
+    start_exec->wait();
+
+    if (!(*run_)) {
+      break;
+    }
 
     particle_filter::ParticleFilter* pfilter = args->pfilter;
     std::vector<particle_filter::Particle>& particles = *args->particles;
@@ -83,27 +82,69 @@ void worker_function(WorkerArgs* args) {
       pfilter->Update(ranges, range_min, range_max, angle_min, angle_max, particles[idx]);
     }
 
-    comp_done.wait();
+    end_exec->wait();
   }
 }
 
-struct InitObj {
-  InitObj() {
-    threads.reserve(N_THREADS);
-    worker_args.reserve(N_THREADS);
+class ForkJoin {
+ public:
+  ForkJoin(size_t n_threads) : start_exec_(n_threads + 1), end_exec_(n_threads + 1), run_(true) {
+    threads_.reserve(n_threads);
+    worker_args_.reserve(n_threads);
 
-    for (size_t i = 0; i < N_THREADS; i++) {
-      worker_args.emplace_back(i);
+    for (size_t i = 0; i < n_threads; i++) {
+      worker_args_.emplace_back(i);
     }
 
-    for (size_t i = 0; i < N_THREADS; i++) {
-      WorkerArgs* arg = &worker_args[i];
-      threads.emplace_back([arg] { worker_function(arg); });
+    Barrier* start_exec_p = &start_exec_;
+    Barrier* end_exec_p = &end_exec_;
+    bool* run_p = &run_;
+    for (size_t i = 0; i < n_threads; i++) {
+      WorkerArgs* arg = &worker_args_[i];
+      std::thread worker =
+          std::thread([=] { worker_function(arg, start_exec_p, end_exec_p, run_p); });
+      threads_.push_back(std::move(worker));
     }
   }
+
+  ~ForkJoin() {
+    std::unique_lock lock(fork_mutex_);
+
+    run_ = false;
+
+    // wait until worker threads are blocked on start_exec_
+    // then force an unblock
+    start_exec_.wait();
+
+    for (auto& thread : threads_) {
+      thread.join();
+    }
+  }
+
+  void fork() {
+    std::unique_lock lock(fork_mutex_);
+    if (run_) {
+      start_exec_.wait();
+    }
+  }
+
+  void join() { end_exec_.wait(); }
+
+  std::vector<WorkerArgs>& worker_args() { return worker_args_; }
+
+ private:
+  std::vector<std::thread> threads_;
+  std::vector<WorkerArgs> worker_args_;
+
+  Barrier start_exec_;
+  Barrier end_exec_;
+
+  std::mutex fork_mutex_;
+  bool run_;
 };
 
-static InitObj _init;
+ForkJoin executor(N_THREADS);
+
 }  // namespace
 
 namespace particle_filter {
@@ -143,6 +184,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
       angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
 
   size_t num_particles = particles_.size();
+  std::vector<WorkerArgs>& worker_args = executor.worker_args();
   for (size_t i = 0; i < N_THREADS; i++) {
     WorkerArgs& args = worker_args[i];
 
@@ -156,8 +198,8 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     args.angle_min = angle_min;
     args.angle_max = sample_angle_max;
   }
-  work_ready.wait();
-  comp_done.wait();
+  executor.fork();
+  executor.join();
 
   // Resample every n updates
   static int num_of_updates_since_last_resample = 0;
