@@ -149,41 +149,49 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
     const float range_max,
     const float angle_min,
     const float angle_max) const {
+  constexpr float infinity = std::numeric_limits<float>::infinity();
   const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
 
-  std::vector<std::optional<Eigen::Vector2f>> point_cloud;
-  point_cloud.reserve(num_ranges);
+  std::vector<std::optional<Eigen::Vector2f>> point_cloud(num_ranges);
+  std::vector<float> point_cloud_min_dist(num_ranges, infinity);
+  std::vector<line2f> scan_lines(num_ranges);
 
   // For each laser scan, we want to find the closest line intersection within the
   // valid range interval.
   const float scan_res = (angle_max - angle_min) / num_ranges;
+  const Eigen::Vector2f range_min_v(range_min, 0);
+  const Eigen::Vector2f range_max_v(range_max, 0);
+
+  // precompute scan lines
   for (int i = 0; i < num_ranges; i++) {
     const float scan_angle = angle_min + i * scan_res;
+    const Eigen::Rotation2Df scan_rot(angle + scan_angle);
 
-    float closest_intersect_dist = range_max + 1;
-    std::optional<Eigen::Vector2f> closest_intersect_point;
-
-    const Eigen::Vector2f scan_start =
-        laser_loc + Eigen::Rotation2Df(angle + scan_angle) * Eigen::Vector2f(range_min, 0);
-    const Eigen::Vector2f scan_end =
-        laser_loc + Eigen::Rotation2Df(angle + scan_angle) * Eigen::Vector2f(range_max, 0);
+    const Eigen::Vector2f scan_start = laser_loc + scan_rot * range_min_v;
+    const Eigen::Vector2f scan_end = laser_loc + scan_rot * range_max_v;
     const line2f scan_line(scan_start.x(), scan_start.y(), scan_end.x(), scan_end.y());
+    scan_lines[i] = scan_line;
+  }
 
-    Eigen::Vector2f intersection_point;  // this could probably be static
-    for (const line2f& map_line : map_.lines) {
-      if (map_line.Intersection(scan_line, &intersection_point)) {
-        const float intersect_dist = (intersection_point - laser_loc).norm();
-        if (intersect_dist < closest_intersect_dist) {
-          closest_intersect_point = intersection_point;
-          closest_intersect_dist = intersect_dist;
-        }
-      }
+  float __dummy_float;
+  Eigen::Vector2f __dummy_point;
+  Eigen::Vector2f intersection_point;
+  for (const line2f& map_line : map_.lines) {
+    // If the map line does not intersect with the a circle centered at
+    // the laser with radius `range_max`, there is no line intersection.
+    if (!geometry::FurthestFreePointCircle(map_line.p0, map_line.p1, laser_loc, range_max,
+                                           &__dummy_float, &__dummy_point)) {
+      continue;
     }
 
-    if (closest_intersect_point.has_value()) {
-      point_cloud.push_back(std::move(*closest_intersect_point));
-    } else {
-      point_cloud.emplace_back();
+    for (int i = 0; i < num_ranges; i++) {
+      if (map_line.Intersection(scan_lines[i], &intersection_point)) {
+        const float intersect_dist = (intersection_point - laser_loc).norm();
+        if (intersect_dist < point_cloud_min_dist[i]) {
+          point_cloud[i] = intersection_point;
+          point_cloud_min_dist[i] = intersect_dist;
+        }
+      }
     }
   }
 
