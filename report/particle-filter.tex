@@ -1,0 +1,326 @@
+\documentclass[11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\title{CS 393R Autonomous Robots \\ \large Assignment 2: Particle Filter}
+\author{Autobots - Elvin Yang, Jierui Lin, Aidan Dunlap}
+\date{October 11, 2021}
+
+\begin{document}
+\maketitle
+
+\section{Implementation Methodology}
+
+Our particle filter is implemented in three sections: Predict, Update, and Resample.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Predict}
+
+\def\odom{\textrm{odom}}
+\def\blink{\textrm{base\_link}}
+
+The Predict step uses odometry data to propagate particles to new poses. We
+implement this step using the motion model for a diff-drive robot proposed in
+lecture.
+
+\bigskip
+\noindent
+The translational displacement in the base link frame is computed by rotating
+the translational displacement in the odometry frame. The angular displacement
+in the odometry frame and the base link frame are identical.
+\begin{align*}
+    \Delta T^{\odom}_t &= T^{\odom}_{t} - T^{\odom}_{t - 1} \\
+    \Delta \theta^{\odom}_t
+        &= \theta^{\odom}_t - \theta^{\odom}_{t - 1} \\
+    \Delta T^{\blink}_{t}
+        &= R(-\theta^{\odom}_{t - 1}) \Delta T^{\odom}_{t} \\
+    \Delta \theta^{\blink}_t &= \Delta \theta^{\odom}_t
+\end{align*}
+
+\noindent
+We sample translational and rotational noise from zero-mean Gaussian
+distributions. The standard deviations of these distributions are linear
+combinations of the translational and angular displacements. Specifically,
+\begin{align*}
+    \epsilon_x, \epsilon_y &\sim \mathcal{N}(0, \sigma_T) \\
+    \epsilon_\theta &\sim \mathcal{N}(0, \sigma_\theta) \\
+    \sigma_T
+        &= k_1 \| \Delta T^{\blink}_{t} \|_2
+            + k_2 | \Delta \theta^{\blink}_t | \\
+    \sigma_\theta
+        &= k_3 \| \Delta T^{\blink}_{t} \|_2
+            + k_4 | \Delta \theta^{\blink}_t |
+\end{align*}
+
+Where $k_1 \dots k_4$ are hyperparameters defined as such:
+\begin{align*}
+    k_1 &= 0.45 \\
+    k_2 &= 1.6 \\
+    k_3 &= 0.65 \\
+    k_4 &= 2.3
+\end{align*}
+
+\noindent
+When new odometry readings are available, each particle's position and rotation
+in the map frame is updated using the base link displacements and the sampled
+noise.
+\begin{align*}
+    \Delta T^{p}_t
+        &= R(\theta^p_{t-1}) (\Delta T^{\blink}_{t} + \langle \epsilon_x, \epsilon_y \rangle) \\
+    T^p_t &= T^p_{t - 1} + \Delta T^{p}_t \\
+    \theta^p_t &= \theta^p_{t - 1} + \Delta \theta^{\blink}_t + \epsilon_\theta
+\end{align*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Update}
+
+\def\smin{s_{\textrm{min}}}
+\def\smax{s_{\textrm{max}}}
+\def\Pr{\mathbb{P}}
+\def\dshort{d_{\textrm{short}}}
+\def\dlong{d_{\textrm{long}}}
+
+The Update step uses observed LIDAR readings to compute, for each particle, the
+likelihood that the particle's pose matches the true pose of the robot in the
+world. We implement this step using the robust observation likelihood model
+proposed in lecture with an observation correlation factor $\gamma = 0.12$.
+\begin{align*}
+    \Pr(\xi^{p}_t) &\propto \Pr(s^p_t | \xi^{R}_t) \\
+    &= \left( \prod_{i=1}^{i=N} \Pr(s^{p, i}_t | \xi^{R}_t) \right)^\gamma
+\end{align*}
+
+\noindent
+We model probabilities for individual sensor readings using a modified Gaussian
+distribution.
+\begin{align*}
+    \mathcal{N}'(i) &=
+        \begin{cases}
+            0 & \mathrm{if\ } s^{p,i}_t < \smin \lor s^{p,i}_t > \smax \\
+            \varphi_{0, \sigma_s^2}(\dshort) & \mathrm{if\ } s^{p,i}_t < s^{R,i}_t + \dshort \\
+            \varphi_{0, \sigma_s^2}(\dlong) & \mathrm{if\ } s^{p,i}_t > s^{R,i}_t + \dlong \lor \nexists s^{p,i}_t \\
+            \varphi_{s^{R,i}_t, \sigma_s^2}(s^{p,i}_t) & \mathrm{else}
+        \end{cases} \\
+    \dshort &= -2.5 \sigma_s \\
+    \dlong &= 2.5 \sigma_s
+\end{align*}
+
+\noindent
+Since $\mathcal{N}'$ may not integrate to 1, we compute a general estimate of
+the integral of $\mathcal{N}'$ for each observed sensor reading to normalize
+probability values.
+\begin{align*}
+    && A_{\mathcal{N}'(i)} = & \int_{-\infty}^{\infty} \mathcal{N}'(i) d s^{p,i}_t && \\
+    && & \approx (s^{R,i}_t + \dshort - \smin) \varphi_{0, \sigma_s^2}(\dshort) && \\
+    && & \quad + \Phi_{0, \sigma_s^2}(\dlong) - \Phi_{0, \sigma_s^2}(\dshort) && \\
+    && & \quad + (\smax - (s^{R,i}_t + \dlong)) \varphi_{0, \sigma_s^2}(\dlong) &&
+\end{align*}
+Consequently,
+$$ \Pr(s^{p, i}_t | \xi^{R}_t) = A^{-1}_{\mathcal{N}'(i)} \cdot \mathcal{N}'(i) $$
+
+\noindent
+To mitigate overconfidence in the observation likelihood model, we first take a
+systematic sample of the observed LIDAR scans with a sampling interval of 10.
+For each particle, we compute $s_t^p$ from a predicted point cloud of
+observations in the particle's pose corresponding to the sampled observed LIDAR
+scans.
+
+\bigskip
+\noindent
+Since we have limited numerical precision, in our implementation we store log-likelihoods.
+Thus, the actual computation in code is
+\begin{align*}
+    \ln \Pr(\xi^{p}_t) &= \ln \Pr(s^p_t | \xi^{R}_t) \\
+    &= \gamma
+        \left(
+            \sum_{i=1}^{i=N} \ln \left( A^{-1}_{\mathcal{N}'(i)} \cdot \mathcal{N}'(i) \right)
+        \right)
+\end{align*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Point Cloud Prediction}
+
+\def\sensor{\textrm{sensor}}
+
+For any arbitrary valid pose in the map frame, we implement a function to
+generate a point cloud of expected sensor readings.
+
+\noindent
+For each expected sensor reading $s^{p, i}$, the endpoints of the scan line
+$l_i$ are computed as
+\begin{align*}
+    T^{\sensor} &= T^{p} + R(\theta^p) \langle 0.2, 0 \rangle \\
+    T^{\textrm{start}}_i &= T^{\sensor} + R(\theta^p + \theta_i) \langle \smin, 0 \rangle \\
+    T^{\textrm{end}}_i &= T^{\sensor} + R(\theta^p + \theta_i) \langle \smax, 0 \rangle \\
+\end{align*}
+
+\noindent
+Let $M$ represent the set of line segments in the vector map and $R_i$ represent the set of
+intersection points between $l_i$ and all $m \in M$.
+\begin{align*}
+    \nexists s^{p, i} &\iff R_i \equiv \emptyset \\
+    s^{p, i} &= \argmin\limits_{r \in R_i} \| T^{\sensor} - r \|_2
+\end{align*}
+
+$\nexists$ is implemented using \texttt{std::optional}.
+
+\noindent
+We optimize intersection point calculations by first checking whether map lines
+intersect with the circle centered at the $T^{\sensor}$ with radius $\smax$.
+Intuitively, since all scan lines are bounded by this circle, if there is no
+intersection between a particular map line and the circle, then there cannot be
+any intersections between scan lines and the map line.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Particle Resampling}
+
+We first normalize the log-likelihood weights of each particle such that the max
+log-likelihood weight is 0 to avoid infinitesimally small probabilities. The
+log-likelihood weights remain mathematically valid, since we only compare
+likelihood weights relative to one another.
+\begin{align*}
+    \ln w_{i}^{\prime} &=\ln w_{i}-\ln w_{\max} && \textrm{if\ } \ln w_{\max} \ne -\infty \\
+    \ln w_{i}^{\prime} &= 0 && \textrm{if\ } \ln w_{\max} = -\infty
+\end{align*}
+
+\noindent
+Then we compute the prefix sums of particles' likelihoods to form bins in a
+discrete CDF.
+\begin{align*}
+    \textrm{bin}_{0} &= 0 \\
+    \textrm{bin}_i &= \textrm{bin}_{i - 1} + \exp{(\ln w_{i}^{\prime})}
+\end{align*}
+
+\noindent
+Let $\Sigma_w = \textrm{bin}_n$. We sample a random value $p \sim \mathcal{U}[0,
+\frac{\Sigma_w}{n})$. New particles are generated according to the bins
+containing $p + \Sigma_w \cdot (0, \frac{1}{n} \cdots \frac{n - 1}{n})$ and are
+assigned log-likelihood weights of 0.
+
+\section{Hyperparameters}
+
+Our implementation has the following hyperparameters
+
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item Motion Model
+    \begin{itemize}
+        \setlength\itemsep{0pt}
+        \item $k_1 = 0.45$, the coefficient for translational error caused by translational movement.
+        \item $k_2 = 1.6$, the coefficient for translational error caused by rotational movement.
+        \item $k_3 = 0.65$, the coefficient for rotational error caused by translational movement.
+        \item $k_4 = 2.3$, the coefficient for rotational error caused by rotational movement.
+    \end{itemize}
+
+    \item Observation Likelihood Model
+    \begin{itemize}
+        \setlength\itemsep{0pt}
+        \item $\sigma_s = 0.1$, the standard deviation of the LIDAR sensor.
+        \item $\dshort = -2.5 \sigma_s$, the lower bound for the Gaussian section of the robust model.
+        \item $\dlong = 2.5 \sigma_s$, the upper bound for the Gaussian section of the robust model.
+        \item $\gamma = 0.12$, the observation correlation factor.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Tuning Methodology}
+
+$\sigma_s$ was set using a suggested value from lecture. $\dshort$ and $\dlong$
+were set mainly to exclude extremely small probability values. We found that
+values closer to 0 resulted in too many equal likelihoods and poor performance.
+
+The rest of the hyperparameters were tuned around $\sigma_s$, $\dshort$, and
+$\dlong$. Our first observation was that, in general, the magnitude of
+translational displacement is much greater than the magnitude of angular
+displacement. We conjectured that $k_2$ and $k_4$ should be relatively large
+for angular displacement to be a significant factor in the motion model standard
+deviations.
+
+While running logged data in the simulator, we found that there is a tradeoff
+between two scenarios. In the first scenario, the estimated pose of the car is
+very close to the actual pose of the car, and we want to limit the amount of
+noise to retain accuracy. In the second scenario, the estimated pose of the car
+is moderately inaccurate, and we want to have enough noise such that more
+accurate poses are found.
+
+Two of the logged rosbag data were particularly useful for tuning parameters in
+simulation. One tested turning around a corner driving both forwards and
+backwards, and the other tested a three point turn. We first tuned $k_3$ and
+$k_4$ such that the estimated pose of the robot would complete the turn around a
+corner successfully. $k_1$ and $k_2$ were tuned to balance the tradeoff between
+the two scenarios described above.
+
+Our initial estimate for $\gamma$ was 0.1, as it seemed reasonable for an
+environment consisting mainly of walls to have strong correlation between
+readings. We found that bumping the value up to 0.12 helped reduce
+overconfidence.
+
+\section{Challenges}
+
+We encountered problems with the simple observation likelihood model propagating
+log-likelihoods of $-\infty$. However, we were expecting this as it was
+mentioned in lecture and implemented the robust observation likelihood model.
+
+In the logged rosbag data for a three point turn, our particle cloud would
+``explode'' consistently at a specific time step. We discovered that the error
+would happen when $\Delta \theta^{\odom}$ is computed as a reflex angle (e.g.
+$358^{\circ}$ instead of $-2^{\circ}$), which behaves identically for
+trigonometric calculations, but caused our motion model standard deviations to
+inflate since they are computed as simple linear combinations. We addressed the
+issue by writing a function to convert reflex angles to their negative convex
+equivalents.
+
+While running the particle filter on the real car, we found that the computation
+time for the Update step was very high, causing delays in particle resamples and
+inaccuracies in estimation. We addressed this by writing a parallel
+implementation and optimizing point cloud prediction. With this optimization the
+90th percentile of Update step computation times on the car was reduced from
+about 211 ms to about 65 ms.
+
+We also had difficulty with the simulator slowing down when plotting a lot of
+live particles due to HTML's canvas limitations, making it harder to observe
+rosbag performance. We temporarily resolved this by rendering the editor at a
+lower resolution but are actively working to optimize the simulator for better
+performance which we will share with the class when it is completed.
+
+\section{Results/Demonstration Video}
+
+A video showing our particle filter running on the real robot can be found
+\href{https://drive.google.com/file/d/1xbL8haRyl_F6Kn7htrOQPeWww6VWr7wj/view?usp=sharing}{here}.
+
+In the video we demonstrate the robustness of our model by driving in wide and
+narrow hallways, false landmarks (trash can at the start vs later intrusion in
+same hallway), swerving the car, performing a non-optimal three-point turn,
+driving backwards, and driving in a noisy environment (people in front of sensor
++ more). We demonstrate that the particle filter is able to correct mild
+inaccuracies, as shown throughout the video and particularly at the end. The
+stairwell leading up to the auditorium is not included in the GDC floor plan,
+and due to this we hypothesize the robot had difficulty localizing itself and
+drifted off course. However, at the end, the car is successfully able to
+relocate itself after a large deviaton, demonstrating the robustness of our
+implementation.
+
+\section{Contributions}
+
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item Predict Step: Elvin
+    \item Update Step: Elvin
+    \item Resample Step: Jierui
+    \item Parameter Tuning: Elvin
+    \item Demonstration with the Real Robot: Aidan, Elvin, Jierui
+    \item Report: Elvin, Aidan, Jierui
+\end{itemize}
+
+\section{GitHub Link}
+
+\href{https://github.com/elvout/cs393r-public}{https://github.com/elvout/cs393r-public}
+
+\end{document}
