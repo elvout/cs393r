@@ -57,4 +57,4 @@ if [[ $(uname -m) == "x86_64" ]]; then
     use-clang
 fi
 fix-ros-path
-make -j
+make -j $(nproc)
