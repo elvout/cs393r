@@ -65,17 +65,33 @@ void SLAM::ObserveLaser(const vector<float>& ranges,
   // A new laser scan has been observed. Decide whether to add it as a pose
   // for SLAM. If decided to add, align it to the scan from the last saved pose,
   // and save both the scan and the optimized pose.
+  constexpr double kMinDispThreshold = 0.5;                // meters
+  constexpr double kMinAngleDispThreshold = 0.5235987756;  // 30 degrees
+
+  static Eigen::Vector2f last_obs_odom_loc(0, 0);
+  static float last_obs_odom_angle = 0.0f;
+
+  const float odom_disp = (prev_odom_loc_ - last_obs_odom_loc).norm();
+  const float odom_angle_disp =
+      std::abs(math_util::ReflexToConvexAngle(prev_odom_angle_ - last_obs_odom_angle));
+
+  if (odom_disp >= kMinDispThreshold || odom_angle_disp >= kMinAngleDispThreshold) {
+    // TODO
+  } else {
+    return;
+  }
+
+  // Overwrite last_obs_odom_[loc,angle].
+  // Create copies beforehand? It's possible for an odometry observation
+  // to occur concurrently.
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
-  if (!odom_initialized_) {
-    prev_odom_angle_ = odom_angle;
-    prev_odom_loc_ = odom_loc;
-    odom_initialized_ = true;
-    return;
-  }
   // Keep track of odometry to estimate how far the robot has moved between
   // poses.
+  prev_odom_angle_ = odom_angle;
+  prev_odom_loc_ = odom_loc;
+  odom_initialized_ = true;
 }
 
 vector<Vector2f> SLAM::GetMap() {
