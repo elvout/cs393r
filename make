@@ -53,8 +53,6 @@ function use-clang() {
 }
 
 
-if [[ $(uname -m) == "x86_64" ]]; then
-    use-clang
-fi
+use-clang
 fix-ros-path
 make -j $(nproc)
