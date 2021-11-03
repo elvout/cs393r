@@ -110,7 +110,9 @@ RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
       Point bin = remaining.back();
       remaining.pop_back();
 
-      Eigen::Vector2f bin_point = (bin - observed_bin).cast<float>() + observed_point;
+      Point bin_dist = bin - observed_bin;
+      Eigen::Vector2f bin_point =
+          Eigen::Vector2f(unbinify(bin_dist.x()), unbinify(bin_dist.y())) + observed_point;
       float bin_range = (bin_point - laser_loc).norm();
       double prob = ObsLikelihoodModel(obs, scan_range, bin_range);
 
