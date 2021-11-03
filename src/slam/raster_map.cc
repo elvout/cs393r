@@ -90,6 +90,8 @@ const std::array<Eigen::Vector2i, 4> dirs{
 RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
   const std::vector<float>& ranges = obs.ranges;
 
+  std::unordered_set<Point, util::EigenMatrixHash<Point>> observed_bins;
+
   for (size_t i = 0; i < ranges.size(); i++) {
     const float scan_range = ranges[i];
     if (scan_range <= obs.range_min || scan_range >= obs.range_max) {
@@ -101,13 +103,19 @@ RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
     const Eigen::Vector2f observed_point = laser_loc + scan_rot * Eigen::Vector2f(scan_range, 0);
     const Point observed_bin(binify(observed_point.x()), binify(observed_point.y()));
 
+    // assume readings are of the same object if they are in the same bin
+    if (observed_bins.count(observed_bin) == 1) {
+      continue;
+    }
+    observed_bins.insert(observed_bin);
+
     // dfs expansion around the observed point
     std::vector<Point> remaining;
     std::unordered_set<Point, util::EigenMatrixHash<Point>> visited;
     remaining.push_back(observed_bin);
     visited.insert(observed_bin);
 
-    constexpr double prob_threshold = 1e-5;  // about 4.6 standard deviations
+    constexpr double prob_threshold = 0.01;  // about 2.7 standard deviations
     while (!remaining.empty()) {
       Point bin = remaining.back();
       remaining.pop_back();
