@@ -19,6 +19,7 @@
 class RasterMap {
   using Point = Eigen::Vector2i;
 
+ public:
   RasterMap(const sensor_msgs::LaserScan& obs);
 
   int binify(double v) const;
