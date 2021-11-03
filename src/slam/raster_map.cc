@@ -9,6 +9,9 @@
 
 namespace {
 const Eigen::Vector2f laser_loc(0.2, 0);
+// Inflated standard deviation value.
+// Less inflation than the Particle filter to keep computation time down.
+constexpr double CONFIG_LidarStddev = 0.08;
 
 // TODO: refactor, move to shared or util library
 double NormalPdf(const double val, const double mean, const double stddev) {
@@ -28,16 +31,15 @@ double NormalCdf(const double val, const double mean, const double stddev) {
 }
 
 double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
-                          const float expected,
-                          const float hypothesis) {
-  // Inflated standard deviation value.
-  // Less inflation than the Particle filter to keep computation time down.
-  constexpr double CONFIG_LidarStddev = 0.08;
-
-  if (hypothesis <= obs.range_min || hypothesis >= obs.range_max) {
+                          const Eigen::Vector2f& expected,
+                          const Eigen::Vector2f& hypothesis) {
+  float hypothesis_range = (hypothesis - laser_loc).norm();
+  if (hypothesis_range <= obs.range_min || hypothesis_range >= obs.range_max) {
     return 0;
   }
-  return NormalPdf(hypothesis, expected, CONFIG_LidarStddev);
+
+  float range_diff = (expected - hypothesis).norm();
+  return NormalPdf(range_diff, 0, CONFIG_LidarStddev);
 }
 
 /*
@@ -113,11 +115,10 @@ RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
       Point bin_dist = bin - observed_bin;
       Eigen::Vector2f bin_point =
           Eigen::Vector2f(unbinify(bin_dist.x()), unbinify(bin_dist.y())) + observed_point;
-      float bin_range = (bin_point - laser_loc).norm();
-      double prob = ObsLikelihoodModel(obs, scan_range, bin_range);
+      double prob = ObsLikelihoodModel(obs, observed_point, bin_point);
 
       if (prob > prob_threshold) {
-        raster_table_[bin] += std::log(prob);
+        raster_table_[bin] = std::max(raster_table_[bin], prob);
 
         // add more stuff to the remaining queue
         for (const Point& dir : dirs) {
