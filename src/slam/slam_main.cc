@@ -47,7 +47,9 @@
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 
+#include "raster_map.hh"
 #include "slam.h"
+#include "util/profiling.h"
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
 
@@ -72,12 +74,16 @@ DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
 
 DECLARE_int32(v);
 
+namespace {
 bool run_ = true;
 slam::SLAM slam_;
 ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
+
+util::DurationDistribution runtime_dist_;
+}  // namespace
 
 void InitializeMsgs() {
   std_msgs::Header header;
@@ -121,6 +127,11 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     printf("Laser t=%f\n", msg.header.stamp.toSec());
   }
   last_laser_msg_ = msg;
+
+  runtime_dist_.start_lap("RasterMap construction");
+  RasterMap rm(msg);
+  runtime_dist_.end_lap("RasterMap construction");
+
   slam_.ObserveLaser(msg.ranges, msg.range_min, msg.range_max, msg.angle_min, msg.angle_max);
   PublishMap();
   PublishPose();
@@ -148,6 +159,8 @@ int main(int argc, char** argv) {
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic.c_str(), 1, LaserCallback);
   ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
   ros::spin();
+
+  printf("%s\n", runtime_dist_.summary().c_str());
 
   return 0;
 }
