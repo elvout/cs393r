@@ -3,6 +3,8 @@
 
 #include <unordered_map>
 #include "eigen3/Eigen/Dense"
+#include "raster_map.hh"
+#include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
 /**
@@ -18,11 +20,21 @@
  *  remember to constrain angles to this range
  */
 class BeliefCube {
-  using Point = Eigen::Vector3i;  // [x; y; z=theta]
+  using Point = Eigen::Vector3i;  // [x=dx; y=dy; z=dtheta]
+
+ public:
+  BeliefCube();
+
+  void eval(const RasterMap& ref_map, const sensor_msgs::LaserScan& new_obs);
 
  private:
-  static constexpr int tx_resolution_ = 4;   // centimeters
-  static constexpr int rot_resolution_ = 2;  // degrees
+  static constexpr int tx_resolution_ = 4;     // centimeters
+  static constexpr int rot_resolution_ = 2;    // degrees
+  static constexpr int tx_windowsize_ = 100;   // centimeters, inclusive
+  static constexpr int rot_windowsize_ = 359;  // degrees, inclusive
+
+  Point binify(const double x, const double y, const double rad) const;
+  Point binify(const Eigen::Vector2f& coord, const double rad) const;
 
  private:
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> cube_;
