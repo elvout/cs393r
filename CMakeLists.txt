@@ -40,7 +40,10 @@ INCLUDE_DIRECTORIES(src)
 
 ROSBUILD_ADD_EXECUTABLE(slam
                        src/slam/slam_main.cc
-                       src/slam/slam.cc)
+                       src/slam/slam.cc
+                       src/slam/raster_map.cc
+                       src/util/profiling.cc
+)
 TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(particle_filter
