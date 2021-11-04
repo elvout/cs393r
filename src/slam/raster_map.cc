@@ -111,6 +111,23 @@ RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
   }
 }
 
+/// Return the probability value at the specified coordinate.
+double RasterMap::query(const double x, const double y) const {
+  const Point table_index(binify(x), binify(y));
+
+  auto element = raster_table_.find(table_index);
+  if (element == raster_table_.cend()) {
+    return 0;
+  } else {
+    return element->second;
+  }
+}
+
+/// Return the probability value at the specified coordinate.
+double RasterMap::query(const Eigen::Vector2f& coord) const {
+  return query(coord.x(), coord.y());
+}
+
 /**
  * Convert a coordinate space value specified in meters to a value in
  * the index space.

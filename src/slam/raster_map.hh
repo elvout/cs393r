@@ -23,6 +23,10 @@
  *  - preserves the coordinate space structure in the index space
  *
  * Uses a bin resolution of 0.04m x 0.04m.
+ *
+ * TODO: merge(const RasterMap&) for parallel construction and combination
+ * TODO: explicit inlining?
+ * TODO: Eigen::Vector2f origin_point_ ?
  */
 class RasterMap {
   using Point = Eigen::Vector2i;
@@ -31,14 +35,18 @@ class RasterMap {
   /// Construct a RasterMap with the given laser scan readings.
   RasterMap(const sensor_msgs::LaserScan& obs);
 
+  /// Return the probability value at the specified coordinate.
+  double query(double x, double y) const;
+  double query(const Eigen::Vector2f& coord) const;
+
+ private:
+  static constexpr int resolution_ = 4;  // centimeters
+
   /// Convert a coordinate value specified in meters to value in the index space.
   int binify(double v) const;
 
   /// Convert a pixel value to a coordinate value in meters.
   double unbinify(int i) const;
-
- private:
-  static constexpr int resolution_ = 4;  // centimeters
 
  private:
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> raster_table_;
