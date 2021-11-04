@@ -9,9 +9,18 @@
 
 namespace {
 const Eigen::Vector2f laser_loc(0.2, 0);
+
 // Inflated standard deviation value.
 // Less inflation than the Particle filter to keep computation time down.
 constexpr double CONFIG_LidarStddev = 0.08;
+
+// Euclidean direction array for flood-fill/search.
+const std::array<Eigen::Vector2i, 4> dirs{
+    Eigen::Vector2i(1, 0),
+    Eigen::Vector2i(0, 1),
+    Eigen::Vector2i(-1, 0),
+    Eigen::Vector2i(0, -1),
+};
 
 // TODO: refactor, move to shared or util library
 double NormalPdf(const double val, const double mean, const double stddev) {
@@ -22,14 +31,9 @@ double NormalPdf(const double val, const double mean, const double stddev) {
   return inv_sqrt2pi / stddev * std::exp(-0.5 * z * z);
 }
 
-double NormalCdf(const double val, const double mean, const double stddev) {
-  // precomputed value for (1 / sqrt(2))
-  constexpr double inv_sqrt2 = 0.70710678118654752440;
-
-  double z = (val - mean) / stddev;
-  return 0.5 + 0.5 * std::erf(z * inv_sqrt2);
-}
-
+/**
+ * A simple observation likelihood model using a Gaussian distribution.
+ */
 double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
                           const Eigen::Vector2f& expected,
                           const Eigen::Vector2f& hypothesis) {
@@ -42,51 +46,14 @@ double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
   return NormalPdf(range_diff, 0, CONFIG_LidarStddev);
 }
 
-/*
-double ParticleFilterObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
-                                 const float expected,
-                                 const float hypothesis) {
-  // TODO: move to config reader
-  constexpr double CONFIG_LidarStddev = 0.1;
-  constexpr double CONFIG_GaussianLowerBound = -2.5 * CONFIG_LidarStddev;
-  constexpr double CONFIG_GaussianUpperBound = 2.5 * CONFIG_LidarStddev;
-
-  // approximation of the PDF integral, bad when hypothesis is around limits
-  double p_integral = 0;
-  // Integral for the lower interval.
-  p_integral += (hypothesis + CONFIG_GaussianLowerBound - obs.range_min) *
-                NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-  // Integral for the Gaussian interval.
-  p_integral += NormalCdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev) -
-                NormalCdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-  // Integral for the upper interval.
-  p_integral += (obs.range_max - (hypothesis + CONFIG_GaussianUpperBound)) *
-                NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
-
-  double p = 0;
-  if (hypothesis <= obs.range_min || hypothesis >= obs.range_max) {
-    p = 0;
-  } else if (hypothesis < expected + CONFIG_GaussianLowerBound) {
-    p = NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-  } else if (hypothesis > expected + CONFIG_GaussianUpperBound) {
-    p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
-  } else {
-    p = NormalPdf(hypothesis, expected, CONFIG_LidarStddev);
-  }
-
-  return p / p_integral;
-}
-*/
-
-const std::array<Eigen::Vector2i, 4> dirs{
-    Eigen::Vector2i(1, 0),
-    Eigen::Vector2i(0, 1),
-    Eigen::Vector2i(-1, 0),
-    Eigen::Vector2i(0, -1),
-};
-
 }  // namespace
 
+/**
+ * Construct a RasterMap with the given laser scan readings.
+ *
+ * Evaluates the probability of histogram bins around each observation
+ * point until the probability falls below a threshold.
+ */
 RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
   const std::vector<float>& ranges = obs.ranges;
 
@@ -117,20 +84,23 @@ RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
 
     constexpr double prob_threshold = 0.01;  // about 2.7 standard deviations
     while (!remaining.empty()) {
-      Point bin = remaining.back();
+      const Point bin = remaining.back();
       remaining.pop_back();
 
-      Point bin_dist = bin - observed_bin;
-      Eigen::Vector2f bin_point =
-          Eigen::Vector2f(unbinify(bin_dist.x()), unbinify(bin_dist.y())) + observed_point;
+      const Point bin_dist = bin - observed_bin;
+      const Eigen::Vector2f point_dist =
+          Eigen::Vector2f(unbinify(bin_dist.x()), unbinify(bin_dist.y()));
+      const Eigen::Vector2f bin_point = point_dist + observed_point;
       double prob = ObsLikelihoodModel(obs, observed_point, bin_point);
 
       if (prob > prob_threshold) {
+        // This bin won't get revisited during this expansion, but the expansion
+        // around another observation point could visit this bin as well.
         raster_table_[bin] = std::max(raster_table_[bin], prob);
 
         // add more stuff to the remaining queue
         for (const Point& dir : dirs) {
-          Point next_bin = bin + dir;
+          const Point next_bin = bin + dir;
           if (visited.count(next_bin) == 0) {
             remaining.push_back(next_bin);
             visited.insert(next_bin);
@@ -141,6 +111,13 @@ RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
   }
 }
 
+/**
+ * Convert a coordinate space value specified in meters to a value in
+ * the index space.
+ *
+ * Each origin histogram bin is centered around [0, 0]. Thus, the
+ * euclidean boundaries of the bin are [-resolution_ / 2, resolution / 2].
+ */
 int RasterMap::binify(double v) const {
   // TODO: breaks ties towards positive inf
   // It should probably be either towards or away from 0 instead
@@ -153,6 +130,12 @@ int RasterMap::binify(double v) const {
   return static_cast<int>(bin);
 }
 
+/**
+ * Convert an index-space value to a coordinate-space value in meters.
+ *
+ * The coordinate value of the center of the corresponding histogram bin
+ * is returned.
+ */
 double RasterMap::unbinify(int bin) const {
   double cm = bin * resolution_;
 
