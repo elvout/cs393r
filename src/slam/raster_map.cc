@@ -1,6 +1,7 @@
 #include "raster_map.hh"
 #include <array>
 #include <cmath>
+#include <limits>
 #include <unordered_set>
 #include <vector>
 #include "eigen3/Eigen/Dense"
@@ -23,12 +24,12 @@ const std::array<Eigen::Vector2i, 4> dirs{
 };
 
 // TODO: refactor, move to shared or util library
-double NormalPdf(const double val, const double mean, const double stddev) {
-  // precomputed value for (1 / sqrt(2pi))
-  constexpr double inv_sqrt2pi = 0.39894228040143267794;
+double LogNormalPdf(const double val, const double mean, const double stddev) {
+  // precomputed value for log(1 / sqrt(2pi))
+  constexpr double log_inv_sqrt2pi = -0.91893853320467274178;
 
-  double z = (val - mean) / stddev;
-  return inv_sqrt2pi / stddev * std::exp(-0.5 * z * z);
+  const double z = (val - mean) / stddev;
+  return log_inv_sqrt2pi - std::log(stddev) - (z * z * 0.5);
 }
 
 /**
@@ -43,7 +44,7 @@ double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
   }
 
   float range_diff = (expected - hypothesis).norm();
-  return NormalPdf(range_diff, 0, CONFIG_LidarStddev);
+  return LogNormalPdf(range_diff, 0, CONFIG_LidarStddev);
 }
 
 }  // namespace
@@ -80,7 +81,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
     remaining.push_back(observed_bin);
     visited.insert(observed_bin);
 
-    constexpr double prob_threshold = 0.01;  // about 2.7 standard deviations
+    constexpr double log_prob_threshold = -20;  // about 6.17 standard deviations
     while (!remaining.empty()) {
       const Point bin = remaining.back();
       remaining.pop_back();
@@ -91,7 +92,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
       const Eigen::Vector2f bin_point = point_dist + observed_point;
       double prob = ObsLikelihoodModel(obs, observed_point, bin_point);
 
-      if (prob > prob_threshold) {
+      if (prob > log_prob_threshold) {
         // This bin won't get revisited during this expansion, but the expansion
         // around another observation point could visit this bin as well.
         raster_table_[bin] = std::max(raster_table_[bin], prob);
@@ -109,19 +110,19 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
   }
 }
 
-/// Return the probability value at the specified coordinate.
+/// Return the log probability value at the specified coordinate.
 double RasterMap::query(const double x, const double y) const {
   const Point table_index(binify(x), binify(y));
 
   auto element = raster_table_.find(table_index);
   if (element == raster_table_.cend()) {
-    return 0;
+    return -std::numeric_limits<double>::infinity();
   } else {
     return element->second;
   }
 }
 
-/// Return the probability value at the specified coordinate.
+/// Return the log probability value at the specified coordinate.
 double RasterMap::query(const Eigen::Vector2f& coord) const {
   return query(coord.x(), coord.y());
 }

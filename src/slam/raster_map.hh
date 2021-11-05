@@ -37,7 +37,7 @@ class RasterMap {
   /// Evaluate the map given laser scan readings.
   void eval(const sensor_msgs::LaserScan& obs);
 
-  /// Return the probability value at the specified coordinate.
+  /// Return the log probability value at the specified coordinate.
   double query(double x, double y) const;
   double query(const Eigen::Vector2f& coord) const;
 

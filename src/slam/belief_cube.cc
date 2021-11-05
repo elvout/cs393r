@@ -87,8 +87,8 @@ void BeliefCube::eval(const RasterMap& ref_map,
         double log_motion_prob =
             MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
 
-        // e^-10 is approx 4e-5
-        if (log_motion_prob > -10) {
+        // e^-20 is about 6.17 standard deviations
+        if (log_motion_prob > -20) {
           // TODO: bug-prone code: write safe wrapper and document
           Point key(dx / tx_resolution_, dy / tx_resolution_, dtheta);
           cube_[key] += log_motion_prob;
@@ -112,11 +112,10 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
       const Eigen::Vector2f& query_point = dtheta_rot * point + d_loc;
 
-      double obs_prob = ref_map.query(query_point.x(), query_point.y());
-      double log_prob = std::log(obs_prob);
-      it->second += log_prob;
+      double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
+      it->second += log_obs_prob;
 
-      if (log_prob == -std::numeric_limits<double>::infinity()) {
+      if (log_obs_prob == -std::numeric_limits<double>::infinity()) {
         break;
       }
     }
