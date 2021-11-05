@@ -76,6 +76,9 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
   // motion model
   size_t evals = 0;
+  // not a great threshold, as the standard devations are dependent on the magnitude
+  // of displacement
+  const double log_prob_threshold = LogNormalPdf(3, 0, 1);
   for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
     for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
       for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
@@ -87,8 +90,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
         double log_motion_prob =
             MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
 
-        // e^-20 is about 6.17 standard deviations
-        if (log_motion_prob > -20) {
+        if (log_motion_prob > log_prob_threshold) {
           // TODO: bug-prone code: write safe wrapper and document
           Point key(dx / tx_resolution_, dy / tx_resolution_, dtheta);
           cube_[key] += log_motion_prob;

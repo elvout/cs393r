@@ -34,9 +34,11 @@ class BeliefCube {
 
  private:
   static constexpr int tx_resolution_ = 4;     // centimeters
-  static constexpr int rot_resolution_ = 2;    // degrees
+  static constexpr int rot_resolution_ = 1;    // degrees
   static constexpr int tx_windowsize_ = 100;   // centimeters, inclusive
   static constexpr int rot_windowsize_ = 359;  // degrees, inclusive
+
+  static_assert(tx_windowsize_ % tx_resolution_ == 0);
 
   Point binify(const double x, const double y, const double rad) const;
   Point binify(const Eigen::Vector2f& coord, const double rad) const;
