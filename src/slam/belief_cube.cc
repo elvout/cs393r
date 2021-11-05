@@ -48,13 +48,11 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
   // observation likelihood model
   // 2D slicing was too slow, unless I was just doing it wrong
-  size_t prune_count = 0;
   for (auto it = cube_.begin(); it != cube_.cend();) {
     const Point& index = it->first;
 
     auto [d_loc, d_theta] = unbinify(index);
     const Eigen::Rotation2Df dtheta_rot(d_theta);
-    size_t hits = 0;
     double log_sum = 0;
 
     for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
@@ -68,34 +66,14 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
       double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
       log_obs_prob = std::max(log_obs_prob, -2.0);  // TODO: un-hardcode, about 2.5 stddev
-      if (log_obs_prob != -std::numeric_limits<double>::infinity()) {
-        // it->second += log_obs_prob;
-        log_sum += log_obs_prob;
-        hits++;
-      }
-
-      // it->second += log_obs_prob;
-
-      // if (log_obs_prob == -std::numeric_limits<double>::infinity()) {
-      //   break;
-      // }
+      log_sum += log_obs_prob;
     }
 
-    // prune out impossible values to sparsify matrix
-    // if (it->second == -std::numeric_limits<double>::infinity()) {
-    // double min_hit_threshold = obs_points.size() / 10 / 3;
-    double min_hit_threshold = 5;
-    if (hits < min_hit_threshold) {
-      it = cube_.erase(it);
-      prune_count++;
-    } else {
-      it->second += log_sum * 0.12;
-      it++;
-    }
+    // TODO: prune out impossible values to sparsify matrix?
+
+    it->second += log_sum * 0.12;
+    it++;
   }
-
-  printf("[BeliefCube::eval INFO] negative inf prune count: %lu\n", prune_count);
-  printf("[BeliefCube::eval INFO] remaining cube size: %lu\n", cube_.size());
 
   // observation likelihood model
   // for (const Eigen::Vector2f& point : obs_points) {
