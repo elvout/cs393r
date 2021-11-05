@@ -30,6 +30,8 @@ class BeliefCube {
             const double odom_angle_disp,
             const sensor_msgs::LaserScan& new_obs);
 
+  std::pair<Eigen::Vector2f, double> max_belief() const;
+
  private:
   static constexpr int tx_resolution_ = 4;     // centimeters
   static constexpr int rot_resolution_ = 2;    // degrees
@@ -38,6 +40,8 @@ class BeliefCube {
 
   Point binify(const double x, const double y, const double rad) const;
   Point binify(const Eigen::Vector2f& coord, const double rad) const;
+
+  std::pair<Eigen::Vector2f, double> unbinify(const Point& index) const;
 
  private:
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> cube_;

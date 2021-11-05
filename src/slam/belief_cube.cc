@@ -109,6 +109,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
     }
   }
 
+  // TODO: can iterate over non-zero cells directly
   for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
     for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
       for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
@@ -135,6 +136,24 @@ void BeliefCube::eval(const RasterMap& ref_map,
   }
 }
 
+std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
+  if (cube_.empty()) {
+    std::cerr << "[BeliefCube::max_belief() FATAL]: empty cube\n";
+    exit(1);
+  }
+
+  auto it = cube_.begin();
+  auto max_index = it;
+
+  while (it++ != cube_.cend()) {
+    if (it->second > max_index->second) {
+      max_index = it;
+    }
+  }
+
+  return unbinify(max_index->first);
+}
+
 BeliefCube::Point BeliefCube::binify(const double x, const double y, const double rad) const {
   using math_util::ConstrainAngle;
   using math_util::RadToDeg;
@@ -148,4 +167,16 @@ BeliefCube::Point BeliefCube::binify(const double x, const double y, const doubl
 
 BeliefCube::Point BeliefCube::binify(const Eigen::Vector2f& coord, const double rad) const {
   return binify(coord.x(), coord.y(), rad);
+}
+
+std::pair<Eigen::Vector2f, double> BeliefCube::unbinify(const Point& index) const {
+  double x_coord = index.x() * tx_resolution_ * 100.0;
+  double y_coord = index.y() * tx_resolution_ * 100.0;
+
+  // potential for a bug:
+  // in binify() we use single degree increments, but rot_resolution is not
+  // necessarily a single degree.
+  double rad = math_util::DegToRad(static_cast<double>(index.z()));
+
+  return std::make_pair(Eigen::Vector2f(x_coord, y_coord), rad);
 }
