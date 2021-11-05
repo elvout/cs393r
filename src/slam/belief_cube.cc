@@ -108,25 +108,43 @@ void BeliefCube::eval(const RasterMap& ref_map,
     const Point& index = it->first;
 
     auto [d_loc, d_theta] = unbinify(index);
-    const Eigen::Rotation2Df dtheta_rot(-d_theta);
+    const Eigen::Rotation2Df dtheta_rot(d_theta);
+    size_t hits = 0;
+    double log_sum = 0;
+
     for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
       const Eigen::Vector2f& point = obs_points[scan_i];
 
       const Eigen::Vector2f& query_point = dtheta_rot * point + d_loc;
+      const float query_dist = query_point.norm();
+      if (query_dist <= new_obs.range_min || query_dist >= new_obs.range_max) {
+        continue;
+      }
 
       double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
-      it->second += log_obs_prob;
-
-      if (log_obs_prob == -std::numeric_limits<double>::infinity()) {
-        break;
+      log_obs_prob = std::max(log_obs_prob, -100.0);
+      if (log_obs_prob != -std::numeric_limits<double>::infinity()) {
+        // it->second += log_obs_prob;
+        log_sum += log_obs_prob;
+        hits++;
       }
+
+      // it->second += log_obs_prob;
+
+      // if (log_obs_prob == -std::numeric_limits<double>::infinity()) {
+      //   break;
+      // }
     }
 
     // prune out impossible values to sparsify matrix
-    if (it->second == -std::numeric_limits<double>::infinity()) {
+    // if (it->second == -std::numeric_limits<double>::infinity()) {
+    // double min_hit_threshold = obs_points.size() / 10 / 3;
+    double min_hit_threshold = 5;
+    if (hits < min_hit_threshold) {
       it = cube_.erase(it);
       prune_count++;
     } else {
+      it->second += log_sum / (hits / min_hit_threshold);
       it++;
     }
   }

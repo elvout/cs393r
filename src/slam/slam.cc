@@ -49,7 +49,12 @@ using vector_map::VectorMap;
 
 namespace slam {
 
-SLAM::SLAM() : prev_odom_loc_(0, 0), prev_odom_angle_(0), odom_initialized_(false) {}
+SLAM::SLAM()
+    : prev_odom_loc_(0, 0),
+      prev_odom_angle_(0),
+      odom_initialized_(false),
+      belief_history(),
+      offline_eval_(false) {}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   // Return the latest pose estimate of the robot.
@@ -61,25 +66,86 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
   // A new laser scan has been observed. Decide whether to add it as a pose
   // for SLAM. If decided to add, align it to the scan from the last saved pose,
   // and save both the scan and the optimized pose.
-  constexpr double kMinDispThreshold = 0.5;                // meters
-  constexpr double kMinAngleDispThreshold = 0.5235987756;  // 30 degrees
+  // constexpr double kMinDispThreshold = 0.5;                // meters
+  // constexpr double kMinAngleDispThreshold = 0.5235987756;  // 30 degrees
+
+  constexpr double kMinDispThreshold = 0.1;                // meters
+  constexpr double kMinAngleDispThreshold = 0.1745329252;  // 10 degrees
 
   static Eigen::Vector2f last_obs_odom_loc(0, 0);
   static float last_obs_odom_angle = 0.0f;
+  static bool bel_initialized = false;
+
+  if (!odom_initialized_) {
+    return;
+  }
+
+  if (!bel_initialized) {
+    SLAMBelief init_bel;
+    init_bel.obs = obs;
+    init_bel.ref_loc = prev_odom_loc_;
+    init_bel.ref_angle = prev_odom_angle_;
+    init_bel.ref_map.eval(init_bel.obs);
+
+    last_obs_odom_loc = prev_odom_loc_;
+    last_obs_odom_angle = prev_odom_angle_;
+    belief_history.push_back(std::move(init_bel));
+    bel_initialized = true;
+    return;
+  }
 
   const float odom_disp = (prev_odom_loc_ - last_obs_odom_loc).norm();
   const float odom_angle_disp =
       std::abs(math_util::ReflexToConvexAngle(prev_odom_angle_ - last_obs_odom_angle));
 
-  if (odom_disp >= kMinDispThreshold || odom_angle_disp >= kMinAngleDispThreshold) {
-    // TODO
-  } else {
+  if (odom_disp < kMinDispThreshold && odom_angle_disp < kMinAngleDispThreshold) {
     return;
   }
 
-  // Overwrite last_obs_odom_[loc,angle].
-  // Create copies beforehand? It's possible for an odometry observation
-  // to occur concurrently.
+  SLAMBelief bel;
+  bel.odom_disp = Eigen::Rotation2Df(-last_obs_odom_angle) * (prev_odom_loc_ - last_obs_odom_loc);
+  bel.odom_angle_disp = math_util::ReflexToConvexAngle(prev_odom_angle_ - last_obs_odom_angle);
+  last_obs_odom_loc = prev_odom_loc_;
+  last_obs_odom_angle = prev_odom_angle_;
+
+  bel.obs = obs;
+
+  bel.ref_loc = prev_odom_loc_;
+  bel.ref_angle = prev_odom_angle_;
+  // bel.ref_map.eval(bel.obs);
+
+  // bel.belief_lookup.eval(belief_history.back().ref_map, bel.odom_disp, bel.odom_angle_disp,
+  // bel.obs);
+
+  printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
+         math_util::RadToDeg(bel.odom_angle_disp));
+
+  // auto [max_disp, max_angle_disp] = bel.belief_lookup.max_belief();
+  // printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
+  // math_util::RadToDeg(max_angle_disp));
+
+  belief_history.push_back(bel);
+  // exit(1);
+}
+
+void SLAM::OfflineBelEvaluation() {
+  offline_eval_ = true;
+  return;
+
+  for (size_t i = 1; i < belief_history.size(); i++) {
+    SLAMBelief& bel = belief_history[i];
+
+    printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
+           math_util::RadToDeg(bel.odom_angle_disp));
+
+    bel.belief_lookup.eval(belief_history[i - 1].ref_map, bel.odom_disp, bel.odom_angle_disp,
+                           bel.obs);
+
+    auto [max_disp, max_angle_disp] = bel.belief_lookup.max_belief();
+    printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
+           math_util::RadToDeg(math_util::ReflexToConvexAngle(max_angle_disp)));
+    printf("------------\n");
+  }
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
@@ -90,10 +156,58 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
   odom_initialized_ = true;
 }
 
+// TODO: reuse code and computations
+std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) {
+  const Eigen::Vector2f laser_loc(0.2, 0);
+  const std::vector<float>& ranges = scan.ranges;
+  const size_t n_ranges = ranges.size();
+
+  std::vector<Eigen::Vector2f> points;
+  points.reserve(n_ranges);
+
+  for (size_t i = 0; i < n_ranges; i++) {
+    const float scan_range = ranges[i];
+    if (scan_range <= scan.range_min || scan_range >= scan.range_max) {
+      continue;
+    }
+
+    const float scan_angle = scan.angle_min + i * scan.angle_increment;
+    const Eigen::Rotation2Df scan_rot(scan_angle);
+    points.push_back(laser_loc + scan_rot * Eigen::Vector2f(scan_range, 0));
+  }
+
+  return points;
+}
+
+// use a raster map
 vector<Vector2f> SLAM::GetMap() {
   vector<Vector2f> map;
   // Reconstruct the map as a single aligned point cloud from all saved poses
   // and their respective scans.
+
+  // if (!offline_eval_) {
+  //   return map;
+  // }
+
+  Eigen::Vector2f aggregate_disp(0, 0);
+  double aggregate_rot = 0;
+
+  for (int i = 1; i < belief_history.size(); i++) {
+    SLAMBelief& bel = belief_history[i];
+
+    // auto [bel_disp, bel_rot] = bel.belief_lookup.max_belief();
+    // aggregate_disp += Eigen::Rotation2Df(aggregate_rot) * bel_disp;
+    // aggregate_rot = math_util::ConstrainAngle(aggregate_rot + bel_rot);
+
+    aggregate_disp += Eigen::Rotation2Df(aggregate_rot) * bel.odom_disp;
+    aggregate_rot = math_util::ConstrainAngle(aggregate_rot + bel.odom_angle_disp);
+
+    std::vector<Eigen::Vector2f> points = PointsFromScan(bel.obs);
+    for (const Eigen::Vector2f& point : points) {
+      map.push_back(Rotation2Df(aggregate_rot) * point + aggregate_disp);
+    }
+  }
+
   return map;
 }
 

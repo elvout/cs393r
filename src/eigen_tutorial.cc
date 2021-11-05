@@ -62,12 +62,46 @@ void DemoRotations() {
   cout << "m1: \n" << m1 << "\n";
 }
 
-int main() {
-  cout << "Basics: Vectors and Matrices.\n";
-  DemoBasics();
+void TestAggregate() {
+  Vector2f init_obs(15, 0);
 
-  cout << "\n\n\nDifferent representations of rotation.\n";
-  DemoRotations();
+  Vector2f odom_disp1(4, -2);
+  double odom_angle1 = -45 / 180.0 * M_PI;
+
+  Vector2f odom_disp2(0, sqrt(50));
+  double odom_angle2 = (45.0 + 30) / 180 * M_PI;
+
+  Vector2f aggregate_disp(0, 0);
+  double aggregate_angle = 0;
+
+  aggregate_disp += odom_disp1;
+  aggregate_angle += odom_angle1;
+
+  aggregate_disp += Rotation2Df(aggregate_angle) * odom_disp2;
+  aggregate_angle += odom_angle2;
+
+  std::cout << "pos: [" << aggregate_disp.x() << ", " << aggregate_disp.y() << " | "
+            << (aggregate_angle * 180 / M_PI) << "]\n";
+
+  Vector2f expected_point(6, -3);
+  expected_point = Rotation2Df(-30.0 / 180 * M_PI) * expected_point;
+
+  printf("local ref: [%.4f, %.4f]\n", expected_point.x(), expected_point.y());
+
+  expected_point = Rotation2Df(aggregate_angle) * expected_point;
+  expected_point += aggregate_disp;
+
+  printf("local ref: [%.4f, %.4f]\n", expected_point.x(), expected_point.y());
+}
+
+int main() {
+  // cout << "Basics: Vectors and Matrices.\n";
+  // DemoBasics();
+
+  // cout << "\n\n\nDifferent representations of rotation.\n";
+  // DemoRotations();
+
+  TestAggregate();
 
   return 0;
 }

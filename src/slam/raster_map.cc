@@ -41,7 +41,7 @@ double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
                           const Eigen::Vector2f& hypothesis) {
   float hypothesis_range = (hypothesis - laser_loc).norm();
   if (hypothesis_range <= obs.range_min || hypothesis_range >= obs.range_max) {
-    return 0;
+    return -std::numeric_limits<double>::infinity();
   }
 
   float range_diff = (expected - hypothesis).norm();
@@ -82,7 +82,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
     remaining.push_back(observed_bin);
     visited.insert(observed_bin);
 
-    constexpr double log_prob_threshold = -20;  // about 6.17 standard deviations
+    const double log_prob_threshold = LogNormalPdf(CONFIG_LidarStddev * 5, 0, CONFIG_LidarStddev);
     while (!remaining.empty()) {
       const Point bin = remaining.back();
       remaining.pop_back();
