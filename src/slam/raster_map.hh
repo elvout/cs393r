@@ -41,6 +41,8 @@ class RasterMap {
   double query(double x, double y) const;
   double query(const Eigen::Vector2f& coord) const;
 
+  void dump_csv(std::string filename = "image.csv") const;
+
  private:
   static constexpr int resolution_ = 4;  // centimeters
 

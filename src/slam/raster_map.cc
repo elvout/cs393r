@@ -1,6 +1,7 @@
 #include "raster_map.hh"
 #include <array>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <unordered_set>
 #include <vector>
@@ -13,7 +14,7 @@ const Eigen::Vector2f laser_loc(0.2, 0);
 
 // Inflated standard deviation value.
 // Less inflation than the Particle filter to keep computation time down.
-constexpr double CONFIG_LidarStddev = 0.15;
+constexpr double CONFIG_LidarStddev = 0.08;
 
 // Euclidean direction array for flood-fill/search.
 const std::array<Eigen::Vector2i, 4> dirs{
@@ -164,4 +165,12 @@ double RasterMap::unbinify(int bin) const {
 
   // convert to meters
   return cm / 100.0;
+}
+
+void RasterMap::dump_csv(std::string filename) const {
+  std::ofstream fout(filename);
+
+  for (const auto& [index, prob] : raster_table_) {
+    fout << index.x() << ',' << index.y() << ',' << prob << '\n';
+  }
 }
