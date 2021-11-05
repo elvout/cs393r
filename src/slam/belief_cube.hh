@@ -23,7 +23,7 @@ class BeliefCube {
   using Point = Eigen::Vector3i;  // [x=dx; y=dy; z=dtheta]
 
  public:
-  BeliefCube();
+  BeliefCube() = default;
 
   void eval(const RasterMap& ref_map,
             const Eigen::Vector2f& odom_disp,

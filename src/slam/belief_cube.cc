@@ -69,10 +69,6 @@ double MotionModel(const Eigen::Vector2f& expected_disp,
 
 }  // namespace
 
-// in raster_map we compute the map in the constructor
-// should we make the APIs consistent?
-BeliefCube::BeliefCube() : cube_() {}
-
 void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
                       const double odom_angle_disp,

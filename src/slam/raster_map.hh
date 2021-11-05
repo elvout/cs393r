@@ -32,8 +32,10 @@ class RasterMap {
   using Point = Eigen::Vector2i;
 
  public:
-  /// Construct a RasterMap with the given laser scan readings.
-  RasterMap(const sensor_msgs::LaserScan& obs);
+  RasterMap() = default;
+
+  /// Evaluate the map given laser scan readings.
+  void eval(const sensor_msgs::LaserScan& obs);
 
   /// Return the probability value at the specified coordinate.
   double query(double x, double y) const;

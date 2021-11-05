@@ -49,12 +49,10 @@ double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
 }  // namespace
 
 /**
- * Construct a RasterMap with the given laser scan readings.
- *
  * Evaluates the probability of histogram bins around each observation
  * point until the probability falls below a threshold.
  */
-RasterMap::RasterMap(const sensor_msgs::LaserScan& obs) : raster_table_() {
+void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
   const std::vector<float>& ranges = obs.ranges;
 
   std::unordered_set<Point, util::EigenMatrixHash<Point>> observed_bins;
