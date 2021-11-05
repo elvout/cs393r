@@ -40,55 +40,27 @@ double NormalPdf(const double val, const double mean, const double stddev) {
   return inv_sqrt2pi / stddev * std::exp(-0.5 * z * z);
 }
 
-double MotionModel(const Eigen::Vector2f& reference_point,
-                   const double reference_angle,
-                   const Eigen::Vector2f& expected_tx,
+double MotionModel(const Eigen::Vector2f& expected_disp,
                    const double expected_rot,
-                   const Eigen::Vector2f& hypothesis_tx,
+                   const Eigen::Vector2f& hypothesis_disp,
                    const double hypothesis_rot) {
-  // calculate displacement in the reference frame
-  const Eigen::Rotation2Df ref_rot(-reference_angle);
-  const Eigen::Vector2f expected_disp = ref_rot * (expected_tx - reference_point);
-  const Eigen::Vector2f hypothesis_disp = ref_rot * (hypothesis_tx - reference_point);
-
-  const double expected_angular_disp = math_util::ConstrainAngle(expected_rot - reference_angle);
-  const double hypothesis_angular_disp =
-      math_util::ConstrainAngle(hypothesis_rot - reference_angle);
-
-  {
-    // sanity check
-    const double exp_ang_disp_check =
-        math_util::ConstrainAngle(std::atan2(expected_disp.y(), expected_disp.x()));
-    const double hyp_ang_disp_check =
-        math_util::ConstrainAngle(std::atan2(hypothesis_disp.y(), hypothesis_disp.x()));
-
-    if (std::abs(expected_angular_disp - exp_ang_disp_check) >= 1e-5) {
-      std::cerr << "[belief_cube::MotionModel WARNING] expected angular displacement mismatch\n";
-    }
-
-    if (std::abs(hypothesis_angular_disp - hyp_ang_disp_check) >= 1e-5) {
-      std::cerr << "[belief_cube::MotionModel WARNING] hypothesis angular displacement mismatch\n";
-    }
-  }
-
   // TODO: move params to config?
   constexpr double k1 = 0.45;
   constexpr double k2 = 1.6;
   constexpr double k3 = 0.65;
   constexpr double k4 = 2.3;
 
-  const double x_noise = hypothesis_disp.x() - expected_disp.x();
-  const double y_noise = hypothesis_disp.y() - expected_disp.y();
-  const double theta_noise =
-      math_util::ReflexToConvexAngle(hypothesis_angular_disp - expected_angular_disp);
-
   const double expected_disp_n = expected_disp.norm();
-  const double expected_rot_n = std::abs(math_util::ReflexToConvexAngle(expected_angular_disp));
-  const double tx_std = k1 * expected_disp_n + k2 * expected_rot_n;
+  const double expected_rot_n = std::abs(math_util::ReflexToConvexAngle(expected_rot));
+  const double disp_std = k1 * expected_disp_n + k2 * expected_rot_n;
   const double rot_std = k3 * expected_disp_n + k4 * expected_rot_n;
 
-  const double px = NormalPdf(x_noise, 0, tx_std);
-  const double py = NormalPdf(y_noise, 0, tx_std);
+  const double x_noise = hypothesis_disp.x() - expected_disp.x();
+  const double y_noise = hypothesis_disp.y() - expected_disp.y();
+  const double theta_noise = math_util::ReflexToConvexAngle(hypothesis_rot - expected_rot);
+
+  const double px = NormalPdf(x_noise, 0, disp_std);
+  const double py = NormalPdf(y_noise, 0, disp_std);
   const double ptheta = NormalPdf(theta_noise, 0, rot_std);
 
   // todo: log-likelihoods?
@@ -102,8 +74,6 @@ double MotionModel(const Eigen::Vector2f& reference_point,
 BeliefCube::BeliefCube() : cube_() {}
 
 void BeliefCube::eval(const RasterMap& ref_map,
-                      const Eigen::Vector2f& ref_loc,
-                      const double ref_angle,
                       const Eigen::Vector2f& odom_disp,
                       const double odom_angle_disp,
                       const sensor_msgs::LaserScan& new_obs) {
@@ -139,8 +109,6 @@ void BeliefCube::eval(const RasterMap& ref_map,
     }
   }
 
-  const Eigen::Vector2f expected_loc = ref_loc + odom_disp;
-  const double expected_angle = ref_angle + odom_angle_disp;
   for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
     for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
       for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
@@ -150,12 +118,11 @@ void BeliefCube::eval(const RasterMap& ref_map,
           continue;
         }
 
-        Eigen::Vector2f tx_delta(dx / 100.0, dy / 100.0);
-        Eigen::Vector2f hypothesis_loc = ref_loc + tx_delta;
-        double hypothesis_angle = ref_angle + dtheta;
+        Eigen::Vector2f hypothesis_disp(dx / 100.0, dy / 100.0);  // meters
+        double hypothesis_rot = math_util::DegToRad(static_cast<double>(dtheta));
 
-        double motion_prob = MotionModel(ref_loc, ref_angle, expected_loc, expected_angle,
-                                         hypothesis_loc, hypothesis_angle);
+        double motion_prob =
+            MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
         double log_prob = std::log(motion_prob);
 
         if (log_prob == -std::numeric_limits<double>::infinity()) {

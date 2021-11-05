@@ -26,8 +26,6 @@ class BeliefCube {
   BeliefCube();
 
   void eval(const RasterMap& ref_map,
-            const Eigen::Vector2f& ref_loc,
-            const double ref_angle,
             const Eigen::Vector2f& odom_disp,
             const double odom_angle_disp,
             const sensor_msgs::LaserScan& new_obs);
