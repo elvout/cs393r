@@ -6,15 +6,12 @@
 #include <unordered_set>
 #include <vector>
 #include "eigen3/Eigen/Dense"
+#include "models.hh"
 #include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
 namespace {
 const Eigen::Vector2f laser_loc(0.2, 0);
-
-// Inflated standard deviation value.
-// Less inflation than the Particle filter to keep computation time down.
-constexpr double CONFIG_LidarStddev = 0.08;
 
 // Euclidean direction array for flood-fill/search.
 const std::array<Eigen::Vector2i, 4> dirs{
@@ -23,30 +20,6 @@ const std::array<Eigen::Vector2i, 4> dirs{
     Eigen::Vector2i(-1, 0),
     Eigen::Vector2i(0, -1),
 };
-
-// TODO: refactor, move to shared or util library
-double LogNormalPdf(const double val, const double mean, const double stddev) {
-  // precomputed value for log(1 / sqrt(2pi))
-  constexpr double log_inv_sqrt2pi = -0.91893853320467274178;
-
-  const double z = (val - mean) / stddev;
-  return log_inv_sqrt2pi - std::log(stddev) - (z * z * 0.5);
-}
-
-/**
- * A simple observation likelihood model using a Gaussian distribution.
- */
-double ObsLikelihoodModel(const sensor_msgs::LaserScan& obs,
-                          const Eigen::Vector2f& expected,
-                          const Eigen::Vector2f& hypothesis) {
-  float hypothesis_range = (hypothesis - laser_loc).norm();
-  if (hypothesis_range <= obs.range_min || hypothesis_range >= obs.range_max) {
-    return -std::numeric_limits<double>::infinity();
-  }
-
-  float range_diff = (expected - hypothesis).norm();
-  return LogNormalPdf(range_diff, 0, CONFIG_LidarStddev);
-}
 
 }  // namespace
 
@@ -82,7 +55,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
     remaining.push_back(observed_bin);
     visited.insert(observed_bin);
 
-    const double log_prob_threshold = LogNormalPdf(CONFIG_LidarStddev * 5, 0, CONFIG_LidarStddev);
+    const double log_prob_threshold = LogNormalPdf(0.08 * 2.5, 0, 0.08);  // TODO: un-hardcode
     while (!remaining.empty()) {
       const Point bin = remaining.back();
       remaining.pop_back();
@@ -91,7 +64,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
       const Eigen::Vector2f point_dist =
           Eigen::Vector2f(unbinify(bin_dist.x()), unbinify(bin_dist.y()));
       const Eigen::Vector2f bin_point = point_dist + observed_point;
-      double prob = ObsLikelihoodModel(obs, observed_point, bin_point);
+      double prob = LogObsModel(obs, observed_point, bin_point);
 
       if (prob > log_prob_threshold) {
         // This bin won't get revisited during this expansion, but the expansion

@@ -43,6 +43,7 @@ ROSBUILD_ADD_EXECUTABLE(slam
                        src/slam/slam.cc
                        src/slam/raster_map.cc
                        src/slam/belief_cube.cc
+                       src/slam/models.cc
                        src/util/profiling.cc
 )
 TARGET_LINK_LIBRARIES(slam shared_library ${libs})
