@@ -99,11 +99,12 @@ void BeliefCube::eval(const RasterMap& ref_map,
     }
   }
 
-  printf("cube size: %lu / %lu\n", cube_.size(), evals);
+  printf("[BeliefCube::eval INFO] cube size: %lu / %lu\n", cube_.size(), evals);
 
   // observation likelihood model
   // 2D slicing was too slow, unless I was just doing it wrong
-  for (auto it = cube_.begin(); it != cube_.cend(); it++) {
+  size_t prune_count = 0;
+  for (auto it = cube_.begin(); it != cube_.cend();) {
     const Point& index = it->first;
 
     auto [d_loc, d_theta] = unbinify(index);
@@ -114,12 +115,25 @@ void BeliefCube::eval(const RasterMap& ref_map,
       const Eigen::Vector2f& query_point = dtheta_rot * point + d_loc;
 
       double obs_prob = ref_map.query(query_point.x(), query_point.y());
-      it->second += std::log(obs_prob);
+      double log_prob = std::log(obs_prob);
+      it->second += log_prob;
 
-      // TODO: filter out log p = -inf
-      //  it = cube_.erase(it)
+      if (log_prob == -std::numeric_limits<double>::infinity()) {
+        break;
+      }
+    }
+
+    // prune out impossible values to sparsify matrix
+    if (it->second == -std::numeric_limits<double>::infinity()) {
+      it = cube_.erase(it);
+      prune_count++;
+    } else {
+      it++;
     }
   }
+
+  printf("[BeliefCube::eval INFO] negative inf prune count: %lu\n", prune_count);
+  printf("[BeliefCube::eval INFO] remaining cube size: %lu\n", cube_.size());
 
   // observation likelihood model
   // for (const Eigen::Vector2f& point : obs_points) {
