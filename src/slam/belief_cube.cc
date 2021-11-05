@@ -165,8 +165,8 @@ BeliefCube::Point BeliefCube::binify(const Eigen::Vector2f& coord, const double 
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::unbinify(const Point& index) const {
-  double x_coord = index.x() * tx_resolution_ * 100.0;
-  double y_coord = index.y() * tx_resolution_ * 100.0;
+  double x_coord = index.x() * tx_resolution_ / 100.0;
+  double y_coord = index.y() * tx_resolution_ / 100.0;
 
   // potential for a bug:
   // in binify() we use single degree increments, but rot_resolution is not
