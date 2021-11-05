@@ -1,6 +1,7 @@
 #include "belief_cube.hh"
 #include <iostream>
 #include <limits>
+#include <stdexcept>
 #include <vector>
 #include "eigen3/Eigen/Dense"
 #include "math/math_util.h"
@@ -75,45 +76,12 @@ void BeliefCube::eval(const RasterMap& ref_map,
                       const sensor_msgs::LaserScan& new_obs) {
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
 
-  // observation likelihood model
-  for (const Eigen::Vector2f& point : obs_points) {
-    for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
-      // negative?
-      const Eigen::Rotation2Df dtheta_rot(math_util::DegToRad(static_cast<double>(dtheta)));
-      Eigen::Vector2f proj_point = dtheta_rot * point;
-
-      for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
-        const double query_x = proj_point.x() + (dx / 100.0);  // meters
-        for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
-          const double query_y = proj_point.y() + (dy / 100.0);  // meters
-
-          double obs_prob = ref_map.query(query_x, query_y);
-          Point key = binify(dx, dy, dtheta);
-          cube_[key] += std::log(obs_prob);
-        }
-      }
-    }
-  }
-
   // motion model
-  // iterate over non-zero points
-  for (auto it = cube_.begin(); it != cube_.cend();) {
-    if (it->second == -std::numeric_limits<double>::infinity()) {
-      it = cube_.erase(it);
-    } else {
-      it++;
-    }
-  }
-
-  // TODO: can iterate over non-zero cells directly
+  size_t evals = 0;
   for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
     for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
       for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
-        Point key(dx, dy, dtheta);
-        auto it = cube_.find(key);
-        if (it == cube_.cend()) {
-          continue;
-        }
+        evals++;
 
         Eigen::Vector2f hypothesis_disp(dx / 100.0, dy / 100.0);  // meters
         double hypothesis_rot = math_util::DegToRad(static_cast<double>(dtheta));
@@ -122,14 +90,95 @@ void BeliefCube::eval(const RasterMap& ref_map,
             MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
         double log_prob = std::log(motion_prob);
 
-        if (log_prob == -std::numeric_limits<double>::infinity()) {
-          cube_.erase(it);
-        } else {
-          it->second += log_prob;
+        if (motion_prob > 1e-4) {
+          // TODO: bug-prone code: write safe wrapper and document
+          Point key(dx / tx_resolution_, dy / tx_resolution_, dtheta);
+          cube_[key] += log_prob;
         }
       }
     }
   }
+
+  printf("cube size: %lu / %lu\n", cube_.size(), evals);
+
+  // observation likelihood model
+  // 2D slicing was too slow, unless I was just doing it wrong
+  for (auto it = cube_.begin(); it != cube_.cend(); it++) {
+    const Point& index = it->first;
+
+    auto [d_loc, d_theta] = unbinify(index);
+    const Eigen::Rotation2Df dtheta_rot(-d_theta);
+    for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
+      const Eigen::Vector2f& point = obs_points[scan_i];
+
+      const Eigen::Vector2f& query_point = dtheta_rot * point + d_loc;
+
+      double obs_prob = ref_map.query(query_point.x(), query_point.y());
+      it->second += std::log(obs_prob);
+
+      // TODO: filter out log p = -inf
+      //  it = cube_.erase(it)
+    }
+  }
+
+  // observation likelihood model
+  // for (const Eigen::Vector2f& point : obs_points) {
+  // for (size_t i = 0; i < obs_points.size(); i += 10) {
+  //   printf("debug: %lu\n", i);
+  //   const Eigen::Vector2f& point = obs_points[i];
+
+  //   for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
+  //     // negative?
+  //     const Eigen::Rotation2Df dtheta_rot(math_util::DegToRad(static_cast<double>(dtheta)));
+  //     Eigen::Vector2f proj_point = dtheta_rot * point;
+
+  //     for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
+  //       const double query_x = proj_point.x() + (dx / 100.0);  // meters
+  //       for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
+  //         const double query_y = proj_point.y() + (dy / 100.0);  // meters
+
+  //         double obs_prob = ref_map.query(query_x, query_y);
+  //         Point key = binify(dx, dy, dtheta);
+  //         cube_[key] += std::log(obs_prob);
+  //       }
+  //     }
+  //   }
+  // }
+
+  // motion model
+  // retain only non-zero points
+  // for (auto it = cube_.begin(); it != cube_.cend();) {
+  //   if (it->second == -std::numeric_limits<double>::infinity()) {
+  //     it = cube_.erase(it);
+  //   } else {
+  //     it++;
+  //   }
+  // }
+
+  // for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
+  //   for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
+  //     for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
+  //       Point key(dx, dy, dtheta);
+  //       auto it = cube_.find(key);
+  //       if (it == cube_.cend()) {
+  //         continue;
+  //       }
+
+  //       Eigen::Vector2f hypothesis_disp(dx / 100.0, dy / 100.0);  // meters
+  //       double hypothesis_rot = math_util::DegToRad(static_cast<double>(dtheta));
+
+  //       double motion_prob =
+  //           MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
+  //       double log_prob = std::log(motion_prob);
+
+  //       if (log_prob == -std::numeric_limits<double>::infinity()) {
+  //         cube_.erase(it);
+  //       } else {
+  //         it->second += log_prob;
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
