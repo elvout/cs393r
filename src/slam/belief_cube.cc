@@ -5,68 +5,39 @@
 #include <vector>
 #include "eigen3/Eigen/Dense"
 #include "math/math_util.h"
+#include "models.hh"
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
 
 namespace {
 const Eigen::Vector2f laser_loc(0.2, 0);
+}  // namespace
 
-std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) {
-  const std::vector<float>& ranges = scan.ranges;
-  const size_t n_ranges = ranges.size();
+std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
+                                          const sensor_msgs::LaserScan& obs,
+                                          const Eigen::Vector2f& bel_disp,
+                                          const double bel_rot) {
+  std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
+  std::vector<Eigen::Vector2f> correlations;
 
-  std::vector<Eigen::Vector2f> points;
-  points.reserve(n_ranges);
+  const Eigen::Rotation2Df dtheta_rot(bel_rot);
+  for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i++) {
+    const Eigen::Vector2f& point = obs_points[scan_i];
+    const Eigen::Vector2f query_point = dtheta_rot * point + bel_disp;
 
-  for (size_t i = 0; i < n_ranges; i++) {
-    const float scan_range = ranges[i];
-    if (scan_range <= scan.range_min || scan_range >= scan.range_max) {
+    const float query_dist = query_point.norm();
+    if (query_dist <= obs.range_min || query_dist >= obs.range_max) {
       continue;
     }
 
-    const float scan_angle = scan.angle_min + i * scan.angle_increment;
-    const Eigen::Rotation2Df scan_rot(scan_angle);
-    points.push_back(laser_loc + scan_rot * Eigen::Vector2f(scan_range, 0));
+    double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
+    if (log_obs_prob != -std::numeric_limits<double>::infinity()) {
+      correlations.push_back(point);
+    }
   }
 
-  return points;
+  return correlations;
 }
-
-double LogNormalPdf(const double val, const double mean, const double stddev) {
-  // precomputed value for log(1 / sqrt(2pi))
-  constexpr double log_inv_sqrt2pi = -0.91893853320467274178;
-
-  const double z = (val - mean) / stddev;
-  return log_inv_sqrt2pi - std::log(stddev) - (z * z * 0.5);
-}
-
-double MotionModel(const Eigen::Vector2f& expected_disp,
-                   const double expected_rot,
-                   const Eigen::Vector2f& hypothesis_disp,
-                   const double hypothesis_rot) {
-  // TODO: move params to config?
-  constexpr double k1 = 0.45;
-  constexpr double k2 = 1.6;
-  constexpr double k3 = 0.65;
-  constexpr double k4 = 2.3;
-
-  const double expected_disp_n = expected_disp.norm();
-  const double expected_rot_n = std::abs(math_util::ReflexToConvexAngle(expected_rot));
-  const double disp_std = k1 * expected_disp_n + k2 * expected_rot_n;
-  const double rot_std = k3 * expected_disp_n + k4 * expected_rot_n;
-
-  const double x_noise = hypothesis_disp.x() - expected_disp.x();
-  const double y_noise = hypothesis_disp.y() - expected_disp.y();
-  const double theta_noise = math_util::ReflexToConvexAngle(hypothesis_rot - expected_rot);
-
-  const double log_px = LogNormalPdf(x_noise, 0, disp_std);
-  const double log_py = LogNormalPdf(y_noise, 0, disp_std);
-  const double log_ptheta = LogNormalPdf(theta_noise, 0, rot_std);
-
-  return log_px + log_py + log_ptheta;
-}
-
-}  // namespace
 
 void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
@@ -88,7 +59,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
         double hypothesis_rot = math_util::DegToRad(static_cast<double>(dtheta));
 
         double log_motion_prob =
-            MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
+            LogMotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
 
         if (log_motion_prob > log_prob_threshold) {
           // TODO: bug-prone code: write safe wrapper and document
@@ -103,36 +74,32 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
   // observation likelihood model
   // 2D slicing was too slow, unless I was just doing it wrong
-  size_t prune_count = 0;
   for (auto it = cube_.begin(); it != cube_.cend();) {
     const Point& index = it->first;
 
     auto [d_loc, d_theta] = unbinify(index);
-    const Eigen::Rotation2Df dtheta_rot(-d_theta);
+    const Eigen::Rotation2Df dtheta_rot(d_theta);
+    double log_sum = 0;
+
     for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
       const Eigen::Vector2f& point = obs_points[scan_i];
 
-      const Eigen::Vector2f& query_point = dtheta_rot * point + d_loc;
+      const Eigen::Vector2f query_point = dtheta_rot * point + d_loc;
+      const float query_dist = query_point.norm();
+      if (query_dist <= new_obs.range_min || query_dist >= new_obs.range_max) {
+        continue;
+      }
 
       double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
-      it->second += log_obs_prob;
-
-      if (log_obs_prob == -std::numeric_limits<double>::infinity()) {
-        break;
-      }
+      log_obs_prob = std::max(log_obs_prob, -2.0);  // TODO: un-hardcode, about 2.5 stddev
+      log_sum += log_obs_prob;
     }
 
-    // prune out impossible values to sparsify matrix
-    if (it->second == -std::numeric_limits<double>::infinity()) {
-      it = cube_.erase(it);
-      prune_count++;
-    } else {
-      it++;
-    }
+    // TODO: prune out impossible values to sparsify matrix?
+
+    it->second += log_sum * 0.12;
+    it++;
   }
-
-  printf("[BeliefCube::eval INFO] negative inf prune count: %lu\n", prune_count);
-  printf("[BeliefCube::eval INFO] remaining cube size: %lu\n", cube_.size());
 
   // observation likelihood model
   // for (const Eigen::Vector2f& point : obs_points) {

@@ -36,6 +36,7 @@
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "gflags/gflags.h"
 #include "nav_msgs/Odometry.h"
+#include "ros/init.h"
 #include "ros/package.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
@@ -141,10 +142,25 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   slam_.ObserveOdometry(odom_loc, odom_angle);
 }
 
+void SignalHandler(int) {
+  if (!run_) {
+    exit(2);
+  }
+
+  printf("%s\n", runtime_dist_.summary().c_str());
+
+  slam_.OfflineBelEvaluation();
+  PublishMap();
+  Sleep(1);
+  run_ = false;
+}
+
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
+  signal(SIGINT, SignalHandler);
+
   // Initialize ROS.
-  ros::init(argc, argv, "slam");
+  ros::init(argc, argv, "slam", ros::init_options::NoSigintHandler);
   ros::NodeHandle n;
   InitializeMsgs();
 
@@ -153,9 +169,12 @@ int main(int argc, char** argv) {
 
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic.c_str(), 1, LaserCallback);
   ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
-  ros::spin();
+  // ros::spin();
 
-  printf("%s\n", runtime_dist_.summary().c_str());
+  while (ros::ok()) {
+    ros::spinOnce();
+    Sleep(0.01);
+  }
 
   return 0;
 }
