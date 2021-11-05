@@ -32,13 +32,12 @@ std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) 
   return points;
 }
 
-// TODO: refactor, move to shared or util library
-double NormalPdf(const double val, const double mean, const double stddev) {
-  // precomputed value for (1 / sqrt(2pi))
-  constexpr double inv_sqrt2pi = 0.39894228040143267794;
+double LogNormalPdf(const double val, const double mean, const double stddev) {
+  // precomputed value for log(1 / sqrt(2pi))
+  constexpr double log_inv_sqrt2pi = -0.91893853320467274178;
 
-  double z = (val - mean) / stddev;
-  return inv_sqrt2pi / stddev * std::exp(-0.5 * z * z);
+  const double z = (val - mean) / stddev;
+  return log_inv_sqrt2pi - std::log(stddev) - (z * z * 0.5);
 }
 
 double MotionModel(const Eigen::Vector2f& expected_disp,
@@ -60,12 +59,11 @@ double MotionModel(const Eigen::Vector2f& expected_disp,
   const double y_noise = hypothesis_disp.y() - expected_disp.y();
   const double theta_noise = math_util::ReflexToConvexAngle(hypothesis_rot - expected_rot);
 
-  const double px = NormalPdf(x_noise, 0, disp_std);
-  const double py = NormalPdf(y_noise, 0, disp_std);
-  const double ptheta = NormalPdf(theta_noise, 0, rot_std);
+  const double log_px = LogNormalPdf(x_noise, 0, disp_std);
+  const double log_py = LogNormalPdf(y_noise, 0, disp_std);
+  const double log_ptheta = LogNormalPdf(theta_noise, 0, rot_std);
 
-  // todo: log-likelihoods?
-  return px * py * ptheta;
+  return log_px + log_py + log_ptheta;
 }
 
 }  // namespace
@@ -86,14 +84,14 @@ void BeliefCube::eval(const RasterMap& ref_map,
         Eigen::Vector2f hypothesis_disp(dx / 100.0, dy / 100.0);  // meters
         double hypothesis_rot = math_util::DegToRad(static_cast<double>(dtheta));
 
-        double motion_prob =
+        double log_motion_prob =
             MotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
-        double log_prob = std::log(motion_prob);
 
-        if (motion_prob > 1e-4) {
+        // e^-10 is approx 4e-5
+        if (log_motion_prob > -10) {
           // TODO: bug-prone code: write safe wrapper and document
           Point key(dx / tx_resolution_, dy / tx_resolution_, dtheta);
-          cube_[key] += log_prob;
+          cube_[key] += log_motion_prob;
         }
       }
     }
