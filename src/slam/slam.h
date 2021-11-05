@@ -36,11 +36,7 @@ class SLAM {
   SLAM();
 
   // Observe a new laser scan.
-  void ObserveLaser(const std::vector<float>& ranges,
-                    float range_min,
-                    float range_max,
-                    float angle_min,
-                    float angle_max);
+  void ObserveLaser(const sensor_msgs::LaserScan& obs);
 
   // Observe new odometry-reported location.
   void ObserveOdometry(const Eigen::Vector2f& odom_loc, const float odom_angle);

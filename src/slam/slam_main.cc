@@ -127,12 +127,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     printf("Laser t=%f\n", msg.header.stamp.toSec());
   }
   last_laser_msg_ = msg;
-
-  runtime_dist_.start_lap("RasterMap construction");
-  RasterMap rm(msg);
-  runtime_dist_.end_lap("RasterMap construction");
-
-  slam_.ObserveLaser(msg.ranges, msg.range_min, msg.range_max, msg.angle_min, msg.angle_max);
+  slam_.ObserveLaser(msg);
   PublishMap();
   PublishPose();
 }

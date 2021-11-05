@@ -19,6 +19,8 @@
 */
 //========================================================================
 
+#include "slam.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -26,12 +28,10 @@
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "sensor_msgs/LaserScan.h"
 #include "shared/math/geometry.h"
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
-
-#include "slam.h"
-
 #include "vector_map/vector_map.h"
 
 using namespace math_util;
@@ -57,11 +57,7 @@ void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   *angle = 0;
 }
 
-void SLAM::ObserveLaser(const vector<float>& ranges,
-                        float range_min,
-                        float range_max,
-                        float angle_min,
-                        float angle_max) {
+void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
   // A new laser scan has been observed. Decide whether to add it as a pose
   // for SLAM. If decided to add, align it to the scan from the last saved pose,
   // and save both the scan and the optimized pose.
