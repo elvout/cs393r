@@ -13,6 +13,32 @@ namespace {
 const Eigen::Vector2f laser_loc(0.2, 0);
 }  // namespace
 
+std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
+                                          const sensor_msgs::LaserScan& obs,
+                                          const Eigen::Vector2f& bel_disp,
+                                          const double bel_rot) {
+  std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
+  std::vector<Eigen::Vector2f> correlations;
+
+  const Eigen::Rotation2Df dtheta_rot(bel_rot);
+  for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i++) {
+    const Eigen::Vector2f& point = obs_points[scan_i];
+    const Eigen::Vector2f query_point = dtheta_rot * point + bel_disp;
+
+    const float query_dist = query_point.norm();
+    if (query_dist <= obs.range_min || query_dist >= obs.range_max) {
+      continue;
+    }
+
+    double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
+    if (log_obs_prob != -std::numeric_limits<double>::infinity()) {
+      correlations.push_back(point);
+    }
+  }
+
+  return correlations;
+}
+
 void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
                       const double odom_angle_disp,
@@ -58,7 +84,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
     for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
       const Eigen::Vector2f& point = obs_points[scan_i];
 
-      const Eigen::Vector2f& query_point = dtheta_rot * point + d_loc;
+      const Eigen::Vector2f query_point = dtheta_rot * point + d_loc;
       const float query_dist = query_point.norm();
       if (query_dist <= new_obs.range_min || query_dist >= new_obs.range_max) {
         continue;
