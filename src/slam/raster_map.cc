@@ -13,7 +13,7 @@ const Eigen::Vector2f laser_loc(0.2, 0);
 
 // Inflated standard deviation value.
 // Less inflation than the Particle filter to keep computation time down.
-constexpr double CONFIG_LidarStddev = 0.08;
+constexpr double CONFIG_LidarStddev = 0.15;
 
 // Euclidean direction array for flood-fill/search.
 const std::array<Eigen::Vector2i, 4> dirs{
@@ -95,7 +95,12 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
       if (prob > log_prob_threshold) {
         // This bin won't get revisited during this expansion, but the expansion
         // around another observation point could visit this bin as well.
-        raster_table_[bin] = std::max(raster_table_[bin], prob);
+        auto bin_it = raster_table_.find(bin);
+        if (bin_it == raster_table_.cend()) {
+          raster_table_.emplace(bin, prob);
+        } else if (prob > bin_it->second) {
+          bin_it->second = prob;
+        }
 
         // add more stuff to the remaining queue
         for (const Point& dir : dirs) {
@@ -108,6 +113,8 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
       }
     }
   }
+
+  printf("[RasterMap::eval INFO] table size: %lu\n", raster_table_.size());
 }
 
 /// Return the log probability value at the specified coordinate.
