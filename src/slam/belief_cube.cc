@@ -134,14 +134,13 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
   if (cube_.empty()) {
-    std::cerr << "[BeliefCube::max_belief() FATAL]: empty cube\n";
-    exit(1);
+    throw std::runtime_error("[BeliefCube::max_belief() FATAL]: empty cube");
   }
 
   auto it = cube_.begin();
   auto max_index = it;
 
-  while (it++ != cube_.cend()) {
+  while (++it != cube_.cend()) {
     if (it->second > max_index->second) {
       max_index = it;
     }
