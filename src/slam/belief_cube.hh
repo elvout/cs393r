@@ -11,13 +11,6 @@
 
 namespace slam {
 
-// TODO: refactor
-// call with a max_belief from a cube
-std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
-                                          const sensor_msgs::LaserScan& obs,
-                                          const Eigen::Vector2f& bel_disp,
-                                          const double bel_rot);
-
 /**
  * A discretized representation of the belief (in delta space) at an
  * arbitrary time step.
