@@ -45,6 +45,11 @@ class BeliefCube {
             const double odom_angle_disp,
             const sensor_msgs::LaserScan& new_obs);
 
+  void parallel_eval(const RasterMap& ref_map,
+                     const Eigen::Vector2f& odom_disp,
+                     const double odom_angle_disp,
+                     const sensor_msgs::LaserScan& new_obs);
+
   void eval_range(const RasterMap& ref_map,
                   const Eigen::Vector2f& odom_disp,
                   const double odom_angle_disp,
@@ -72,6 +77,8 @@ class BeliefCube {
 
   static_assert(tx_windowsize_ % tx_resolution_ == 0);
   static_assert(rot_windowsize_ % rot_resolution_ == 0);
+
+  decltype(auto) max_index_iterator() const;
 
   /**
    * Convert a coordinate space value in meters and radians to a

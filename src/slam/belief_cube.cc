@@ -1,4 +1,5 @@
 #include "belief_cube.hh"
+#include <future>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -10,7 +11,84 @@
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
 
+namespace {
+class ParallelBeliefCubeTask {
+ public:
+  // TODO: surely this can be refactored
+  ParallelBeliefCubeTask(slam::BeliefCube& cube,
+                         const slam::RasterMap& ref_map,
+                         const Eigen::Vector2f& odom_disp,
+                         const double odom_angle_disp,
+                         const sensor_msgs::LaserScan& new_obs,
+                         const int dtheta_start,
+                         const int dtheta_end,
+                         const int dx_start,
+                         const int dx_end,
+                         const int dy_start,
+                         const int dy_end)
+      : cube(cube),
+        ref_map(ref_map),
+        odom_disp(odom_disp),
+        odom_angle_disp(odom_angle_disp),
+        new_obs(new_obs),
+        dtheta_start(dtheta_start),
+        dtheta_end(dtheta_end),
+        dx_start(dx_start),
+        dx_end(dx_end),
+        dy_start(dy_start),
+        dy_end(dy_end) {}
+
+  void target() {
+    cube.eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, dtheta_start, dtheta_end,
+                    dx_start, dx_end, dy_start, dy_end);
+    barrier_.set_value();
+  }
+
+  std::function<void()> as_fn() {
+    std::function<void()> fn = std::bind(&ParallelBeliefCubeTask::target, this);
+    barrier_ = std::promise<void>();
+    completed_ = barrier_.get_future();
+
+    return fn;
+  }
+
+  void wait() { completed_.wait(); }
+
+ public:
+  slam::BeliefCube& cube;
+  const slam::RasterMap& ref_map;
+  const Eigen::Vector2f& odom_disp;
+  const double odom_angle_disp;
+  const sensor_msgs::LaserScan& new_obs;
+  const int dtheta_start;
+  const int dtheta_end;
+  const int dx_start;
+  const int dx_end;
+  const int dy_start;
+  const int dy_end;
+
+ private:
+  std::promise<void> barrier_;
+  std::future<void> completed_;
+};
+}  // namespace
+
 namespace slam {
+
+decltype(auto) BeliefCube::max_index_iterator() const {
+  if (cube_.empty()) {
+    throw std::runtime_error("[BeliefCube::max_index_iterator() FATAL]: empty cube");
+  }
+
+  auto it = cube_.begin();
+  auto max_it = it;
+  while (++it != cube_.cend()) {
+    if (it->second > max_it->second) {
+      max_it = it;
+    }
+  }
+  return max_it;
+}
 
 void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
@@ -22,6 +100,62 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
   eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, -rot_windowsize_, rot_windowsize_ + 1,
              -tx_windowsize_, tx_windowsize_ + 1, -tx_windowsize_, tx_windowsize_ + 1);
+}
+
+void BeliefCube::parallel_eval(const RasterMap& ref_map,
+                               const Eigen::Vector2f& odom_disp,
+                               const double odom_angle_disp,
+                               const sensor_msgs::LaserScan& new_obs) {
+  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::parallel_eval");
+  // evaluate four disjoint child cubes
+  // rather than merging the cubes, set the max likelihood directly
+
+  // Evaluate quadrants in the x,y space
+  const size_t JOBS = 4;
+  std::vector<BeliefCube> quadrants;
+  std::vector<ParallelBeliefCubeTask> tasks;
+
+  quadrants.reserve(JOBS);
+  tasks.reserve(JOBS);
+
+  for (size_t id = 0; id < JOBS; id++) {
+    // id is a bitmask that represents [bool is_pos_x, bool is_pos_y]
+
+    const int x_start = (id & 0b10) ? 0 : -tx_windowsize_;
+    const int x_end = (id & 0b10) ? tx_windowsize_ + 1 : 0;
+    const int y_start = (id & 1) ? 0 : -tx_windowsize_;
+    const int y_end = (id & 1) ? tx_windowsize_ + 1 : 0;
+    const int theta_start = -rot_windowsize_;
+    const int theta_end = rot_windowsize_ + 1;
+
+    quadrants.emplace_back();
+    tasks.emplace_back(quadrants.back(), ref_map, odom_disp, odom_angle_disp, new_obs, theta_start,
+                       theta_end, x_start, x_end, y_start, y_end);
+  }
+
+  for (ParallelBeliefCubeTask& task : tasks) {
+    common::thread_pool_exec(task.as_fn());
+  }
+
+  // uneven runtimes
+  // is there a better way of waiting?
+  for (int i = JOBS - 1; i > -1; i--) {
+    auto __a =
+        common::runtime_dist().auto_lap("BeliefCube::parallel_eval::Join" + std::to_string(i));
+    tasks[i].wait();
+  }
+
+  // is this dangerous?
+  auto max_it = quadrants.front().max_index_iterator();
+
+  for (const BeliefCube& cube : quadrants) {
+    auto it = cube.max_index_iterator();
+    if (it->second > max_it->second) {
+      max_it = it;
+    }
+  }
+
+  max_belief_ = unbinify(max_it->first);
 }
 
 void BeliefCube::eval_range(const RasterMap& ref_map,
@@ -121,20 +255,7 @@ std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
     return max_belief_.value();
   }
 
-  if (cube_.empty()) {
-    throw std::runtime_error("[BeliefCube::max_belief() FATAL]: empty cube");
-  }
-
-  auto it = cube_.begin();
-  auto max_index = it;
-
-  while (++it != cube_.cend()) {
-    if (it->second > max_index->second) {
-      max_index = it;
-    }
-  }
-
-  max_belief_ = unbinify(max_index->first);
+  max_belief_ = unbinify(max_index_iterator()->first);
   return max_belief_.value();
 }
 

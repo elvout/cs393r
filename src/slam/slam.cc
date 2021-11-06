@@ -162,8 +162,8 @@ void SLAM::OfflineBelEvaluation() {
            math_util::RadToDeg(bel.odom_angle_disp));
 
     bel.ref_map.eval(bel.obs);
-    bel.belief_lookup.eval(belief_history[i - 1].ref_map, bel.odom_disp, bel.odom_angle_disp,
-                           bel.obs);
+    bel.belief_lookup.parallel_eval(belief_history[i - 1].ref_map, bel.odom_disp,
+                                    bel.odom_angle_disp, bel.obs);
 
     auto [max_disp, max_angle_disp] = bel.belief_lookup.max_belief();
     printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
