@@ -24,7 +24,7 @@ namespace slam {
  * floating points may have rounding errors.
  *
  * Uses a bin resolution of 0.04m x 0.04m x 1°.
- * Uses a fixed domain of [-1m, 1m] x [-1m, 1m] x [0°, 359°]
+ * Uses a fixed domain of [-1m, 1m] x [-1m, 1m] x [-45°, 45°]
  */
 class BeliefCube {
   using Point = Eigen::Vector3i;  // [x=dx; y=dy; z=dtheta]
@@ -54,12 +54,13 @@ class BeliefCube {
   std::pair<Eigen::Vector2f, double> max_belief() const;
 
  private:
-  static constexpr int tx_resolution_ = 4;     // centimeters
-  static constexpr int rot_resolution_ = 1;    // degrees
-  static constexpr int tx_windowsize_ = 100;   // centimeters, inclusive
-  static constexpr int rot_windowsize_ = 359;  // degrees, inclusive
+  static constexpr int tx_resolution_ = 4;    // centimeters
+  static constexpr int rot_resolution_ = 1;   // degrees
+  static constexpr int tx_windowsize_ = 100;  // centimeters, inclusive
+  static constexpr int rot_windowsize_ = 45;  // degrees, inclusive
 
   static_assert(tx_windowsize_ % tx_resolution_ == 0);
+  static_assert(rot_windowsize_ % rot_resolution_ == 0);
 
   /**
    * Convert a coordinate space value in meters and radians to a

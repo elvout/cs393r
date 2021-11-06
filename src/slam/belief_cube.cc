@@ -26,7 +26,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
   // not a great threshold, as the standard devations are dependent on the magnitude
   // of displacement
   const double log_prob_threshold = LogNormalPdf(3, 0, 1);
-  for (int dtheta = 0; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
+  for (int dtheta = -rot_windowsize_; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
     const int dtheta_index = dtheta / rot_resolution_;
 
     for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
@@ -123,14 +123,14 @@ int BeliefCube::meters_to_tx_index(const double meters) const {
 }
 
 BeliefCube::Point BeliefCube::binify(const double x, const double y, const double rad) const {
-  using math_util::ConstrainAngle;
   using math_util::RadToDeg;
+  using math_util::ReflexToConvexAngle;
 
   const int x_bin = meters_to_tx_index(x);
   const int y_bin = meters_to_tx_index(y);
 
   // TOOD: round instead of floor?
-  const int theta_bin = static_cast<int>(RadToDeg(ConstrainAngle(rad)));
+  const int theta_bin = static_cast<int>(RadToDeg(ReflexToConvexAngle(rad)));
   return Point(x_bin, y_bin, theta_bin);
 }
 
