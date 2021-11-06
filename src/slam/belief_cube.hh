@@ -1,7 +1,9 @@
 #ifndef SRC_SLAM_BELIEF_CUBE_HH_
 #define SRC_SLAM_BELIEF_CUBE_HH_
 
+#include <optional>
 #include <unordered_map>
+#include <utility>
 #include "eigen3/Eigen/Dense"
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
@@ -15,16 +17,19 @@ std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
                                           const double bel_rot);
 
 /**
- * TODO: doc
+ * A discretized representation of the belief (in delta space) at an
+ * arbitrary time step.
  *
- * Implemented as a dictionary of keys.
- * Although this matrix is not necessarily sparse, it just makes it
- * easier to index negative values.
- *  - TODO: use a threshold to sparsify the matrix?
+ * Implemented as a dictionary of keys. Although the lookup table is not
+ * guaranteed to be sparse, the dictionary makes negative indices easier
+ * to work with.
+ *   TODO: use a threshold to sparsify the cube?
  *
- * Use degrees [0, 359] - want integer values for (consistent?) hashing
- *  1 degree is pretty good resolution
- *  remember to constrain angles to this range
+ * The cube is indexed using integer centimeters and degrees since
+ * floating points may have rounding errors.
+ *
+ * Uses a bin resolution of 0.04m x 0.04m x 1°.
+ * Uses a fixed domain of [-1m, 1m] x [-1m, 1m] x [0°, 359°]
  */
 class BeliefCube {
   using Point = Eigen::Vector3i;  // [x=dx; y=dy; z=dtheta]
@@ -32,11 +37,25 @@ class BeliefCube {
  public:
   BeliefCube() = default;
 
+  /**
+   * Generate the belief cube with:
+   *  - ref_map: A reference map from a previous time step for
+   *      correlative scan matching.
+   *  - odom_disp: The odometry displacement data for the motion model.
+   *  - odom_angle_disp: The odometry rotation data for the motion model.
+   *  - new_obs: New sensor data for correlative scan matching.
+   */
   void eval(const RasterMap& ref_map,
             const Eigen::Vector2f& odom_disp,
             const double odom_angle_disp,
             const sensor_msgs::LaserScan& new_obs);
 
+  /**
+   * Return the translational and rotational displacements with the
+   * highest probability according to the belief.
+   *
+   * Return units: [meters, meters, radians].
+   */
   std::pair<Eigen::Vector2f, double> max_belief() const;
 
  private:
@@ -47,13 +66,24 @@ class BeliefCube {
 
   static_assert(tx_windowsize_ % tx_resolution_ == 0);
 
+  /**
+   * Convert a coordinate space value in meters and radians to a
+   * value in the index space.
+   */
+  int meters_to_tx_index(const double meters) const;
   Point binify(const double x, const double y, const double rad) const;
   Point binify(const Eigen::Vector2f& coord, const double rad) const;
 
+  /**
+   * Convert an index value to a coordinate space value in meters
+   * and radians.
+   */
+  double tx_index_to_meters(const int tx_index) const;
   std::pair<Eigen::Vector2f, double> unbinify(const Point& index) const;
 
  private:
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> cube_;
+  mutable std::optional<std::pair<Eigen::Vector2f, double>> max_belief_;
 };
 
 #endif  // SRC_SLAM_BELIEF_CUBE_HH_
