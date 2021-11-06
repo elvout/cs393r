@@ -25,7 +25,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
   size_t evals = 0;
   // not a great threshold, as the standard devations are dependent on the magnitude
   // of displacement
-  const double log_prob_threshold = LogNormalPdf(3, 0, 1);
+  const double log_motion_prob_threshold = LogNormalPdf(3, 0, 1);
   for (int dtheta = -rot_windowsize_; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
     const int dtheta_index = dtheta / rot_resolution_;
 
@@ -42,7 +42,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
         const double log_motion_prob =
             LogMotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
 
-        if (log_motion_prob > log_prob_threshold) {
+        if (log_motion_prob > log_motion_prob_threshold) {
           cube_[index] = log_motion_prob;
         }
       }
@@ -56,11 +56,13 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
   // Evaluate the observation likelihood model on plausible indices
   // according to the motion model.
+  //
   // Since the only care about the index with the maximum likelihood,
   // we can keep track of the running maximium likelihood and prune
   // while evaluating the model if we know that the current likelihood
   // cannot be greater than the maximum likelihood.
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
+  const double log_obs_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
   size_t prune_count = 0;
   double max_prob = -std::numeric_limits<double>::infinity();
 
@@ -87,8 +89,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
       double log_obs_prob = ref_map.query(query_point.x(), query_point.y());
       // approximate the symmetric robust observation likelihood model
-      // TODO: un-hardcode, 2.5 stddev was used in particle filter
-      log_obs_prob = std::max(log_obs_prob, -2.0);
+      log_obs_prob = std::max(log_obs_prob, log_obs_prob_threshold);
       log_sum += log_obs_prob;
 
       if (log_sum < prune_threshold) {
