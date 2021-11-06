@@ -24,6 +24,8 @@
  *  - preserves the coordinate space structure in the index space
  *  - efficient map transformation
  *
+ * The map is indexed using integer centimeters since floating points
+ * may have rounding errors.
  * Uses a bin resolution of 0.04m x 0.04m.
  *
  * TODO: merge(const RasterMap&) for parallel construction and combination
@@ -54,7 +56,7 @@ class RasterMap {
   Point binify(const double x, const double y) const;
   Point binify(const Eigen::Vector2f& coord) const;
 
-  /// Convert a index value to a coordinate value in meters.
+  /// Convert an index value to a coordinate value in meters.
   double index_to_meters(const int index) const;
   Eigen::Vector2f unbinify(const Point& index) const;
 
