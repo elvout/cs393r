@@ -20,21 +20,36 @@ void BeliefCube::eval(const RasterMap& ref_map,
   cube_.clear();
   max_belief_.reset();
 
-  common::runtime_dist().start_lap("BeliefCube::eval (Motion Model)");
+  eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, -rot_windowsize_, rot_windowsize_ + 1,
+             -tx_windowsize_, tx_windowsize_ + 1, -tx_windowsize_, tx_windowsize_ + 1);
+}
+
+void BeliefCube::eval_range(const RasterMap& ref_map,
+                            const Eigen::Vector2f& odom_disp,
+                            const double odom_angle_disp,
+                            const sensor_msgs::LaserScan& new_obs,
+                            const int dtheta_start,
+                            const int dtheta_end,
+                            const int dx_start,
+                            const int dx_end,
+                            const int dy_start,
+                            const int dy_end) {
+  // not a great threshold, as the standard deviations are dependent
+  // on the magnitudes of displacement
+  static const double log_motion_prob_threshold = LogNormalPdf(3, 0, 1);
+
+  // approximate the symmetric robust observation likelihood model
+  static const double log_obs_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
+
   // Evaluate the motion model first to prune the index space a bit.
-  size_t evals = 0;
-  // not a great threshold, as the standard devations are dependent on the magnitude
-  // of displacement
-  const double log_motion_prob_threshold = LogNormalPdf(3, 0, 1);
-  for (int dtheta = -rot_windowsize_; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
+  for (int dtheta = dtheta_start; dtheta < dtheta_end; dtheta += rot_resolution_) {
     const int dtheta_index = dtheta / rot_resolution_;
 
-    for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
+    for (int dx = dx_start; dx < dx_end; dx += tx_resolution_) {
       const int dx_index = dx / tx_resolution_;
 
-      for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
+      for (int dy = dy_start; dy < dy_end; dy += tx_resolution_) {
         const int dy_index = dy / tx_resolution_;
-        evals++;
 
         const Point index(dx_index, dy_index, dtheta_index);
         const auto [hypothesis_disp, hypothesis_rot] = unbinify(index);
@@ -48,11 +63,6 @@ void BeliefCube::eval(const RasterMap& ref_map,
       }
     }
   }
-  common::runtime_dist().end_lap("BeliefCube::eval (Motion Model)");
-
-  printf("[BeliefCube::eval INFO] cube size: %lu / %lu\n", cube_.size(), evals);
-
-  common::runtime_dist().start_lap("BeliefCube::eval (Observation Model)");
 
   // Evaluate the observation likelihood model on plausible indices
   // according to the motion model.
@@ -62,10 +72,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
   // while evaluating the model if we know that the current likelihood
   // cannot be greater than the maximum likelihood.
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
-  const double log_obs_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
-  size_t prune_count = 0;
   double max_prob = -std::numeric_limits<double>::infinity();
-
   for (auto it = cube_.begin(); it != cube_.cend();) {
     const Point& index = it->first;
 
@@ -100,16 +107,12 @@ void BeliefCube::eval(const RasterMap& ref_map,
 
     if (prune) {
       it = cube_.erase(it);
-      prune_count++;
     } else {
       it->second += log_sum;
       max_prob = std::max(max_prob, it->second);
       it++;
     }
   }
-  common::runtime_dist().end_lap("BeliefCube::eval (Observation Model)");
-
-  printf("[BeliefCube::eval]: pruned %lu entries\n", prune_count);
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
