@@ -11,8 +11,6 @@
 #include "util/matrix_hash.hh"
 
 namespace {
-const Eigen::Vector2f laser_loc(0.2, 0);
-
 // Manhattan direction array for flood-fill.
 const std::array<Eigen::Vector2i, 4> dirs{
     Eigen::Vector2i(1, 0),

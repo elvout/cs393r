@@ -9,10 +9,6 @@
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
 
-namespace {
-const Eigen::Vector2f laser_loc(0.2, 0);
-}  // namespace
-
 namespace slam {
 
 std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
