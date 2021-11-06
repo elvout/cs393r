@@ -13,6 +13,8 @@ namespace {
 const Eigen::Vector2f laser_loc(0.2, 0);
 }  // namespace
 
+namespace slam {
+
 std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
                                           const sensor_msgs::LaserScan& obs,
                                           const Eigen::Vector2f& bel_disp,
@@ -174,3 +176,5 @@ std::pair<Eigen::Vector2f, double> BeliefCube::unbinify(const Point& index) cons
 
   return std::make_pair(Eigen::Vector2f(x_coord, y_coord), rad);
 }
+
+}  // namespace slam

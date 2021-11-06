@@ -9,6 +9,8 @@
 #include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
+namespace slam {
+
 // TODO: refactor
 // call with a max_belief from a cube
 std::vector<Eigen::Vector2f> correlations(const RasterMap& ref_map,
@@ -85,5 +87,7 @@ class BeliefCube {
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> cube_;
   mutable std::optional<std::pair<Eigen::Vector2f, double>> max_belief_;
 };
+
+}  // namespace slam
 
 #endif  // SRC_SLAM_BELIEF_CUBE_HH_

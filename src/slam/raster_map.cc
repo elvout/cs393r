@@ -22,6 +22,8 @@ const std::array<Eigen::Vector2i, 4> dirs{
 };
 }  // namespace
 
+namespace slam {
+
 /**
  * Evaluates the probability of histogram bins around each observation
  * point until the probability falls below a threshold.
@@ -151,3 +153,5 @@ void RasterMap::dump_csv(const std::string filename) const {
     fout << index.x() << ',' << index.y() << ',' << prob << '\n';
   }
 }
+
+}  // namespace slam

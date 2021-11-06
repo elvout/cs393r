@@ -6,6 +6,8 @@
 #include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
+namespace slam {
+
 /**
  * A rasterized lookup table of conditional probability values
  * from the observation likelihood model based on sensor observations
@@ -63,5 +65,7 @@ class RasterMap {
  private:
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> raster_table_;
 };
+
+}  // namespace slam
 
 #endif  // SRC_SLAM_RASTER_MAP_HH_

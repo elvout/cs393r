@@ -5,6 +5,8 @@
 #include "eigen3/Eigen/Dense"
 #include "sensor_msgs/LaserScan.h"
 
+namespace slam {
+
 std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan);
 
 /**
@@ -26,5 +28,7 @@ double LogMotionModel(const Eigen::Vector2f& expected_disp,
 double LogObsModel(const sensor_msgs::LaserScan& obs,
                    const Eigen::Vector2f& expected,
                    const Eigen::Vector2f& hypothesis);
+
+}  // namespace slam
 
 #endif  // SRC_SLAM_MODELS_HH_
