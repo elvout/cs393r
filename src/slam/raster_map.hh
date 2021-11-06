@@ -15,12 +15,14 @@
  * space. The value of a bin is the maximum probability that the bin
  * could be observed given all sensor observations.
  *
- * The rasterized table is implemented as a dictionary of keys since
- * the matrix is sparse. A dictionary-of-keys implementaiton has the
- * following advantages over a image-matrix-based implementation:
- *  - more efficient iteration over non-zero points
+ * The rasterized table is implemented as a dictionary of keys sparse
+ * matrix. A dictionary-of-keys implementation should have the following
+ * advantages over an image-matrix-based implementation when the table
+ * is sparse:
+ *  - efficient iteration over non-zero points
  *  - trivial storage of negative keys
  *  - preserves the coordinate space structure in the index space
+ *  - efficient map transformation
  *
  * Uses a bin resolution of 0.04m x 0.04m.
  *
@@ -34,23 +36,27 @@ class RasterMap {
  public:
   RasterMap() = default;
 
-  /// Evaluate the map given laser scan readings.
+  /// Generate the rasterized map given laser scan readings.
   void eval(const sensor_msgs::LaserScan& obs);
 
   /// Return the log probability value at the specified coordinate.
-  double query(double x, double y) const;
+  double query(const double x, const double y) const;
   double query(const Eigen::Vector2f& coord) const;
 
-  void dump_csv(std::string filename = "image.csv") const;
+  // Dump the contents of the raster table into a file.
+  void dump_csv(const std::string filename = "image.csv") const;
 
  private:
   static constexpr int resolution_ = 4;  // centimeters
 
-  /// Convert a coordinate value specified in meters to value in the index space.
-  int binify(double v) const;
+  /// Convert a coordinate value in meters to a value in the index space.
+  int meters_to_index(const double meters) const;
+  Point binify(const double x, const double y) const;
+  Point binify(const Eigen::Vector2f& coord) const;
 
-  /// Convert a pixel value to a coordinate value in meters.
-  double unbinify(int i) const;
+  /// Convert a index value to a coordinate value in meters.
+  double index_to_meters(const int index) const;
+  Eigen::Vector2f unbinify(const Point& index) const;
 
  private:
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> raster_table_;
