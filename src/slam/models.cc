@@ -18,6 +18,8 @@ constexpr double k4 = 2.3;
 constexpr double kLidarStddev = 0.08;
 }  // namespace
 
+namespace slam {
+
 std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) {
   const std::vector<float>& ranges = scan.ranges;
   const size_t n_ranges = ranges.size();
@@ -78,3 +80,5 @@ double LogObsModel(const sensor_msgs::LaserScan& obs,
   float range_diff = (expected - hypothesis).norm();
   return LogNormalPdf(range_diff, 0, kLidarStddev);
 }
+
+}  // namespace slam

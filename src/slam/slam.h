@@ -46,6 +46,8 @@ struct SLAMBelief {
 
   // for use in the next time step
   RasterMap ref_map;
+
+  std::vector<Eigen::Vector2f> correlated_points(const RasterMap& prev_ref_map);
 };
 
 class SLAM {

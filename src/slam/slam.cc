@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include "common.hh"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
@@ -49,6 +50,31 @@ using std::vector;
 using vector_map::VectorMap;
 
 namespace slam {
+
+std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) {
+  auto __delayedfn = common::runtime_dist().auto_lap("SLAMBelief::correlated_points");
+  std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
+  std::vector<Eigen::Vector2f> correlations;
+
+  const auto [bel_disp, bel_rot] = belief_lookup.max_belief();
+  const Eigen::Rotation2Df dtheta_rot(bel_rot);
+  for (const Eigen::Vector2f& obs_point : obs_points) {
+    // Translate the observation point into the reference frame.
+    const Eigen::Vector2f query_point = dtheta_rot * obs_point + bel_disp;
+
+    const float query_dist = query_point.norm();
+    if (query_dist <= obs.range_min || query_dist >= obs.range_max) {
+      continue;
+    }
+
+    const double log_obs_prob = prev_ref_map.query(query_point.x(), query_point.y());
+    if (log_obs_prob != -std::numeric_limits<double>::infinity()) {
+      correlations.push_back(obs_point);
+    }
+  }
+
+  return correlations;
+}
 
 SLAM::SLAM()
     : prev_odom_loc_(0, 0),
@@ -175,8 +201,7 @@ vector<Vector2f> SLAM::GetMap() {
     aggregate_rot = math_util::ConstrainAngle(aggregate_rot + bel_rot);
 
     std::vector<Eigen::Vector2f> points = PointsFromScan(bel.obs);
-    std::vector<Eigen::Vector2f> corrs =
-        correlations(belief_history[i - 1].ref_map, bel.obs, bel_disp, bel_rot);
+    std::vector<Eigen::Vector2f> corrs = bel.correlated_points(belief_history[i - 1].ref_map);
     printf("[SLAM::GetMap INFO] points: %lu, correlations: %lu\n", points.size(), corrs.size());
     for (const Eigen::Vector2f& point : corrs) {
       map.push_back(Rotation2Df(aggregate_rot) * point + aggregate_disp);
