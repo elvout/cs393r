@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include "common.hh"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
@@ -51,6 +52,7 @@ using vector_map::VectorMap;
 namespace slam {
 
 std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) {
+  auto __delayedfn = common::runtime_dist().auto_lap("SLAMBelief::correlated_points");
   std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
   std::vector<Eigen::Vector2f> correlations;
 

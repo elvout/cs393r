@@ -3,6 +3,7 @@
 #include <limits>
 #include <stdexcept>
 #include <vector>
+#include "common.hh"
 #include "eigen3/Eigen/Dense"
 #include "math/math_util.h"
 #include "models.hh"
@@ -15,9 +16,11 @@ void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
                       const double odom_angle_disp,
                       const sensor_msgs::LaserScan& new_obs) {
+  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::eval");
   cube_.clear();
   max_belief_.reset();
 
+  common::runtime_dist().start_lap("BeliefCube::eval (Motion Model)");
   // Evaluate the motion model first to prune the index space a bit.
   size_t evals = 0;
   // not a great threshold, as the standard devations are dependent on the magnitude
@@ -45,9 +48,11 @@ void BeliefCube::eval(const RasterMap& ref_map,
       }
     }
   }
+  common::runtime_dist().end_lap("BeliefCube::eval (Motion Model)");
 
   printf("[BeliefCube::eval INFO] cube size: %lu / %lu\n", cube_.size(), evals);
 
+  common::runtime_dist().start_lap("BeliefCube::eval (Observation Model)");
   // Evaluate the observation likelihood model on plausible indices
   // according to the motion model.
   // 2D slicing was too slow; maybe I was just doing it wrong
@@ -81,9 +86,11 @@ void BeliefCube::eval(const RasterMap& ref_map,
     // TODO: parameterize gamma
     it->second += log_sum * 0.12;
   }
+  common::runtime_dist().end_lap("BeliefCube::eval (Observation Model)");
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
+  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::max_belief");
   if (max_belief_.has_value()) {
     return max_belief_.value();
   }

@@ -145,11 +145,11 @@ void SignalHandler(int) {
     exit(2);
   }
 
-  printf("%s\n", slam::common::runtime_dist().summary().c_str());
-
   slam_.OfflineBelEvaluation();
   PublishMap();
   Sleep(1);
+
+  printf("%s\n", slam::common::runtime_dist().summary().c_str());
   run_ = false;
 }
 
