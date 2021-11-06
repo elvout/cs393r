@@ -48,9 +48,9 @@
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 
+#include "common.hh"
 #include "raster_map.hh"
 #include "slam.h"
-#include "util/profiling.h"
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
 
@@ -82,8 +82,6 @@ ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
-
-util::DurationDistribution runtime_dist_;
 }  // namespace
 
 void InitializeMsgs() {
@@ -147,7 +145,7 @@ void SignalHandler(int) {
     exit(2);
   }
 
-  printf("%s\n", runtime_dist_.summary().c_str());
+  printf("%s\n", slam::common::runtime_dist().summary().c_str());
 
   slam_.OfflineBelEvaluation();
   PublishMap();
