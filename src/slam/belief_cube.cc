@@ -53,16 +53,27 @@ void BeliefCube::eval(const RasterMap& ref_map,
   printf("[BeliefCube::eval INFO] cube size: %lu / %lu\n", cube_.size(), evals);
 
   common::runtime_dist().start_lap("BeliefCube::eval (Observation Model)");
+
   // Evaluate the observation likelihood model on plausible indices
   // according to the motion model.
-  // 2D slicing was too slow; maybe I was just doing it wrong
+  // Since the only care about the index with the maximum likelihood,
+  // we can keep track of the running maximium likelihood and prune
+  // while evaluating the model if we know that the current likelihood
+  // cannot be greater than the maximum likelihood.
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
-  for (auto it = cube_.begin(); it != cube_.cend(); it++) {
+  size_t prune_count = 0;
+  double max_prob = -std::numeric_limits<double>::infinity();
+
+  for (auto it = cube_.begin(); it != cube_.cend();) {
     const Point& index = it->first;
 
     const auto [d_loc, d_theta] = unbinify(index);
     const Eigen::Rotation2Df dtheta_rot(d_theta);
     double log_sum = 0;
+
+    // CRITICAL PRUNING ASSUMPTION: ref_map.query (LogObsModel) is never positive
+    const double prune_threshold = max_prob - it->second;
+    bool prune = false;
 
     for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
       const Eigen::Vector2f& point = obs_points[scan_i];
@@ -79,14 +90,25 @@ void BeliefCube::eval(const RasterMap& ref_map,
       // TODO: un-hardcode, 2.5 stddev was used in particle filter
       log_obs_prob = std::max(log_obs_prob, -2.0);
       log_sum += log_obs_prob;
+
+      if (log_sum < prune_threshold) {
+        prune = true;
+        break;
+      }
     }
 
-    // TODO: prune out impossible values to sparsify matrix?
-
-    // TODO: parameterize gamma
-    it->second += log_sum * 0.12;
+    if (prune) {
+      it = cube_.erase(it);
+      prune_count++;
+    } else {
+      it->second += log_sum;
+      max_prob = std::max(max_prob, it->second);
+      it++;
+    }
   }
   common::runtime_dist().end_lap("BeliefCube::eval (Observation Model)");
+
+  printf("[BeliefCube::eval]: pruned %lu entries\n", prune_count);
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {

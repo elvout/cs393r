@@ -72,13 +72,15 @@ double LogMotionModel(const Eigen::Vector2f& expected_disp,
 double LogObsModel(const sensor_msgs::LaserScan& obs,
                    const Eigen::Vector2f& expected,
                    const Eigen::Vector2f& hypothesis) {
+  static const double kNormalization = LogNormalPdf(0, 0, kLidarStddev);
+
   float hypothesis_range = (hypothesis - laser_loc).norm();
   if (hypothesis_range <= obs.range_min || hypothesis_range >= obs.range_max) {
     return -std::numeric_limits<double>::infinity();
   }
 
   float range_diff = (expected - hypothesis).norm();
-  return LogNormalPdf(range_diff, 0, kLidarStddev);
+  return LogNormalPdf(range_diff, 0, kLidarStddev) - kNormalization;
 }
 
 }  // namespace slam
