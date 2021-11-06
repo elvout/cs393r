@@ -2,6 +2,7 @@
 #include <future>
 #include <iostream>
 #include <limits>
+#include <queue>
 #include <stdexcept>
 #include <vector>
 #include "common.hh"
@@ -158,6 +159,16 @@ void BeliefCube::parallel_eval(const RasterMap& ref_map,
   max_belief_ = unbinify(max_it->first);
 }
 
+// TODO: refactor
+struct Entry {
+  Eigen::Vector3i index;
+  double prob;
+
+  Entry(const Eigen::Vector3i& i, double p) : index(i), prob(p) {}
+
+  bool operator<(const Entry& other) const { return prob < other.prob; }
+};
+
 void BeliefCube::eval_range(const RasterMap& ref_map,
                             const Eigen::Vector2f& odom_disp,
                             const double odom_angle_disp,
@@ -174,6 +185,8 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
 
   // approximate the symmetric robust observation likelihood model
   static const double log_obs_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
+
+  std::priority_queue<Entry> plausible_entries;
 
   // Evaluate the motion model first to prune the index space a bit.
   for (int dtheta = dtheta_start; dtheta < dtheta_end; dtheta += rot_resolution_) {
@@ -192,7 +205,7 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
             LogMotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
 
         if (log_motion_prob > log_motion_prob_threshold) {
-          cube_[index] = log_motion_prob;
+          plausible_entries.emplace(index, log_motion_prob);
         }
       }
     }
@@ -207,15 +220,20 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
   // cannot be greater than the maximum likelihood.
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
   double max_prob = -std::numeric_limits<double>::infinity();
-  for (auto it = cube_.begin(); it != cube_.cend();) {
-    const Point& index = it->first;
+
+  while (!plausible_entries.empty()) {
+    Entry e = plausible_entries.top();
+    plausible_entries.pop();
+
+    const Point& index = e.index;
+    const double log_motion_prob = e.prob;
 
     const auto [d_loc, d_theta] = unbinify(index);
     const Eigen::Rotation2Df dtheta_rot(d_theta);
     double log_sum = 0;
 
     // CRITICAL PRUNING ASSUMPTION: ref_map.query (LogObsModel) is never positive
-    const double prune_threshold = max_prob - it->second;
+    const double prune_threshold = max_prob - log_motion_prob;
     bool prune = false;
 
     for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
@@ -239,12 +257,10 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
       }
     }
 
-    if (prune) {
-      it = cube_.erase(it);
-    } else {
-      it->second += log_sum;
-      max_prob = std::max(max_prob, it->second);
-      it++;
+    if (!prune) {
+      double belief_prob = log_motion_prob + log_sum;
+      max_prob = std::max(max_prob, belief_prob);
+      cube_.emplace(index, belief_prob);
     }
   }
 }
