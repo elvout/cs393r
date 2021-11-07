@@ -58,7 +58,7 @@ SLAMBelief::SLAMBelief()
       ref_angle(),
       belief_lookup(100, 4, 45, 1),
       obs(),
-      ref_map() {}
+      ref_map(4) {}
 
 std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) {
   auto __delayedfn = common::runtime_dist().auto_lap("SLAMBelief::correlated_points");
