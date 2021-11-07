@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <utility>
 #include "common.hh"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
@@ -63,11 +64,11 @@ namespace slam {
 SLAMBelief::SLAMBelief()
     : odom_disp(),
       odom_angle_disp(),
-      ref_loc(),
-      ref_angle(),
       obs(),
       belief_disp(),
       belief_angle_disp(),
+      belief_loc(),
+      belief_angle(),
       coarse_ref_map(coarse_tx_resolution),
       fine_ref_map(fine_tx_resolution) {}
 
@@ -101,10 +102,12 @@ SLAM::SLAM()
       belief_history(),
       offline_eval_(false) {}
 
-void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
-  // Return the latest pose estimate of the robot.
-  *loc = Vector2f(0, 0);
-  *angle = 0;
+std::pair<Eigen::Vector2f, float> SLAM::GetPose() const {
+  if (belief_history.empty()) {
+    return std::make_pair(Eigen::Vector2f(0, 0), 0);
+  }
+
+  return std::make_pair(belief_history.back().belief_loc, belief_history.back().belief_angle);
 }
 
 void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
@@ -125,8 +128,6 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
   if (!bel_initialized) {
     SLAMBelief init_bel;
     init_bel.obs = obs;
-    init_bel.ref_loc = prev_odom_loc_;
-    init_bel.ref_angle = prev_odom_angle_;
     init_bel.coarse_ref_map.eval(init_bel.obs);
     init_bel.fine_ref_map.eval(init_bel.obs);
 
@@ -150,8 +151,6 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
   SLAMBelief bel;
   bel.odom_disp = Eigen::Rotation2Df(-last_obs_odom_angle) * (prev_odom_loc_ - last_obs_odom_loc);
   bel.odom_angle_disp = math_util::ReflexToConvexAngle(prev_odom_angle_ - last_obs_odom_angle);
-  bel.ref_loc = prev_odom_loc_;
-  bel.ref_angle = prev_odom_angle_;
   last_obs_odom_loc = prev_odom_loc_;
   last_obs_odom_angle = prev_odom_angle_;
 
@@ -173,6 +172,11 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
   const std::pair<Eigen::Vector2f, double> max_prob_belief = fine_cube.max_belief();
   bel.belief_disp = max_prob_belief.first;
   bel.belief_angle_disp = max_prob_belief.second;
+
+  bel.belief_loc = belief_history.back().belief_loc +
+                   Eigen::Rotation2Df(belief_history.back().belief_angle) * bel.belief_disp;
+  bel.belief_angle =
+      math_util::ReflexToConvexAngle(belief_history.back().belief_angle + bel.belief_angle_disp);
 
   printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
          math_util::RadToDeg(bel.odom_angle_disp));

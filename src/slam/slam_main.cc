@@ -111,9 +111,7 @@ void PublishMap() {
 }
 
 void PublishPose() {
-  Vector2f robot_loc(0, 0);
-  float robot_angle(0);
-  slam_.GetPose(&robot_loc, &robot_angle);
+  const auto [robot_loc, robot_angle] = slam_.GetPose();
   amrl_msgs::Localization2DMsg localization_msg;
   localization_msg.pose.x = robot_loc.x();
   localization_msg.pose.y = robot_loc.y();

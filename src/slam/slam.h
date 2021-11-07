@@ -41,13 +41,13 @@ struct SLAMBelief {
   // for use in this time step
   Eigen::Vector2f odom_disp;
   float odom_angle_disp;
-  Eigen::Vector2f ref_loc;
-  float ref_angle;
   sensor_msgs::LaserScan obs;
 
   // to compute
   Eigen::Vector2f belief_disp;
   float belief_angle_disp;
+  Eigen::Vector2f belief_loc;
+  float belief_angle;
 
   // for use in the next time step
   RasterMap coarse_ref_map;
@@ -71,7 +71,7 @@ class SLAM {
   std::vector<Eigen::Vector2f> GetMap();
 
   // Get latest robot pose.
-  void GetPose(Eigen::Vector2f* loc, float* angle) const;
+  std::pair<Eigen::Vector2f, float> GetPose() const;
 
   void OfflineBelEvaluation();
 
