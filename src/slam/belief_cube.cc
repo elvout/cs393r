@@ -14,6 +14,23 @@
 
 namespace slam {
 
+BeliefCube::BeliefCube(const int tx_windowsize,
+                       const int tx_resolution,
+                       const int rot_windowsize,
+                       const int rot_resolution)
+    : tx_windowsize_(tx_windowsize),
+      tx_resolution_(tx_resolution),
+      rot_windowsize_(rot_windowsize),
+      rot_resolution_(rot_resolution) {
+  if (tx_windowsize_ % tx_resolution_ != 0) {
+    throw std::invalid_argument("[BeliefCube] tx windowsize, resolution mismatch");
+  }
+
+  if (rot_windowsize_ % rot_resolution_ != 0) {
+    throw std::invalid_argument("[BeliefCube] rot windowsize, resolution mismatch");
+  }
+}
+
 decltype(auto) BeliefCube::max_index_iterator() const {
   if (cube_.empty()) {
     throw std::runtime_error("[BeliefCube::max_index_iterator() FATAL]: empty cube");

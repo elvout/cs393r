@@ -30,7 +30,10 @@ class BeliefCube {
   using Point = Eigen::Vector3i;  // [x=dx; y=dy; z=dtheta]
 
  public:
-  BeliefCube() = default;
+  BeliefCube(const int tx_windowsize,
+             const int tx_resolution,
+             const int rot_windowsize,
+             const int rot_resolution);
 
   /**
    * Generate the belief cube with:
@@ -65,14 +68,6 @@ class BeliefCube {
   std::pair<Eigen::Vector2f, double> max_belief() const;
 
  private:
-  static constexpr int tx_resolution_ = 4;    // centimeters
-  static constexpr int rot_resolution_ = 1;   // degrees
-  static constexpr int tx_windowsize_ = 100;  // centimeters, inclusive
-  static constexpr int rot_windowsize_ = 45;  // degrees, inclusive
-
-  static_assert(tx_windowsize_ % tx_resolution_ == 0);
-  static_assert(rot_windowsize_ % rot_resolution_ == 0);
-
   decltype(auto) max_index_iterator() const;
 
   /**
@@ -91,6 +86,10 @@ class BeliefCube {
   std::pair<Eigen::Vector2f, double> unbinify(const Point& index) const;
 
  private:
+  const int tx_windowsize_;   // centimeters, inclusive, symmetric
+  const int tx_resolution_;   // centimeters
+  const int rot_windowsize_;  // degrees, inclusive, symmetric
+  const int rot_resolution_;  // degrees
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> cube_;
   mutable std::optional<std::pair<Eigen::Vector2f, double>> max_belief_;
 };

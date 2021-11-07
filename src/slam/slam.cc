@@ -51,6 +51,15 @@ using vector_map::VectorMap;
 
 namespace slam {
 
+SLAMBelief::SLAMBelief()
+    : odom_disp(),
+      odom_angle_disp(),
+      ref_loc(),
+      ref_angle(),
+      belief_lookup(100, 4, 45, 1),
+      obs(),
+      ref_map() {}
+
 std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) {
   auto __delayedfn = common::runtime_dist().auto_lap("SLAMBelief::correlated_points");
   std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);

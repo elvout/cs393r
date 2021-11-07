@@ -36,6 +36,8 @@ namespace slam {
 // Components of the probabilistic model of the SLAM belief
 // at an arbitrary timestep.
 struct SLAMBelief {
+  SLAMBelief();
+
   // for use in this time step
   Eigen::Vector2f odom_disp;
   float odom_angle_disp;
