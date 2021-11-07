@@ -48,17 +48,17 @@ class BeliefCube {
             const double odom_angle_disp,
             const sensor_msgs::LaserScan& new_obs);
 
-  void eval_range(const RasterMap& ref_map,
-                  const Eigen::Vector2f& odom_disp,
-                  const double odom_angle_disp,
-                  const sensor_msgs::LaserScan& new_obs,
-                  const bool enable_obs_pruning,
-                  const int dtheta_start,
-                  const int dtheta_end,
-                  const int dx_start,
-                  const int dx_end,
-                  const int dy_start,
-                  const int dy_end);
+  double eval_range(const RasterMap& ref_map,
+                    const Eigen::Vector2f& odom_disp,
+                    const double odom_angle_disp,
+                    const sensor_msgs::LaserScan& new_obs,
+                    const bool enable_obs_pruning,
+                    const int dtheta_start,
+                    const int dtheta_end,
+                    const int dx_start,
+                    const int dx_end,
+                    const int dy_start,
+                    const int dy_end);
 
   /**
    * Return the translational and rotational displacements with the

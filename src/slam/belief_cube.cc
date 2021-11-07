@@ -69,17 +69,17 @@ struct Entry {
   bool operator<(const Entry& other) const { return prob < other.prob; }
 };
 
-void BeliefCube::eval_range(const RasterMap& ref_map,
-                            const Eigen::Vector2f& odom_disp,
-                            const double odom_angle_disp,
-                            const sensor_msgs::LaserScan& new_obs,
-                            const bool enable_obs_pruning,
-                            const int dtheta_start,
-                            const int dtheta_end,
-                            const int dx_start,
-                            const int dx_end,
-                            const int dy_start,
-                            const int dy_end) {
+double BeliefCube::eval_range(const RasterMap& ref_map,
+                              const Eigen::Vector2f& odom_disp,
+                              const double odom_angle_disp,
+                              const sensor_msgs::LaserScan& new_obs,
+                              const bool enable_obs_pruning,
+                              const int dtheta_start,
+                              const int dtheta_end,
+                              const int dx_start,
+                              const int dx_end,
+                              const int dy_start,
+                              const int dy_end) {
   // not a great threshold, as the standard deviations are dependent
   // on the magnitudes of displacement
   static const double log_motion_prob_threshold = LogNormalPdf(3, 0, 1);
@@ -164,6 +164,8 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
       cube_.emplace(index, belief_prob);
     }
   }
+
+  return max_prob;
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
