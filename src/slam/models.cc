@@ -16,6 +16,8 @@ constexpr double k3 = 0.65;
 constexpr double k4 = 2.3;
 
 constexpr double kLidarStddev = 0.08;
+const double kLogObsNormalization = slam::LogNormalPdf(0, 0, kLidarStddev);
+
 }  // namespace
 
 namespace slam {
@@ -78,7 +80,11 @@ double LogObsModel(const sensor_msgs::LaserScan& obs,
   }
 
   float range_diff = (expected - hypothesis).norm();
-  return LogNormalPdf(range_diff, 0, kLidarStddev);
+  return LogNormalPdf(range_diff, 0, kLidarStddev) - kLogObsNormalization;
+}
+
+double SymmetricRobustLogObsModelThreshold(const double stddevs) {
+  return LogNormalPdf(stddevs * kLidarStddev, 0, kLidarStddev) - kLogObsNormalization;
 }
 
 }  // namespace slam

@@ -49,18 +49,37 @@ using std::swap;
 using std::vector;
 using vector_map::VectorMap;
 
+namespace {
+const int global_tx_windowsize = 96;
+const int coarse_tx_resolution = 24;
+const int fine_tx_resolution = 4;
+
+const int global_rot_windowsize = 45;
+const int global_rot_resolution = 1;
+}  // namespace
+
 namespace slam {
+
+SLAMBelief::SLAMBelief()
+    : odom_disp(),
+      odom_angle_disp(),
+      ref_loc(),
+      ref_angle(),
+      obs(),
+      belief_disp(),
+      belief_angle_disp(),
+      coarse_ref_map(coarse_tx_resolution),
+      fine_ref_map(fine_tx_resolution) {}
 
 std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) {
   auto __delayedfn = common::runtime_dist().auto_lap("SLAMBelief::correlated_points");
   std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
   std::vector<Eigen::Vector2f> correlations;
 
-  const auto [bel_disp, bel_rot] = belief_lookup.max_belief();
-  const Eigen::Rotation2Df dtheta_rot(bel_rot);
+  const Eigen::Rotation2Df dtheta_rot(belief_angle_disp);
   for (const Eigen::Vector2f& obs_point : obs_points) {
     // Translate the observation point into the reference frame.
-    const Eigen::Vector2f query_point = dtheta_rot * obs_point + bel_disp;
+    const Eigen::Vector2f query_point = dtheta_rot * obs_point + belief_disp;
 
     const float query_dist = query_point.norm();
     if (query_dist <= obs.range_min || query_dist >= obs.range_max) {
@@ -109,7 +128,8 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
     init_bel.obs = obs;
     init_bel.ref_loc = prev_odom_loc_;
     init_bel.ref_angle = prev_odom_angle_;
-    init_bel.ref_map.eval(init_bel.obs);
+    init_bel.coarse_ref_map.eval(init_bel.obs);
+    init_bel.fine_ref_map.eval(init_bel.obs);
 
     last_obs_odom_loc = prev_odom_loc_;
     last_obs_odom_angle = prev_odom_angle_;
@@ -161,11 +181,22 @@ void SLAM::OfflineBelEvaluation() {
     printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
            math_util::RadToDeg(bel.odom_angle_disp));
 
-    bel.ref_map.eval(bel.obs);
-    bel.belief_lookup.eval(belief_history[i - 1].ref_map, bel.odom_disp, bel.odom_angle_disp,
-                           bel.obs);
+    BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
+                           global_rot_resolution);
+    BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
+                         global_rot_resolution);
 
-    auto [max_disp, max_angle_disp] = bel.belief_lookup.max_belief();
+    coarse_cube.eval(belief_history[i - 1].coarse_ref_map, bel.odom_disp, bel.odom_angle_disp,
+                     bel.obs, true, true);
+    fine_cube.eval_with_coarse(belief_history[i - 1].fine_ref_map, bel.odom_disp,
+                               bel.odom_angle_disp, bel.obs, coarse_cube);
+
+    bel.coarse_ref_map.eval(bel.obs);
+    bel.fine_ref_map.eval(bel.obs);
+
+    auto [max_disp, max_angle_disp] = fine_cube.max_belief();
+    bel.belief_disp = max_disp;
+    bel.belief_angle_disp = max_angle_disp;
     printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
            math_util::RadToDeg(math_util::ReflexToConvexAngle(max_angle_disp)));
     printf("------------\n");
@@ -196,12 +227,11 @@ vector<Vector2f> SLAM::GetMap() {
   for (int i = 1; i < belief_history.size(); i++) {
     SLAMBelief& bel = belief_history[i];
 
-    auto [bel_disp, bel_rot] = bel.belief_lookup.max_belief();
-    aggregate_disp += Eigen::Rotation2Df(aggregate_rot) * bel_disp;
-    aggregate_rot = math_util::ConstrainAngle(aggregate_rot + bel_rot);
+    aggregate_disp += Eigen::Rotation2Df(aggregate_rot) * bel.belief_disp;
+    aggregate_rot = math_util::ConstrainAngle(aggregate_rot + bel.belief_angle_disp);
 
     std::vector<Eigen::Vector2f> points = PointsFromScan(bel.obs);
-    std::vector<Eigen::Vector2f> corrs = bel.correlated_points(belief_history[i - 1].ref_map);
+    std::vector<Eigen::Vector2f> corrs = bel.correlated_points(belief_history[i - 1].fine_ref_map);
     printf("[SLAM::GetMap INFO] points: %lu, correlations: %lu\n", points.size(), corrs.size());
     for (const Eigen::Vector2f& point : corrs) {
       map.push_back(Rotation2Df(aggregate_rot) * point + aggregate_disp);

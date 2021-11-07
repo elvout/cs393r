@@ -46,6 +46,7 @@ ROSBUILD_ADD_EXECUTABLE(slam
                        src/slam/models.cc
                        src/slam/common.cc
                        src/util/profiling.cc
+                       src/concurrent/thread_pool.cc
 )
 TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 

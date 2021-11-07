@@ -23,6 +23,8 @@ const std::array<Eigen::Vector2i, 4> dirs{
 
 namespace slam {
 
+RasterMap::RasterMap(const int resolution) : resolution_(resolution), raster_table_() {}
+
 /**
  * Evaluates the probability of histogram bins around each observation
  * point until the probability falls below a threshold.

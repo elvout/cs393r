@@ -29,6 +29,8 @@ double LogObsModel(const sensor_msgs::LaserScan& obs,
                    const Eigen::Vector2f& expected,
                    const Eigen::Vector2f& hypothesis);
 
+double SymmetricRobustLogObsModelThreshold(const double stddevs);
+
 }  // namespace slam
 
 #endif  // SRC_SLAM_MODELS_HH_
