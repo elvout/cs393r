@@ -146,30 +146,42 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
     return;
   }
 
+  auto __delayedfn = common::runtime_dist().auto_lap("SLAM::ObserveLaser");
+
   SLAMBelief bel;
   bel.odom_disp = Eigen::Rotation2Df(-last_obs_odom_angle) * (prev_odom_loc_ - last_obs_odom_loc);
   bel.odom_angle_disp = math_util::ReflexToConvexAngle(prev_odom_angle_ - last_obs_odom_angle);
+  bel.ref_loc = prev_odom_loc_;
+  bel.ref_angle = prev_odom_angle_;
   last_obs_odom_loc = prev_odom_loc_;
   last_obs_odom_angle = prev_odom_angle_;
 
   bel.obs = obs;
 
-  bel.ref_loc = prev_odom_loc_;
-  bel.ref_angle = prev_odom_angle_;
-  // bel.ref_map.eval(bel.obs);
+  BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
+                         global_rot_resolution);
+  BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
+                       global_rot_resolution);
 
-  // bel.belief_lookup.eval(belief_history.back().ref_map, bel.odom_disp, bel.odom_angle_disp,
-  // bel.obs);
+  coarse_cube.eval(belief_history.back().coarse_ref_map, bel.odom_disp, bel.odom_angle_disp,
+                   bel.obs, true, true);
+  fine_cube.eval_with_coarse(belief_history.back().fine_ref_map, bel.odom_disp,
+                             bel.odom_angle_disp, bel.obs, coarse_cube);
+
+  bel.coarse_ref_map.eval(bel.obs);
+  bel.fine_ref_map.eval(bel.obs);
+
+  const std::pair<Eigen::Vector2f, double> max_prob_belief = fine_cube.max_belief();
+  bel.belief_disp = max_prob_belief.first;
+  bel.belief_angle_disp = max_prob_belief.second;
 
   printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
          math_util::RadToDeg(bel.odom_angle_disp));
 
-  // auto [max_disp, max_angle_disp] = bel.belief_lookup.max_belief();
-  // printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
-  // math_util::RadToDeg(max_angle_disp));
+  printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", bel.belief_disp.x(), bel.belief_disp.y(),
+         math_util::RadToDeg(bel.belief_angle_disp));
 
-  belief_history.push_back(bel);
-  // exit(1);
+  belief_history.push_back(std::move(bel));
 }
 
 void SLAM::OfflineBelEvaluation() {
@@ -216,10 +228,6 @@ vector<Vector2f> SLAM::GetMap() {
   vector<Vector2f> map;
   // Reconstruct the map as a single aligned point cloud from all saved poses
   // and their respective scans.
-
-  if (!offline_eval_) {
-    return map;
-  }
 
   Eigen::Vector2f aggregate_disp(0, 0);
   double aggregate_rot = 0;

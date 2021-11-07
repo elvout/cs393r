@@ -145,7 +145,6 @@ void SignalHandler(int) {
     exit(2);
   }
 
-  slam_.OfflineBelEvaluation();
   PublishMap();
   Sleep(1);
 
