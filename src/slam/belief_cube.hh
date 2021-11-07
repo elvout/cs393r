@@ -52,6 +52,7 @@ class BeliefCube {
                   const Eigen::Vector2f& odom_disp,
                   const double odom_angle_disp,
                   const sensor_msgs::LaserScan& new_obs,
+                  const bool enable_obs_pruning,
                   const int dtheta_start,
                   const int dtheta_end,
                   const int dx_start,

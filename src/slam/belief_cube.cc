@@ -54,8 +54,9 @@ void BeliefCube::eval(const RasterMap& ref_map,
   cube_.clear();
   max_belief_.reset();
 
-  eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, -rot_windowsize_, rot_windowsize_ + 1,
-             -tx_windowsize_, tx_windowsize_ + 1, -tx_windowsize_, tx_windowsize_ + 1);
+  eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, true, -rot_windowsize_,
+             rot_windowsize_ + 1, -tx_windowsize_, tx_windowsize_ + 1, -tx_windowsize_,
+             tx_windowsize_ + 1);
 }
 
 // TODO: refactor
@@ -72,6 +73,7 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
                             const Eigen::Vector2f& odom_disp,
                             const double odom_angle_disp,
                             const sensor_msgs::LaserScan& new_obs,
+                            const bool enable_obs_pruning,
                             const int dtheta_start,
                             const int dtheta_end,
                             const int dx_start,
@@ -150,7 +152,7 @@ void BeliefCube::eval_range(const RasterMap& ref_map,
       log_obs_prob = std::max(log_obs_prob, log_obs_prob_threshold);
       log_sum += log_obs_prob;
 
-      if (log_sum < prune_threshold) {
+      if (enable_obs_pruning && log_sum < prune_threshold) {
         prune = true;
         break;
       }
