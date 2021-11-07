@@ -94,17 +94,18 @@ void BeliefCube::eval_with_coarse(const RasterMap& ref_map,
     coarse_entries.emplace(key, val);
   }
 
-  std::unordered_set<Eigen::Vector3i, util::EigenMatrixHash<Eigen::Vector3i>> visited;
+  std::unordered_set<Eigen::Vector2i, util::EigenMatrixHash<Eigen::Vector2i>> visited;
 
   double max_fine_bel_prob = -std::numeric_limits<double>::infinity();
   while (!coarse_entries.empty()) {
     Entry coarse_entry = coarse_entries.top();
     coarse_entries.pop();
 
-    if (visited.count(coarse_entry.index) == 1) {
+    const Eigen::Vector2i coarse_tx_index(coarse_entry.index.x(), coarse_entry.index.y());
+    if (visited.count(coarse_tx_index) == 1) {
       continue;
     }
-    visited.insert(coarse_entry.index);
+    visited.insert(coarse_tx_index);
 
     if (max_fine_bel_prob > 0) {
       throw std::runtime_error("BeliefCube::eval_with_coarse: log probability positive");
@@ -130,7 +131,8 @@ void BeliefCube::eval_with_coarse(const RasterMap& ref_map,
     //     coarse_entry.index.z() * coarse_cube.rot_resolution_ + coarse_cube.rot_resolution_ / 2 +
     //     1;
 
-    // multi-res seems to get the angle wrong pretty often, enable this with the visited set
+    // multi-res seems to get the angle wrong pretty often so evaluate all the angles
+    // use  the visited set to avoid recomputations
     const int dtheta_start = -rot_windowsize_;
     const int dtheta_end = rot_windowsize_ + 1;
 
