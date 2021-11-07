@@ -157,6 +157,12 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
 
   bel.obs = obs;
 
+  // Execute these tasks in the background.
+  // RasterMap::eval generally runs faster than BeliefCube::eval, but this could
+  // potentially cause a segfault if `bel` goes out of scope. (fix: wrap & await)
+  common::thread_pool_exec(std::bind(&RasterMap::eval, &bel.fine_ref_map, bel.obs));
+  common::thread_pool_exec(std::bind(&RasterMap::eval, &bel.coarse_ref_map, bel.obs));
+
   BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
                          global_rot_resolution);
   BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
@@ -166,9 +172,6 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
                    bel.obs, true, true);
   fine_cube.eval_with_coarse(belief_history.back().fine_ref_map, bel.odom_disp,
                              bel.odom_angle_disp, bel.obs, coarse_cube);
-
-  bel.coarse_ref_map.eval(bel.obs);
-  bel.fine_ref_map.eval(bel.obs);
 
   const std::pair<Eigen::Vector2f, double> max_prob_belief = fine_cube.max_belief();
   bel.belief_disp = max_prob_belief.first;
