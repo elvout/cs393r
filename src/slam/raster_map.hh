@@ -38,7 +38,7 @@ class RasterMap {
   using Point = Eigen::Vector2i;
 
  public:
-  RasterMap() = default;
+  RasterMap(const int resolution);
 
   /// Generate the rasterized map given laser scan readings.
   void eval(const sensor_msgs::LaserScan& obs);
@@ -51,8 +51,6 @@ class RasterMap {
   void dump_csv(const std::string filename = "image.csv") const;
 
  private:
-  static constexpr int resolution_ = 4;  // centimeters
-
   /// Convert a coordinate value in meters to a value in the index space.
   int meters_to_index(const double meters) const;
   Point binify(const double x, const double y) const;
@@ -63,6 +61,7 @@ class RasterMap {
   Eigen::Vector2f unbinify(const Point& index) const;
 
  private:
+  const int resolution_;  // centimeters
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> raster_table_;
 };
 
