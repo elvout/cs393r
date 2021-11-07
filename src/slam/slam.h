@@ -53,7 +53,7 @@ struct SLAMBelief {
   RasterMap coarse_ref_map;
   RasterMap fine_ref_map;
 
-  std::vector<Eigen::Vector2f> correlated_points(const RasterMap& prev_ref_map);
+  std::vector<Eigen::Vector2f> correlated_points(const RasterMap& prev_ref_map) const;
 };
 
 class SLAM {
@@ -83,6 +83,8 @@ class SLAM {
 
   std::vector<SLAMBelief> belief_history;
   bool offline_eval_;
+
+  IdentityRasterMap map_;
 };
 }  // namespace slam
 

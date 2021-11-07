@@ -72,7 +72,7 @@ SLAMBelief::SLAMBelief()
       coarse_ref_map(coarse_tx_resolution),
       fine_ref_map(fine_tx_resolution) {}
 
-std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) {
+std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) const {
   std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
   std::vector<Eigen::Vector2f> correlations;
 
@@ -100,7 +100,8 @@ SLAM::SLAM()
       prev_odom_angle_(0),
       odom_initialized_(false),
       belief_history(),
-      offline_eval_(false) {}
+      offline_eval_(false),
+      map_(2) {}
 
 std::pair<Eigen::Vector2f, float> SLAM::GetPose() const {
   if (belief_history.empty()) {
@@ -229,28 +230,25 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
 vector<Vector2f> SLAM::GetMap() {
   // Reconstruct the map as a single aligned point cloud from all saved poses
   // and their respective scans.
+  static size_t last_update_idx = 0;
+
   auto __delayedfn = common::runtime_dist().auto_lap("SLAM::GetMap");
 
-  IdentityRasterMap raster_map(3);
-
-  Eigen::Vector2f aggregate_disp(0, 0);
-  double aggregate_rot = 0;
-
-  for (size_t i = 1; i < belief_history.size(); i++) {
-    SLAMBelief& bel = belief_history[i];
-
-    aggregate_disp += Eigen::Rotation2Df(aggregate_rot) * bel.belief_disp;
-    aggregate_rot = math_util::ConstrainAngle(aggregate_rot + bel.belief_angle_disp);
+  size_t i = last_update_idx + 1;
+  for (; i < belief_history.size(); i++) {
+    const SLAMBelief& bel = belief_history[i];
 
     std::vector<Eigen::Vector2f> points = PointsFromScan(bel.obs);
     std::vector<Eigen::Vector2f> corrs = bel.correlated_points(belief_history[i - 1].fine_ref_map);
     printf("[SLAM::GetMap INFO] points: %lu, correlations: %lu\n", points.size(), corrs.size());
+    const Eigen::Rotation2Df bel_rot(bel.belief_angle);
     for (const Eigen::Vector2f& point : corrs) {
-      raster_map.add_coord(Rotation2Df(aggregate_rot) * point + aggregate_disp);
+      map_.add_coord(bel_rot * point + bel.belief_loc);
     }
   }
+  last_update_idx = i - 1;
 
-  return raster_map.export_coord_map();
+  return map_.export_coord_map();
 }
 
 }  // namespace slam
