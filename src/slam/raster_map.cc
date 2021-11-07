@@ -156,4 +156,20 @@ void RasterMap::dump_csv(const std::string filename) const {
   }
 }
 
+IdentityRasterMap::IdentityRasterMap(const int resolution) : RasterMap(resolution) {}
+
+void IdentityRasterMap::add_coord(const Eigen::Vector2f& coord) {
+  raster_table_.emplace(binify(coord), 0);
+}
+
+std::vector<Eigen::Vector2f> IdentityRasterMap::export_coord_map() const {
+  std::vector<Eigen::Vector2f> coords;
+
+  for (const auto& [index, _prob] : raster_table_) {
+    coords.push_back(unbinify(index));
+  }
+
+  return coords;
+}
+
 }  // namespace slam

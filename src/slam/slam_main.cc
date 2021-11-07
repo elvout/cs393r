@@ -140,24 +140,11 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   slam_.ObserveOdometry(odom_loc, odom_angle);
 }
 
-void SignalHandler(int) {
-  if (!run_) {
-    exit(2);
-  }
-
-  PublishMap();
-  Sleep(1);
-
-  printf("%s\n", slam::common::runtime_dist().summary().c_str());
-  run_ = false;
-}
-
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
-  signal(SIGINT, SignalHandler);
 
   // Initialize ROS.
-  ros::init(argc, argv, "slam", ros::init_options::NoSigintHandler);
+  ros::init(argc, argv, "slam");
   ros::NodeHandle n;
   InitializeMsgs();
 
@@ -166,12 +153,9 @@ int main(int argc, char** argv) {
 
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic.c_str(), 1, LaserCallback);
   ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
-  // ros::spin();
+  ros::spin();
 
-  while (ros::ok()) {
-    ros::spinOnce();
-    Sleep(0.01);
-  }
+  printf("%s\n", slam::common::runtime_dist().summary().c_str());
 
   return 0;
 }

@@ -2,6 +2,7 @@
 #define SRC_SLAM_RASTER_MAP_HH_
 
 #include <unordered_map>
+#include <vector>
 #include "eigen3/Eigen/Dense"
 #include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
@@ -35,6 +36,7 @@ namespace slam {
  * TODO: Eigen::Vector2f origin_point_ ?
  */
 class RasterMap {
+ protected:
   using Point = Eigen::Vector2i;
 
  public:
@@ -50,7 +52,7 @@ class RasterMap {
   // Dump the contents of the raster table into a file.
   void dump_csv(const std::string filename = "image.csv") const;
 
- private:
+ protected:
   /// Convert a coordinate value in meters to a value in the index space.
   int meters_to_index(const double meters) const;
   Point binify(const double x, const double y) const;
@@ -60,9 +62,17 @@ class RasterMap {
   double index_to_meters(const int index) const;
   Eigen::Vector2f unbinify(const Point& index) const;
 
- private:
+ protected:
   const int resolution_;  // centimeters
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> raster_table_;
+};
+
+class IdentityRasterMap : public RasterMap {
+ public:
+  IdentityRasterMap(const int resolution);
+
+  void add_coord(const Eigen::Vector2f& coord);
+  std::vector<Eigen::Vector2f> export_coord_map() const;
 };
 
 }  // namespace slam
