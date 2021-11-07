@@ -4,6 +4,7 @@
 #include <limits>
 #include <queue>
 #include <stdexcept>
+#include <unordered_set>
 #include <vector>
 #include "common.hh"
 #include "eigen3/Eigen/Dense"
@@ -11,6 +12,7 @@
 #include "models.hh"
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
+#include "util/matrix_hash.hh"
 
 namespace slam {
 
@@ -49,14 +51,16 @@ decltype(auto) BeliefCube::max_index_iterator() const {
 void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
                       const double odom_angle_disp,
-                      const sensor_msgs::LaserScan& new_obs) {
+                      const sensor_msgs::LaserScan& new_obs,
+                      const bool ignore_motion_model,
+                      const bool enable_obs_pruning) {
   auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::eval");
   cube_.clear();
   max_belief_.reset();
 
-  eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, true, -rot_windowsize_,
-             rot_windowsize_ + 1, -tx_windowsize_, tx_windowsize_ + 1, -tx_windowsize_,
-             tx_windowsize_ + 1);
+  eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, -rot_windowsize_, rot_windowsize_ + 1,
+             -tx_windowsize_, tx_windowsize_ + 1, -tx_windowsize_, tx_windowsize_ + 1,
+             ignore_motion_model, enable_obs_pruning);
 }
 
 // TODO: refactor
@@ -69,17 +73,85 @@ struct Entry {
   bool operator<(const Entry& other) const { return prob < other.prob; }
 };
 
+void BeliefCube::eval_with_coarse(const RasterMap& ref_map,
+                                  const Eigen::Vector2f& odom_disp,
+                                  const double odom_angle_disp,
+                                  const sensor_msgs::LaserScan& new_obs,
+                                  const BeliefCube& coarse_cube) {
+  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::eval_with_coarse");
+
+  // these checks probably aren't strictly necessary
+  // TODO: should also be even multiples (coarse res should be even)
+  if (tx_windowsize_ != coarse_cube.tx_windowsize_ ||
+      coarse_cube.tx_resolution_ % tx_resolution_ != 0 ||
+      rot_windowsize_ != coarse_cube.rot_windowsize_ ||
+      coarse_cube.rot_resolution_ % rot_resolution_ != 0) {
+    throw std::invalid_argument("[BeliefCube::eval_with_coarse] windowsize/resolution mismatch");
+  }
+
+  std::priority_queue<Entry> coarse_entries;
+  for (const auto& [key, val] : coarse_cube.cube_) {
+    coarse_entries.emplace(key, val);
+  }
+
+  std::unordered_set<Eigen::Vector3i, util::EigenMatrixHash<Eigen::Vector3i>> visited;
+
+  double max_fine_bel_prob = -std::numeric_limits<double>::infinity();
+  while (!coarse_entries.empty()) {
+    Entry coarse_entry = coarse_entries.top();
+    coarse_entries.pop();
+
+    if (visited.count(coarse_entry.index) == 1) {
+      continue;
+    }
+    visited.insert(coarse_entry.index);
+
+    if (max_fine_bel_prob > 0) {
+      throw std::runtime_error("BeliefCube::eval_with_coarse: log probability positive");
+    }
+
+    if (coarse_entry.prob < max_fine_bel_prob) {
+      break;
+    }
+
+    // convert coarse indices to discrete centimeters
+    const int dx_start =
+        coarse_entry.index.x() * coarse_cube.tx_resolution_ - coarse_cube.tx_resolution_ / 2;
+    const int dx_end =
+        coarse_entry.index.x() * coarse_cube.tx_resolution_ + coarse_cube.tx_resolution_ / 2 + 1;
+    const int dy_start =
+        coarse_entry.index.y() * coarse_cube.tx_resolution_ - coarse_cube.tx_resolution_ / 2;
+    const int dy_end =
+        coarse_entry.index.y() * coarse_cube.tx_resolution_ + coarse_cube.tx_resolution_ / 2 + 1;
+
+    // const int dtheta_start =
+    //     coarse_entry.index.z() * coarse_cube.rot_resolution_ - coarse_cube.rot_resolution_ / 2;
+    // const int dtheta_end =
+    //     coarse_entry.index.z() * coarse_cube.rot_resolution_ + coarse_cube.rot_resolution_ / 2 +
+    //     1;
+
+    // multi-res seems to get the angle wrong pretty often, enable this with the visited set
+    const int dtheta_start = -rot_windowsize_;
+    const int dtheta_end = rot_windowsize_ + 1;
+
+    double fine_bel_prob = eval_range(ref_map, odom_disp, odom_angle_disp, new_obs, dtheta_start,
+                                      dtheta_end, dx_start, dx_end, dy_start, dy_end, false, true);
+    max_fine_bel_prob = std::max(max_fine_bel_prob, fine_bel_prob);
+  }
+}
+
 double BeliefCube::eval_range(const RasterMap& ref_map,
                               const Eigen::Vector2f& odom_disp,
                               const double odom_angle_disp,
                               const sensor_msgs::LaserScan& new_obs,
-                              const bool enable_obs_pruning,
                               const int dtheta_start,
                               const int dtheta_end,
                               const int dx_start,
                               const int dx_end,
                               const int dy_start,
-                              const int dy_end) {
+                              const int dy_end,
+                              const bool ignore_motion_model,
+                              const bool enable_obs_pruning) {
   // not a great threshold, as the standard deviations are dependent
   // on the magnitudes of displacement
   static const double log_motion_prob_threshold = LogNormalPdf(3, 0, 1);
@@ -105,7 +177,9 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
         const double log_motion_prob =
             LogMotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
 
-        if (log_motion_prob > log_motion_prob_threshold) {
+        if (ignore_motion_model) {
+          plausible_entries.emplace(index, 0);
+        } else if (log_motion_prob > log_motion_prob_threshold) {
           plausible_entries.emplace(index, log_motion_prob);
         }
       }
@@ -121,6 +195,7 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
   // cannot be greater than the maximum likelihood.
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
   double max_prob = -std::numeric_limits<double>::infinity();
+  double max_obs_prob = max_prob;
 
   while (!plausible_entries.empty()) {
     Entry e = plausible_entries.top();
@@ -161,11 +236,13 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
     if (!prune) {
       double belief_prob = log_motion_prob + log_sum;
       max_prob = std::max(max_prob, belief_prob);
+      max_obs_prob = std::max(max_obs_prob, log_sum);
       cube_.emplace(index, belief_prob);
     }
   }
 
-  return max_prob;
+  // return max_prob;
+  return max_obs_prob;
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
