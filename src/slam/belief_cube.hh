@@ -45,11 +45,6 @@ class BeliefCube {
             const double odom_angle_disp,
             const sensor_msgs::LaserScan& new_obs);
 
-  void parallel_eval(const RasterMap& ref_map,
-                     const Eigen::Vector2f& odom_disp,
-                     const double odom_angle_disp,
-                     const sensor_msgs::LaserScan& new_obs);
-
   void eval_range(const RasterMap& ref_map,
                   const Eigen::Vector2f& odom_disp,
                   const double odom_angle_disp,
