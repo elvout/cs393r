@@ -39,6 +39,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
   // of the same object.
   std::unordered_set<Point, util::EigenMatrixHash<Point>> observation_bins;
 
+  const double log_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
   const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
   for (const Eigen::Vector2f& observed_point : obs_points) {
     const Point observed_bin = binify(observed_point);
@@ -54,10 +55,6 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
     remaining.push_back(observed_bin);
     visited.insert(observed_bin);
 
-    // TODO: better doc
-    // if the index in the map does not exist, under the robust
-    // obs likelihood model we can generally use/return this value.
-    const double log_prob_threshold = LogNormalPdf(0.08 * 2.5, 0, 0.08);  // TODO: un-hardcode
     while (!remaining.empty()) {
       const Point bin = remaining.back();
       remaining.pop_back();
