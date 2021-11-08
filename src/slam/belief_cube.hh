@@ -18,13 +18,10 @@ namespace slam {
  * Implemented as a dictionary of keys. Although the lookup table is not
  * guaranteed to be sparse, the dictionary makes negative indices easier
  * to work with.
- *   TODO: use a threshold to sparsify the cube?
  *
  * The cube is indexed using integer centimeters and degrees since
- * floating points may have rounding errors.
- *
- * Uses a bin resolution of 0.04m x 0.04m x 1°.
- * Uses a fixed domain of [-1m, 1m] x [-1m, 1m] x [-45°, 45°]
+ * floating point rounding errors may cause inconsistent insertion
+ * and retrieval.
  */
 class BeliefCube {
   using Point = Eigen::Vector3i;  // [x=dx; y=dy; z=dtheta]

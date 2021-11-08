@@ -243,7 +243,8 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
     }
   }
 
-  // return max_prob;
+  // We currently ignore the motion model for the coarse cube, so
+  // return the observation likelihood probability for the fine cube.
   return max_obs_prob;
 }
 

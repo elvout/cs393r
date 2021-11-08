@@ -27,13 +27,8 @@ namespace slam {
  *  - preserves the coordinate space structure in the index space
  *  - efficient map transformation
  *
- * The map is indexed using integer centimeters since floating points
- * may have rounding errors.
- * Uses a bin resolution of 0.04m x 0.04m.
- *
- * TODO: merge(const RasterMap&) for parallel construction and combination
- * TODO: explicit inlining?
- * TODO: Eigen::Vector2f origin_point_ ?
+ * The map is indexed using integer centimeters since floating point
+ * rounding errors may cause inconsistent insertion and retrieval.
  */
 class RasterMap {
  protected:
@@ -67,6 +62,9 @@ class RasterMap {
   std::unordered_map<Point, double, util::EigenMatrixHash<Point>> raster_table_;
 };
 
+/**
+ * Useful for reducing the number of points returned by SLAM::GetMap.
+ */
 class IdentityRasterMap : public RasterMap {
  public:
   IdentityRasterMap(const int resolution);
