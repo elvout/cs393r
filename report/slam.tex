@@ -1,0 +1,166 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fullpage}
+\usepackage{geometry}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[utf8]{inputenc}
+
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+
+\title{CS 393R Autonomous Robots \\ \large Assignment 3b: SLAM}
+\author{Elvin Yang, Aidan Dunlap, Jierui Lin}
+\date{November 8, 2021}
+
+\begin{document}
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Hyperparmeters}
+
+\subsection{Models}
+
+We decided to import the motion model and robust observation likelihood model
+hyperparameters from our particle filter implementation as they worked
+relatively well with the particle filter. We did not perform any tuning other
+than a slight reduction to $\sigma_s$, as we found that the rest of the
+parameters worked well for SLAM after testing.
+
+\def\dshort{d_{\textrm{short}}}
+\def\dlong{d_{\textrm{long}}}
+
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item Motion Model
+    \begin{itemize}
+        \setlength\itemsep{0pt}
+        \item $k_1 = 0.45$, the coefficient for translational error caused by translational movement.
+        \item $k_2 = 1.6$, the coefficient for translational error caused by rotational movement.
+        \item $k_3 = 0.65$, the coefficient for rotational error caused by translational movement.
+        \item $k_4 = 2.3$, the coefficient for rotational error caused by rotational movement.
+    \end{itemize}
+
+    \item Observation Likelihood Model
+    \begin{itemize}
+        \setlength\itemsep{0pt}
+        \item $\sigma_s = 0.08$, the standard deviation of the LIDAR sensor.
+        \item $\dshort = -2.5 \sigma_s$, the lower bound for the Gaussian section of the robust model.
+        \item $\dlong = 2.5 \sigma_s$, the upper bound for the Gaussian section of the robust model.
+        \item $\gamma = 0.12$, the observation correlation factor.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Correlative Scan Matching}
+
+We use the following parameters for multi-level resolution correlative scan
+matching:
+
+\begin{itemize}
+    \item Low-resolution voxel size: 24 cm x 24 cm x 1$^\circ$
+    \item High-resolution voxel size: 4 cm x 4 cm x 1$^\circ$
+    \item Belief displacement domain: [-96 cm, 96 cm] x [-96 cm, 96 cm] x [-45$^\circ$, 45$^\circ$]
+    \item Odometry displacement threshold: 50 cm or 30$^\circ$, whichever happens first.
+\end{itemize}
+
+\noindent
+We used the suggested odometry displacement thresholds. Naturally, the belief
+displacement domain must be large enough to accommodate the odometry
+displacements in any direction. We decided to inflate the domain to make our
+implementation more robust at the expense of computation time. The choice to use
+96 cm instead of an even 1 meter is to satisfy an implementation detail
+(the voxel sizes must evenly divide the domain).
+
+\bigskip
+\noindent
+To tune the translational voxel sizes, we first took inspiration from the
+reference paper. In the naive implementation, we increased the (high) resolution
+size to 4cm to reduce computation time at the expense of accuracy. We kept this
+resolution in the multi-resolution implementation. We found that our results
+were poor when we used the 10:1 resolution ratio used in the reference paper, so
+we tuned the low-resolution size until we achieved reasonably accurate results
+while retaining real-time computation durations at a 6:1 resolution ratio. We
+found that the rotational voxel size used in the reference paper yielded good
+results.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Challenges}
+
+\subsection{Data Representation}
+Early on, we found that an array-of-arrays matrix implementation was both
+tedious and bug-prone due to resolution conversions and coordinate transforms
+necessitated by the non-negative-integer array index constraint. We decided to
+implement both the rasterized observation likelihood lookup table and the
+delta-space ``belief cube'' as dictionary-of-keys sparse matrix classes. This
+improved our productivity by a considerable amount, as it became much simpler to
+populate and query the data structures using negative indices. While dictionary
+key construction imposes a non-negligible runtime penalty, we found that this
+was a tradeoff we were willing to make.
+
+\subsection{Runtime}
+
+We encountered large runtimes for correlative scan matching using the 2D slice
+implementation outlined in the reference paper. We expected this from the tables
+in the reference paper's performance section. To reduce our runtime, we
+restricted the size of the delta-space, decreased translational resolution, and
+implemented online computation pruning. These optimizations achieved about a 10x
+speedup, but our program was still not running in real time so we decided to
+implement the multi-resolution method.
+
+\subsection{Low-resolution Motion Model Accuracy}
+
+Our initial multi-resolution implementation yielded very poor results. We
+hypothesized that this was probably due to our use of the motion model in our
+``belief cube''. We evaluate the motion model at the center of each voxel. At
+low resolutions, this can result in large probability differences between
+neighboring voxels. To overcome this, we evaluate the low-resolution belief cube
+using only the observation likelihood model.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Results}
+
+A video of our SLAM implementation running in real time on the physical car
+in the third floor lab can be found
+\href{https://drive.google.com/file/d/1FmnGZFJqioL2wlWBa6Be1aau3Tv777Bp/view?usp=sharing}{here}.
+
+\bigskip
+\noindent
+We are pleased with the generated map and the robustness of our implementation
+in a very noisy environment.
+
+\subsection{Limitations}
+
+We identify two major limitations of our implementation for potential improvement.
+
+\bigskip
+\noindent
+Small angular inaccuracies cause the map to drift considerably over time. This
+could potentially be mitigated by using a finer angular resolution, but a true
+solution would optimize the pose graph.
+
+\bigskip
+\noindent
+Our implementation fails to detect loop closure when revisiting poses,
+particularly in areas with few unique landmarks. We found that turning the car
+into a hallway and backing the car out of the hallway results in duplicate walls
+in the map. This problem arises towards the end of our demonstration video
+(although probably also due to drift)---the wall mapped by the initial turn is
+generated again.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Contributions}
+
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item Planning and Discussion: Elvin, Jierui, Aidan
+    \item Implementation: Elvin
+    \item Web Visualization Performance Improvements: Aidan
+    \item Video Demonstration: Aidan, Jierui, Elvin
+    \item Report: Elvin, Aidan
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{GitHub Link}
+
+\href{https://github.com/elvout/cs393r-public}{https://github.com/elvout/cs393r-public}
+
+\end{document}
