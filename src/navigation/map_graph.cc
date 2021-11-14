@@ -28,6 +28,14 @@ namespace navigation {
 MapGraph::Edge::Edge(const MapGraph::Vertex& v, double w) : dest(v), weight(w) {}
 MapGraph::Edge::Edge(MapGraph::Vertex&& v, double w) : dest(v), weight(w) {}
 
+bool MapGraph::Edge::operator<(const Edge& other) const {
+  return weight < other.weight;
+}
+
+bool MapGraph::Edge::operator>(const Edge& other) const {
+  return weight > other.weight;
+}
+
 MapGraph::MapGraph(const unsigned int resolution, const vector_map::VectorMap& map)
     : resolution_(resolution), obstacles_(), adjlist_() {
   if (resolution_ == 0) {
