@@ -10,6 +10,7 @@
 namespace {
 constexpr double sqrt2 = 0x1.6a09e667f3bcdp+0;
 
+using navigation::MapGraph;
 const std::array<MapGraph::Edge, 8> expansion_dirs{{
     {MapGraph::Vertex(1, 0), 1.0},
     {MapGraph::Vertex(0, 1), 1.0},
@@ -21,6 +22,8 @@ const std::array<MapGraph::Edge, 8> expansion_dirs{{
     {MapGraph::Vertex(-1, -1), sqrt2},
 }};
 }  // namespace
+
+namespace navigation {
 
 MapGraph::Edge::Edge(const MapGraph::Vertex& v, double w) : dest(v), weight(w) {}
 MapGraph::Edge::Edge(MapGraph::Vertex&& v, double w) : dest(v), weight(w) {}
@@ -102,3 +105,5 @@ MapGraph::Vertex MapGraph::coord_to_vertex(const Eigen::Vector2f& coord) const {
 Eigen::Vector2f MapGraph::vertex_to_coord(const Vertex& v) const {
   return Eigen::Vector2f(index_to_meters(v.x()), index_to_meters(v.y()));
 }
+
+}  // namespace navigation

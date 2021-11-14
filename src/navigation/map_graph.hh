@@ -8,6 +8,8 @@
 #include "util/matrix_hash.hh"
 #include "vector_map/vector_map.h"
 
+namespace navigation {
+
 /**
  * A discretized graph representation of a VectorMap for path planning
  * via graph search.
@@ -93,5 +95,7 @@ class MapGraph {
   std::unordered_set<Vertex, util::EigenMatrixHash<Vertex>> obstacles_;
   MappedAdjList adjlist_;
 };
+
+}  // namespace navigation
 
 #endif  // SRC_NAVIGATION_NAVIGATION_GRAPH_HH_
