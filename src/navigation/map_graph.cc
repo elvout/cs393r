@@ -1,9 +1,28 @@
 #include "map_graph.hh"
 
+#include <array>
 #include <cmath>
 #include <stdexcept>
 #include "math/line2d.h"
 #include "vector_map/vector_map.h"
+
+namespace {
+constexpr double sqrt2 = 0x1.6a09e667f3bcdp+0;
+
+const std::array<MapGraph::Edge, 8> expansion_dirs{{
+    {MapGraph::Vertex(1, 0), 1.0},
+    {MapGraph::Vertex(0, 1), 1.0},
+    {MapGraph::Vertex(-1, 0), 1.0},
+    {MapGraph::Vertex(0, -1), 1.0},
+    {MapGraph::Vertex(1, 1), sqrt2},
+    {MapGraph::Vertex(1, -1), sqrt2},
+    {MapGraph::Vertex(-1, 1), sqrt2},
+    {MapGraph::Vertex(-1, -1), sqrt2},
+}};
+}  // namespace
+
+MapGraph::Edge::Edge(const MapGraph::Vertex& v, double w) : dest(v), weight(w) {}
+MapGraph::Edge::Edge(MapGraph::Vertex&& v, double w) : dest(v), weight(w) {}
 
 MapGraph::MapGraph(const unsigned int resolution, const vector_map::VectorMap& map)
     : resolution_(resolution), obstacles_(), adjlist_() {
@@ -29,6 +48,29 @@ MapGraph::MapGraph(const unsigned int resolution, const vector_map::VectorMap& m
       coord += step_size;
     }
   }
+}
+
+void MapGraph::add_vertex(const Vertex& v) {
+  auto [it, inserted] = adjlist_.emplace(v, std::vector<Edge>{});
+  if (!inserted) {
+    return;
+  }
+
+  std::vector<Edge>& edges = it->second;
+  edges.reserve(expansion_dirs.size());
+
+  for (const Edge& edge_delta : expansion_dirs) {
+    const Vertex dest = v + edge_delta.dest;
+    if (obstacles_.count(dest) == 0) {
+      edges.emplace_back(std::move(dest), edge_delta.weight);
+    }
+  }
+}
+
+const MapGraph::Vertex MapGraph::add_vertex(const Eigen::Vector2f& coord) {
+  const Vertex v = coord_to_vertex(coord);
+  add_vertex(v);
+  return v;
 }
 
 int MapGraph::meters_to_index(const double meters) const {

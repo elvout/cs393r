@@ -28,6 +28,9 @@ class MapGraph {
   using Vertex = Eigen::Vector2i;
 
   struct Edge {
+    Edge(const Vertex& v, double w);
+    Edge(Vertex&& v, double w);
+
     Vertex dest;
     double weight;
   };
@@ -35,8 +38,8 @@ class MapGraph {
  public:  // Public API
   MapGraph(const unsigned int resolution, const vector_map::VectorMap& map);
 
-  const Vertex& add_vertex(const Vertex& coord);
-  const Vertex& add_vertex(const Eigen::Vector2f& coord);
+  void add_vertex(const Vertex& v);
+  const Vertex add_vertex(const Eigen::Vector2f& coord);
   const std::vector<Edge>& neighbors(const Vertex& v);
 
   Vertex coord_to_vertex(const Eigen::Vector2f& coord) const;
