@@ -4,6 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 #include "math/line2d.h"
+#include "math/math_util.h"
 #include "vector_map/vector_map.h"
 
 namespace {
@@ -58,9 +59,9 @@ MapGraph::MappedAdjList::iterator MapGraph::add_vertex(const Vertex& v) {
     edges.reserve(expansion_dirs.size());
 
     for (const Edge& edge_delta : expansion_dirs) {
-      const Vertex dest = v + edge_delta.dest;
+      const Vertex dest = v + edge_delta.dest * resolution_;
       if (obstacles_.count(dest) == 0) {
-        edges.emplace_back(std::move(dest), edge_delta.weight);
+        edges.emplace_back(std::move(dest), edge_delta.weight * resolution_);
       }
     }
   }
@@ -84,9 +85,10 @@ const std::vector<MapGraph::Edge>& MapGraph::neighbors(const Vertex& v) {
 }
 
 int MapGraph::meters_to_index(const double meters) const {
-  const double cm = meters * 100.0;
-  const double bin_center = (cm + resolution_ * 0.5) / resolution_;
-  return static_cast<int>(bin_center);
+  // symmetric rounding towards 0
+  const double unsigned_cm = std::abs(meters) * 100.0;
+  const double bin_center = (unsigned_cm + resolution_ * 0.5) / resolution_;
+  return static_cast<int>(bin_center) * resolution_ * math_util::Sign(meters);
 }
 
 MapGraph::Vertex MapGraph::coord_to_vertex(const Eigen::Vector2f& coord) const {

@@ -22,6 +22,8 @@
  *
  * The graph is lazily generated as it is queried since the entire map
  * generally won't be explored.
+ *
+ * Vertex and edge weight values are represented in centimeters.
  */
 class MapGraph {
  public:  // Data types
