@@ -91,6 +91,14 @@ int MapGraph::meters_to_index(const double meters) const {
   return static_cast<int>(bin_center) * resolution_ * math_util::Sign(meters);
 }
 
+double MapGraph::index_to_meters(const int index) const {
+  return index / 100.0;
+}
+
 MapGraph::Vertex MapGraph::coord_to_vertex(const Eigen::Vector2f& coord) const {
   return Vertex(meters_to_index(coord.x()), meters_to_index(coord.y()));
+}
+
+Eigen::Vector2f MapGraph::vertex_to_coord(const Vertex& v) const {
+  return Eigen::Vector2f(index_to_meters(v.x()), index_to_meters(v.y()));
 }
