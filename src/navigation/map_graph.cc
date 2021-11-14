@@ -50,27 +50,37 @@ MapGraph::MapGraph(const unsigned int resolution, const vector_map::VectorMap& m
   }
 }
 
-void MapGraph::add_vertex(const Vertex& v) {
+MapGraph::MappedAdjList::iterator MapGraph::add_vertex(const Vertex& v) {
   auto [it, inserted] = adjlist_.emplace(v, std::vector<Edge>{});
-  if (!inserted) {
-    return;
-  }
 
-  std::vector<Edge>& edges = it->second;
-  edges.reserve(expansion_dirs.size());
+  if (inserted) {
+    std::vector<Edge>& edges = it->second;
+    edges.reserve(expansion_dirs.size());
 
-  for (const Edge& edge_delta : expansion_dirs) {
-    const Vertex dest = v + edge_delta.dest;
-    if (obstacles_.count(dest) == 0) {
-      edges.emplace_back(std::move(dest), edge_delta.weight);
+    for (const Edge& edge_delta : expansion_dirs) {
+      const Vertex dest = v + edge_delta.dest;
+      if (obstacles_.count(dest) == 0) {
+        edges.emplace_back(std::move(dest), edge_delta.weight);
+      }
     }
   }
+
+  return it;
 }
 
 const MapGraph::Vertex MapGraph::add_vertex(const Eigen::Vector2f& coord) {
   const Vertex v = coord_to_vertex(coord);
   add_vertex(v);
   return v;
+}
+
+const std::vector<MapGraph::Edge>& MapGraph::neighbors(const Vertex& v) {
+  auto it = adjlist_.find(v);
+  if (it == adjlist_.cend()) {
+    it = add_vertex(v);
+  }
+
+  return it->second;
 }
 
 int MapGraph::meters_to_index(const double meters) const {

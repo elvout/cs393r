@@ -35,10 +35,13 @@ class MapGraph {
     double weight;
   };
 
+  using MappedAdjList =
+      std::unordered_map<Vertex, std::vector<Edge>, util::EigenMatrixHash<Vertex>>;
+
  public:  // Public API
   MapGraph(const unsigned int resolution, const vector_map::VectorMap& map);
 
-  void add_vertex(const Vertex& v);
+  MappedAdjList::iterator add_vertex(const Vertex& v);
   const Vertex add_vertex(const Eigen::Vector2f& coord);
   const std::vector<Edge>& neighbors(const Vertex& v);
 
@@ -51,7 +54,7 @@ class MapGraph {
 
   const unsigned int resolution_;  // centimeters
   std::unordered_set<Vertex, util::EigenMatrixHash<Vertex>> obstacles_;
-  std::unordered_map<Vertex, std::vector<Edge>, util::EigenMatrixHash<Vertex>> adjlist_;
+  MappedAdjList adjlist_;
 };
 
 #endif  // SRC_NAVIGATION_NAVIGATION_GRAPH_HH_
