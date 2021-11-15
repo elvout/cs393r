@@ -61,6 +61,13 @@ std::vector<Eigen::Vector2f> dijkstra(MapGraph& graph,
   }
 
   std::vector<Eigen::Vector2f> path;
+  Vertex& current_v = const_cast<Vertex&>(goal_v);
+  while (current_v != start_v) {
+    path.push_back(graph.vertex_to_coord(current_v));
+    current_v = path_parent[current_v];
+  }
+  path.push_back(start);
+  std::reverse(path.begin(), path.end());
 
   return path;
 }
