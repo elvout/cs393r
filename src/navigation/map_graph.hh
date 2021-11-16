@@ -70,6 +70,11 @@ class MapGraph {
   const std::vector<Edge>& neighbors(const Vertex& v);
 
   /**
+   * Return whether the specified vertex is in the obstacle set.
+   */
+  bool is_obstacle(const Vertex& v) const;
+
+  /**
    * Discretize a "real"-valued coordinate using the graph resolution.
    */
   Vertex coord_to_vertex(const Eigen::Vector2f& coord) const;
