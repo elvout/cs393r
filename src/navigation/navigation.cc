@@ -87,10 +87,21 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+  constexpr uint32_t kGlobalPathColor = 0x834ef5;
+
+  // TODO: move drawing to ::Run()
+  // TODO: recalculate as the robot moves
+
   if (!localization_initialized_) {
     printf("[Navigation::SetNavGoal] error: localization not initialized.");
   } else {
     std::vector<Eigen::Vector2f> path = astar(nav_graph_, robot_loc_, loc);
+
+    for (size_t i = 0; i + 1 < path.size(); i++) {
+      visualization::DrawLine(path[i], path[i + 1], kGlobalPathColor, global_viz_msg_);
+    }
+
+    viz_pub_.publish(global_viz_msg_);
   }
 }
 
