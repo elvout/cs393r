@@ -98,8 +98,11 @@ std::vector<Eigen::Vector2f> astar(MapGraph& graph,
   const Vertex goal_v = graph.coord_to_vertex(goal);
 
   std::priority_queue<Edge, std::vector<Edge>, std::greater<Edge>> frontier;  // cost + heuristic
+
+  // TODO: these can probably all be consolidated into one map
   std::unordered_map<Vertex, double, util::EigenMatrixHash<Vertex>> min_cost_to_v;  // cost only
   std::unordered_map<Vertex, Vertex, util::EigenMatrixHash<Vertex>> path_parent;
+  std::unordered_set<Vertex, util::EigenMatrixHash<Vertex>> opt_visited;
 
   min_cost_to_v[start_v] = 0;
   frontier.emplace(start_v, eight_conn_heuristic(start_v, goal_v));
@@ -107,6 +110,13 @@ std::vector<Eigen::Vector2f> astar(MapGraph& graph,
   while (!frontier.empty()) {
     Edge min_edge = frontier.top();
     frontier.pop();
+
+    // This reduces the number of vertices expanded when no path
+    // exists between the start and goal. (TODO: why?)
+    if (opt_visited.count(min_edge.dest) == 1) {
+      continue;
+    }
+    opt_visited.insert(min_edge.dest);
 
     if (min_edge.dest == goal_v) {
       break;
