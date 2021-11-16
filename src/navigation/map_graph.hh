@@ -35,6 +35,9 @@ class MapGraph {
     Edge(const Vertex& v, double w);
     Edge(Vertex&& v, double w);
 
+    bool operator<(const Edge& other) const;
+    bool operator>(const Edge& other) const;
+
     Vertex dest;
     double weight;
   };
