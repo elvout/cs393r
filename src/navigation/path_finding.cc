@@ -36,6 +36,11 @@ std::vector<Eigen::Vector2f> dijkstra(MapGraph& graph,
   const Vertex start_v = graph.coord_to_vertex(start);
   const Vertex goal_v = graph.coord_to_vertex(goal);
 
+  if (graph.is_obstacle(goal_v)) {
+    std::cout << "goal is obstacle" << std::endl;
+    return std::vector<Eigen::Vector2f>();
+  }
+
   std::priority_queue<Edge, std::vector<Edge>, std::greater<Edge>> frontier;
   std::unordered_map<Vertex, double, util::EigenMatrixHash<Vertex>> min_cost_to_v;
   std::unordered_map<Vertex, Vertex, util::EigenMatrixHash<Vertex>> path_parent;
@@ -96,6 +101,11 @@ std::vector<Eigen::Vector2f> astar(MapGraph& graph,
 
   const Vertex start_v = graph.coord_to_vertex(start);
   const Vertex goal_v = graph.coord_to_vertex(goal);
+
+  if (graph.is_obstacle(goal_v)) {
+    std::cout << "goal is obstacle" << std::endl;
+    return std::vector<Eigen::Vector2f>();
+  }
 
   std::priority_queue<Edge, std::vector<Edge>, std::greater<Edge>> frontier;  // cost + heuristic
 
