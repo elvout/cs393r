@@ -38,6 +38,7 @@
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "path_finding.hh"
 #include "ros/ros.h"
 #include "shared/math/math_util.h"
 #include "shared/ros/ros_helpers.h"
@@ -75,6 +76,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       nav_complete_(true),
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0),
+      nav_graph_(25, vector_map::VectorMap(map_file)),
       nav_goal_disp_(0, 0),
       last_odom_pose_() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
@@ -84,7 +86,24 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
   InitRosHeader("base_link", &drive_msg_.header);
 }
 
-void Navigation::SetNavGoal(const Vector2f& loc, float angle) {}
+void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+  constexpr uint32_t kGlobalPathColor = 0x834ef5;
+
+  // TODO: move drawing to ::Run()
+  // TODO: recalculate as the robot moves
+
+  if (!localization_initialized_) {
+    printf("[Navigation::SetNavGoal] error: localization not initialized.");
+  } else {
+    std::vector<Eigen::Vector2f> path = astar(nav_graph_, robot_loc_, loc);
+
+    for (size_t i = 0; i + 1 < path.size(); i++) {
+      visualization::DrawLine(path[i], path[i + 1], kGlobalPathColor, global_viz_msg_);
+    }
+
+    viz_pub_.publish(global_viz_msg_);
+  }
+}
 
 /**
  * Set the remaining displacement for navigation.
