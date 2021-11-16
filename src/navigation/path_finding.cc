@@ -69,20 +69,21 @@ std::vector<Eigen::Vector2f> dijkstra(MapGraph& graph,
     }
   }
 
+  std::vector<Eigen::Vector2f> path;
+
   if (min_cost_to_v.find(goal_v) == min_cost_to_v.cend()) {
     std::cout << "path to goal not found" << std::endl;
   } else {
     std::cout << "cost to goal: " << min_cost_to_v[goal_v] << std::endl;
-  }
 
-  std::vector<Eigen::Vector2f> path;
-  Vertex& current_v = const_cast<Vertex&>(goal_v);
-  while (current_v != start_v) {
-    path.push_back(graph.vertex_to_coord(current_v));
-    current_v = path_parent[current_v];
+    Vertex& current_v = const_cast<Vertex&>(goal_v);
+    while (current_v != start_v) {
+      path.push_back(graph.vertex_to_coord(current_v));
+      current_v = path_parent[current_v];
+    }
+    path.push_back(start);
+    std::reverse(path.begin(), path.end());
   }
-  path.push_back(start);
-  std::reverse(path.begin(), path.end());
 
   return path;
 }
