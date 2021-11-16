@@ -95,6 +95,10 @@ const std::vector<MapGraph::Edge>& MapGraph::neighbors(const Vertex& v) {
   return it->second;
 }
 
+bool MapGraph::is_obstacle(const Vertex& v) const {
+  return obstacles_.find(v) != obstacles_.cend();
+}
+
 int MapGraph::meters_to_index(const double meters) const {
   // symmetric rounding towards 0
   const double unsigned_cm = std::abs(meters) * 100.0;
