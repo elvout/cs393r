@@ -65,6 +65,7 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/path_option.cc
                         src/navigation/map_graph.cc
                         src/navigation/path_finding.cc
+                        src/navigation/global/global_planner.cc
 )
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 

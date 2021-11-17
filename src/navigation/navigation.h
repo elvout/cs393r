@@ -25,7 +25,7 @@
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/VisualizationMsg.h"
 #include "eigen3/Eigen/Dense"
-#include "map_graph.hh"
+#include "navigation/global/global_planner.hh"
 #include "shared/math/poses_2d.h"
 
 #ifndef NAVIGATION_H
@@ -129,8 +129,8 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
-  // Graph for global planning.
-  MapGraph nav_graph_;
+  // Global Planner
+  global::GlobalPlanner global_planner_;
   // Navigation goal remaining displacement.
   Eigen::Vector2f nav_goal_disp_;
   // Odometry pose from the last Run() invocation.

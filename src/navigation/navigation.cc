@@ -30,6 +30,7 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <type_traits>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
@@ -76,7 +77,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       nav_complete_(true),
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0),
-      nav_graph_(25, vector_map::VectorMap(map_file)),
+      global_planner_(map_file, 25),
       nav_goal_disp_(0, 0),
       last_odom_pose_() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
@@ -87,21 +88,14 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
-  constexpr uint32_t kGlobalPathColor = 0x834ef5;
-
-  // TODO: move drawing to ::Run()
-  // TODO: recalculate as the robot moves
-
   if (!localization_initialized_) {
     printf("[Navigation::SetNavGoal] error: localization not initialized.");
   } else {
-    std::vector<Eigen::Vector2f> path = astar(nav_graph_, robot_loc_, loc);
+    nav_goal_loc_ = loc;
+    nav_goal_angle_ = angle;
+    nav_complete_ = false;
 
-    for (size_t i = 0; i + 1 < path.size(); i++) {
-      visualization::DrawLine(path[i], path[i + 1], kGlobalPathColor, global_viz_msg_);
-    }
-
-    viz_pub_.publish(global_viz_msg_);
+    global_planner_.set_endpoints(robot_loc_, nav_goal_loc_);
   }
 }
 
@@ -118,6 +112,10 @@ void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
   robot_loc_ = loc;
   robot_angle_ = angle;
+
+  // TODO: issue a global_planner_ replan? it would be computationally expensive
+  // to do this every time. We should probably just have the local planner
+  // discard plan points as it travels past them
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc,
@@ -202,6 +200,8 @@ void Navigation::Run() {
     return;
   }
 
+  /*  TODO: move to local planner class
+
   // Update the displacement target based on new odometry data.
   const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
   const Eigen::Vector2f reference_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * odom_disp;
@@ -282,6 +282,22 @@ void Navigation::Run() {
 
   // draw the target location
   visualization::DrawCross(nav_goal_disp_, 1, 0xff0000, local_viz_msg_);
+
+  */
+
+  std::shared_ptr<std::vector<Eigen::Vector2f>> global_path = global_planner_.get_plan_path();
+  if (!global_path || global_path->empty()) {
+    // TODO
+    // vel to 0
+    // nav complete
+  } else {
+    constexpr uint32_t kGlobalPathColor = 0x834ef5;
+    for (size_t i = 0; i + 1 < global_path->size(); i++) {
+      // maybe use iterators instead
+      visualization::DrawLine((*global_path)[i], (*global_path)[i + 1], kGlobalPathColor,
+                              global_viz_msg_);
+    }
+  }
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();
