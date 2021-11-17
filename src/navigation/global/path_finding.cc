@@ -1,4 +1,4 @@
-#include "path_finding.hh"
+#include "navigation/global/path_finding.hh"
 
 #include <algorithm>
 #include <queue>
@@ -12,7 +12,7 @@ namespace {
 constexpr double sqrt2 = 0x1.6a09e667f3bcdp+0;
 
 // TODO: move this to the graph class?
-using navigation::MapGraph;
+using navigation::global::MapGraph;
 double eight_conn_heuristic(const MapGraph::Vertex& v, const MapGraph::Vertex& goal) {
   const int dx = std::abs(goal.x() - v.x());
   const int dy = std::abs(goal.y() - v.y());
@@ -23,6 +23,7 @@ double eight_conn_heuristic(const MapGraph::Vertex& v, const MapGraph::Vertex& g
 }  // namespace
 
 namespace navigation {
+namespace global {
 
 /**
  * Dijkstra's algorithm implemented with a binary heap and lazy relaxation.
@@ -163,4 +164,6 @@ std::vector<Eigen::Vector2f> astar(MapGraph& graph,
 
   return path;
 }
+
+}  // namespace global
 }  // namespace navigation

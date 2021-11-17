@@ -1,5 +1,5 @@
-#ifndef SRC_NAVIGATION_NAVIGATION_GRAPH_HH_
-#define SRC_NAVIGATION_NAVIGATION_GRAPH_HH_
+#ifndef SRC_NAVIGATION_GLOBAL_MAP_GRAPH_HH_
+#define SRC_NAVIGATION_GLOBAL_MAP_GRAPH_HH_
 
 #include <unordered_map>
 #include <unordered_set>
@@ -9,6 +9,7 @@
 #include "vector_map/vector_map.h"
 
 namespace navigation {
+namespace global {
 
 /**
  * A discretized graph representation of a VectorMap for path planning
@@ -104,6 +105,7 @@ class MapGraph {
   MappedAdjList adjlist_;
 };
 
+}  // namespace global
 }  // namespace navigation
 
-#endif  // SRC_NAVIGATION_NAVIGATION_GRAPH_HH_
+#endif  // SRC_NAVIGATION_GLOBAL_MAP_GRAPH_HH_

@@ -62,8 +62,8 @@ TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
                         src/navigation/navigation.cc
-                        src/navigation/map_graph.cc
-                        src/navigation/path_finding.cc
+                        src/navigation/global/map_graph.cc
+                        src/navigation/global/path_finding.cc
                         src/navigation/global/global_planner.cc
                         src/navigation/local/local_planner.cc
                         src/navigation/local/path_option.cc

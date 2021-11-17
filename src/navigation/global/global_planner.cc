@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include "eigen3/Eigen/Dense"
-#include "navigation/map_graph.hh"
-#include "navigation/path_finding.hh"
+#include "navigation/global/map_graph.hh"
+#include "navigation/global/path_finding.hh"
 #include "vector_map/vector_map.h"
 
 namespace {
