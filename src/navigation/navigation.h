@@ -19,56 +19,19 @@
 */
 //========================================================================
 
-#include <deque>
-#include <vector>
+#ifndef SRC_NAVIGATION_NAVIGATION_H_
+#define SRC_NAVIGATION_NAVIGATION_H_
 
-#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
-#include "amrl_msgs/VisualizationMsg.h"
+#include <vector>
 #include "eigen3/Eigen/Dense"
 #include "navigation/global/global_planner.hh"
-#include "shared/math/poses_2d.h"
-
-#ifndef NAVIGATION_H
-#define NAVIGATION_H
+#include "navigation/local/local_planner.hh"
 
 namespace ros {
 class NodeHandle;
 }  // namespace ros
 
 namespace navigation {
-
-constexpr float kUpdateFrequency = 20.0f;  // 1 / s
-
-// dynamic constraints
-constexpr float kMaxSpeed = 1.0f;   // m / s
-constexpr float kMaxAccel = 4.0f;   // m / s^2
-constexpr float kMaxDecel = -4.0f;  // m / s^2
-
-constexpr float kActuationLatency = 0.2f;  // s
-constexpr float kControlHistorySize = kActuationLatency * kUpdateFrequency;
-
-struct PathOption {
-  float curvature;
-  float clearance;
-  float free_path_length;
-  float free_path_subtended_angle;
-  Eigen::Vector2f closest_point_to_target;
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-
-  PathOption() = default;
-  PathOption(const float curvature,
-             const std::vector<Eigen::Vector2f>& point_cloud,
-             const Eigen::Vector2f& target);
-
-  /**
-   * Visualize this path with an arc of length `free_path_length`.
-   *
-   * `msg` should be the `VisualizationMsg` for the robot's local reference frame.
-   *
-   * `color` is a hex color code for the path.
-   */
-  void visualize(amrl_msgs::VisualizationMsg& msg, uint32_t color) const;
-};
 
 class Navigation {
  public:
@@ -91,13 +54,6 @@ class Navigation {
   void Run();
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
-
-  /**
-   * Set the remaining displacement for navigation.
-   */
-  void SetNavDisplacement(const float dx, const float dy);
-
-  inline bool odom_initialized() const { return odom_initialized_; }
 
  private:
   // Whether odometry has been initialized.
@@ -131,14 +87,10 @@ class Navigation {
   float nav_goal_angle_;
   // Global Planner
   global::GlobalPlanner global_planner_;
-  // Navigation goal remaining displacement.
-  Eigen::Vector2f nav_goal_disp_;
-  // Odometry pose from the last Run() invocation.
-  pose_2d::Pose2Df last_odom_pose_;
-  // Drive Message History
-  std::deque<amrl_msgs::AckermannCurvatureDriveMsg> drive_msg_hist_;
+  // Local Planner
+  local::LocalPlanner local_planner_;
 };
 
 }  // namespace navigation
 
-#endif  // NAVIGATION_H
+#endif  // SRC_NAVIGATION_NAVIGATION_H_

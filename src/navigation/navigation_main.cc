@@ -46,7 +46,8 @@
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
 
-#include "navigation.h"
+#include "navigation/constants.hh"
+#include "navigation/navigation.h"
 
 using amrl_msgs::Localization2DMsg;
 using Eigen::Vector2f;
@@ -146,7 +147,7 @@ int main(int argc, char** argv) {
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic, 1, &LaserCallback);
   ros::Subscriber goto_sub = n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
 
-  RateLoop loop(navigation::kUpdateFrequency);
+  RateLoop loop(navigation::constants::kUpdateFrequency);
   while (run_ && ros::ok()) {
     ros::spinOnce();
 
