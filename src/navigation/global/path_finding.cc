@@ -8,20 +8,6 @@
 #include "map_graph.hh"
 #include "util/matrix_hash.hh"
 
-namespace {
-constexpr double sqrt2 = 0x1.6a09e667f3bcdp+0;
-
-// TODO: move this to the graph class?
-using navigation::global::MapGraph;
-double eight_conn_heuristic(const MapGraph::Vertex& v, const MapGraph::Vertex& goal) {
-  const int dx = std::abs(goal.x() - v.x());
-  const int dy = std::abs(goal.y() - v.y());
-
-  return std::min(dx, dy) * sqrt2 + std::abs(dx - dy);
-}
-
-}  // namespace
-
 namespace navigation {
 namespace global {
 
@@ -116,7 +102,7 @@ std::vector<Eigen::Vector2f> astar(MapGraph& graph,
   std::unordered_set<Vertex, util::EigenMatrixHash<Vertex>> opt_visited;
 
   min_cost_to_v[start_v] = 0;
-  frontier.emplace(start_v, eight_conn_heuristic(start_v, goal_v));
+  frontier.emplace(start_v, graph.heuristic(start_v, goal_v));
 
   while (!frontier.empty()) {
     Edge min_edge = frontier.top();
@@ -141,7 +127,7 @@ std::vector<Eigen::Vector2f> astar(MapGraph& graph,
       if (cost_lookup_it == min_cost_to_v.cend() || neighbor_cost < cost_lookup_it->second) {
         min_cost_to_v[neighbor] = neighbor_cost;
         path_parent[neighbor] = min_edge.dest;
-        frontier.emplace(neighbor, neighbor_cost + eight_conn_heuristic(neighbor, goal_v));
+        frontier.emplace(neighbor, neighbor_cost + graph.heuristic(neighbor, goal_v));
       }
     }
   }

@@ -87,6 +87,14 @@ class MapGraph {
    */
   Eigen::Vector2f vertex_to_coord(const Vertex& v) const;
 
+  /**
+   * Heuristic for A* search.
+   *
+   * Implemented as a static method since scaling is encoded into vertices
+   * and edges.
+   */
+  static double heuristic(const Vertex& v, const Vertex& goal);
+
  private:
   /**
    * Round a "real"-valued measurement in meters to the nearest
