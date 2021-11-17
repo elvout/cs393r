@@ -19,17 +19,10 @@
 */
 //========================================================================
 
-// Force `assert` statements to work.
-// Some of the compiler flags in the shared libraries define NDEBUG.
-// TODO: do this more gracefully
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
-
 #include "navigation.h"
 #include <cassert>
 #include <cmath>
-#include <limits>
+#include <memory>
 #include <type_traits>
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/Pose2Df.h"
@@ -38,7 +31,6 @@
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "path_finding.hh"
 #include "ros/ros.h"
 #include "shared/math/math_util.h"
 #include "shared/ros/ros_helpers.h"
@@ -60,8 +52,6 @@ ros::Publisher viz_pub_;
 VisualizationMsg local_viz_msg_;
 VisualizationMsg global_viz_msg_;
 AckermannCurvatureDriveMsg drive_msg_;
-// Epsilon value for handling limited numerical precision.
-const float kEpsilon = 1e-5;
 }  // namespace
 
 namespace navigation {
@@ -76,9 +66,8 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
       nav_complete_(true),
       nav_goal_loc_(0, 0),
       nav_goal_angle_(0),
-      nav_graph_(25, vector_map::VectorMap(map_file)),
-      nav_goal_disp_(0, 0),
-      last_odom_pose_() {
+      global_planner_(map_file, 25),
+      local_planner_() {
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>("ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
   local_viz_msg_ = visualization::NewVisualizationMessage("base_link", "navigation_local");
@@ -87,37 +76,25 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n)
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
-  constexpr uint32_t kGlobalPathColor = 0x834ef5;
-
-  // TODO: move drawing to ::Run()
-  // TODO: recalculate as the robot moves
-
   if (!localization_initialized_) {
     printf("[Navigation::SetNavGoal] error: localization not initialized.");
   } else {
-    std::vector<Eigen::Vector2f> path = astar(nav_graph_, robot_loc_, loc);
+    nav_goal_loc_ = loc;
+    nav_goal_angle_ = angle;
+    nav_complete_ = false;
 
-    for (size_t i = 0; i + 1 < path.size(); i++) {
-      visualization::DrawLine(path[i], path[i + 1], kGlobalPathColor, global_viz_msg_);
-    }
-
-    viz_pub_.publish(global_viz_msg_);
+    global_planner_.set_endpoints(robot_loc_, nav_goal_loc_);
   }
-}
-
-/**
- * Set the remaining displacement for navigation.
- */
-void Navigation::SetNavDisplacement(const float dx, const float dy) {
-  nav_goal_disp_ = {dx, dy};
-  last_odom_pose_.Set(odom_angle_, odom_loc_);
-  nav_complete_ = false;
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
   robot_loc_ = loc;
   robot_angle_ = angle;
+
+  // TODO: issue a global_planner_ replan? it would be computationally expensive
+  // to do this every time. We should probably just have the local planner
+  // discard plan points as it travels past them
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc,
@@ -132,6 +109,7 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
     odom_initialized_ = true;
     odom_loc_ = loc;
     odom_angle_ = angle;
+    local_planner_.init_odom_pose(odom_loc_, odom_angle_);
     return;
   }
   odom_loc_ = loc;
@@ -142,51 +120,6 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud, double time) {
   point_cloud_ = cloud;
 }
 
-/**
- * Return the best path to the target to take based on point cloud data.
- *
- * The best path is defined as the path with minimal distace of closest
- * approach (if completely disjoint or externally tangent) or periapsis
- * (if intersecting) to the target.
- *
- * TODO: factor in clearance
- */
-PathOption findBestPath(const std::vector<Vector2f>& point_cloud, const Vector2f& target) {
-  constexpr float kWheelBase = 0.33;  // m
-  const float min_steering_angle = atan(kWheelBase / -1.1);
-  const float max_steering_angle = atan(kWheelBase / 1.1);
-  constexpr size_t kNumSteps = 50;
-  const float angle_step_size = (max_steering_angle - min_steering_angle) / kNumSteps;
-
-  std::vector<PathOption> path_options;
-  path_options.reserve(kNumSteps);
-
-  for (size_t i = 0; i < kNumSteps; i++) {
-    float steering_angle = min_steering_angle + angle_step_size * i;
-    float curvature = tan(steering_angle) / kWheelBase;
-
-    path_options.emplace_back(curvature, point_cloud, target);
-  }
-
-  PathOption& closest_approach_path = path_options[0];
-  float min_dist_of_closest_approach =
-      (closest_approach_path.closest_point_to_target - target).norm();
-
-  for (const PathOption& path : path_options) {
-    float dist_of_closest_approach = (path.closest_point_to_target - target).norm();
-    if (dist_of_closest_approach < min_dist_of_closest_approach) {
-      min_dist_of_closest_approach = dist_of_closest_approach;
-      closest_approach_path = path;
-    }
-
-    path.visualize(local_viz_msg_, 0x000000);
-  }
-
-  // visualize the best path in green
-  closest_approach_path.visualize(local_viz_msg_, 0x00ff00);
-  return closest_approach_path;
-}
-
 void Navigation::Run() {
   // This function gets called `kUpdateFrequency` times a second to form the control loop.
 
@@ -194,94 +127,32 @@ void Navigation::Run() {
   visualization::ClearVisualizationMsg(local_viz_msg_);
   visualization::ClearVisualizationMsg(global_viz_msg_);
 
-  // If odometry has not been initialized, we can't do anything.
-  if (!odom_initialized_)
+  // If odometry or localization have not been initialized, we can't do anything.
+  if (!odom_initialized_ || !localization_initialized_) {
     return;
+  }
 
+  // TODO: rework?
   if (nav_complete_) {
     return;
   }
 
-  // Update the displacement target based on new odometry data.
-  const Eigen::Vector2f odom_disp = odom_loc_ - last_odom_pose_.translation;
-  const Eigen::Vector2f reference_disp = Eigen::Rotation2Df(-last_odom_pose_.angle) * odom_disp;
-  const float inst_angular_disp = odom_angle_ - last_odom_pose_.angle;
-  nav_goal_disp_ -= reference_disp;
-  nav_goal_disp_ = Eigen::Rotation2Df(-inst_angular_disp) * nav_goal_disp_;
-  last_odom_pose_.Set(odom_angle_, odom_loc_);
-
-  // Transform predicted remaining displacement and point cloud
-  // based on previous commands.
-  Vector2f predicted_nav_goal_disp = nav_goal_disp_;
-  std::vector<Vector2f> predicted_point_cloud = point_cloud_;
-  for (const auto& msg : drive_msg_hist_) {
-    const float arc_len = msg.velocity / kUpdateFrequency;
-    const float turning_radius = 1 / msg.curvature;
-    const float subtended_angle = arc_len / turning_radius;
-    Eigen::Rotation2Df rot(-subtended_angle);
-
-    Vector2f disp_vec(0, 0);
-    if (msg.curvature == 0) {
-      disp_vec.x() = arc_len;
-    } else {
-      disp_vec.x() = turning_radius * std::sin(subtended_angle);
-      disp_vec.y() = turning_radius - turning_radius * std::cos(subtended_angle);
-    }
-
-    predicted_nav_goal_disp -= disp_vec;
-    predicted_nav_goal_disp = rot * predicted_nav_goal_disp;
-
-    for (auto& point : predicted_point_cloud) {
-      point -= disp_vec;
-      point = rot * point;
-    }
-  }
-
-  for (auto& point : predicted_point_cloud) {
-    visualization::DrawPoint(point, 0x000000, local_viz_msg_);
-  }
-
-  PathOption best_path = findBestPath(predicted_point_cloud, predicted_nav_goal_disp);
-
-  float remaining_distance = best_path.free_path_length;
-
-  const float braking_distance = Sq(kMaxSpeed) / (2 * std::abs(kMaxDecel));
-  float cur_speed;
-  if (drive_msg_hist_.empty()) {
-    cur_speed = robot_vel_.norm();
+  std::shared_ptr<std::vector<Eigen::Vector2f>> global_path = global_planner_.get_plan_path();
+  if (!global_path || global_path->empty()) {
+    // TODO
+    // vel to 0
+    // nav complete
   } else {
-    cur_speed = drive_msg_hist_.back().velocity;
-  }
-  if (remaining_distance <= braking_distance) {
-    drive_msg_.velocity = std::max(0.0f, cur_speed + kMaxDecel / kUpdateFrequency);
-
-    if (drive_msg_.velocity == 0.0f) {
-      nav_complete_ = true;
+    constexpr uint32_t kGlobalPathColor = 0x834ef5;
+    for (size_t i = 0; i + 1 < global_path->size(); i++) {
+      // maybe use iterators instead
+      visualization::DrawLine((*global_path)[i], (*global_path)[i + 1], kGlobalPathColor,
+                              global_viz_msg_);
     }
-  } else {
-    drive_msg_.velocity = std::min(kMaxSpeed, cur_speed + kMaxAccel / kUpdateFrequency);
-  }
-  drive_msg_.curvature = best_path.curvature;
-
-  drive_msg_hist_.emplace_back(drive_msg_);
-  if (drive_msg_hist_.size() > kControlHistorySize) {
-    drive_msg_hist_.pop_front();
   }
 
-  printf("[Navigation::Run]\n");
-  printf("\tinstantaneous displacement (odom): [%.4f, %.4f]\n", odom_disp.x(), odom_disp.y());
-  printf("\tinstantaneous displacement (reference): [%.4f, %.4f]\n", reference_disp.x(),
-         reference_disp.y());
-  printf("\tinstantaneous angular difference: %.2fº\n", RadToDeg(inst_angular_disp));
-  printf("\tcommand curvature: %.2f\n", drive_msg_.curvature);
-  printf("\tcommand turning radius: %.2f\n", 1 / drive_msg_.curvature);
-  printf("\tcommand speed: %.2f\n", drive_msg_.velocity);
-  printf("\tremaining displacement: [%.2f, %.2f]\n", predicted_nav_goal_disp.x(),
-         predicted_nav_goal_disp.y());
-  printf("\tremaining arc length: %.2f\n", remaining_distance);
-
-  // draw the target location
-  visualization::DrawCross(nav_goal_disp_, 1, 0xff0000, local_viz_msg_);
+  // TODO: compute intermediate waypoint
+  // TODO: get drive msg from local planner
 
   // Add timestamps to all messages.
   local_viz_msg_.header.stamp = ros::Time::now();

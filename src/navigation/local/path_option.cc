@@ -1,38 +1,18 @@
-// Force `assert` statements to work.
-// Some of the compiler flags in the shared libraries define NDEBUG.
-// TODO: do this more gracefully
-#ifdef NDEBUG
-#undef NDEBUG
-#undef assert
-#endif
-#include <cassert>
+#include "navigation/local/path_option.hh"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <memory>
 #include <vector>
 #include "eigen3/Eigen/Dense"
-#include "navigation.h"
+#include "navigation/constants.hh"
 #include "shared/math/math_util.h"
 #include "visualization/visualization.h"
 
 namespace {
 
-// Epsilon value for handling limited numerical precision
-constexpr float kEpsilon = 1e-5;
-
-// Car dimensions
-constexpr float kCarXLength = 0.5;                         // m
-constexpr float kBaseToFront = 0.42;                       // m
-constexpr float kBaseToBack = kCarXLength - kBaseToFront;  // m
-constexpr float kBaseToSide = 0.14;                        // m
-constexpr float kSafetyMargin = 0.05;                      // m
-
-// Define the boundaries of the car in terms of its corners
-// in each quadrant of the base_link reference frame.
-const Eigen::Vector2f q1_corner(kBaseToFront + kSafetyMargin, kBaseToSide + kSafetyMargin);
-const Eigen::Vector2f q2_corner(-kBaseToBack - kSafetyMargin, kBaseToSide + kSafetyMargin);
-const Eigen::Vector2f q3_corner(-kBaseToBack - kSafetyMargin, -kBaseToSide - kSafetyMargin);
-const Eigen::Vector2f q4_corner(kBaseToFront + kSafetyMargin, -kBaseToSide - kSafetyMargin);
+using navigation::constants::kEpsilon;
 
 /**
  * Returns the angular distance in radians between the base link of the
@@ -77,6 +57,7 @@ float angularDistanceToPoint(Eigen::Vector2f point, const float radius) {
 }  // namespace
 
 namespace navigation {
+namespace local {
 
 /**
  * Constructs a `PathOption` using the provided data.
@@ -98,8 +79,8 @@ PathOption::PathOption(const float curvature,
     // Edge case: The car is driving straight.
     // An obstacle can only hit the front of the car.
 
-    const float min_y = q4_corner.y();
-    const float max_y = q1_corner.y();
+    const float min_y = constants::q4_corner.y();
+    const float max_y = constants::q1_corner.y();
     assert(min_y < max_y);
 
     // Don't travel further than the target's `x` coordinate,
@@ -110,7 +91,7 @@ PathOption::PathOption(const float curvature,
       bool collision = min_y <= point.y() && point.y() <= max_y;
       if (collision) {
         // Assumes the point is in front of the car.
-        float dist = point.x() - kBaseToFront;
+        float dist = point.x() - constants::kBaseToFront;
         free_path_length = std::min(free_path_length, dist);
       }
     }
@@ -155,11 +136,15 @@ PathOption::PathOption(const float curvature,
 
     for (const auto& point : point_cloud) {
       if (turning_radius > 0) {
-        update_free_path_angle(q1_corner, q4_corner, point);  // Front side hit
-        update_free_path_angle(q2_corner, q1_corner, point);  // Left side hit
+        // Front side hit
+        update_free_path_angle(constants::q1_corner, constants::q4_corner, point);
+        // Left side hit
+        update_free_path_angle(constants::q2_corner, constants::q1_corner, point);
       } else {
-        update_free_path_angle(q4_corner, q1_corner, point);  // Front side hit
-        update_free_path_angle(q3_corner, q4_corner, point);  // Right side hit
+        // Front side hit
+        update_free_path_angle(constants::q4_corner, constants::q1_corner, point);
+        update_free_path_angle(constants::q3_corner, constants::q4_corner,
+                               point);  // Right side hit
       }
 
       // TODO: invalid assertion? What if this path would head directly into an obstacle?
@@ -197,4 +182,5 @@ void PathOption::visualize(amrl_msgs::VisualizationMsg& msg, uint32_t color) con
   }
 }
 
+}  // namespace local
 }  // namespace navigation

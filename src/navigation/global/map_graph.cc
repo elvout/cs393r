@@ -1,4 +1,4 @@
-#include "map_graph.hh"
+#include "navigation/global/map_graph.hh"
 
 #include <array>
 #include <cmath>
@@ -10,7 +10,7 @@
 namespace {
 constexpr double sqrt2 = 0x1.6a09e667f3bcdp+0;
 
-using navigation::MapGraph;
+using navigation::global::MapGraph;
 const std::array<MapGraph::Edge, 8> expansion_dirs{{
     {MapGraph::Vertex(1, 0), 1.0},
     {MapGraph::Vertex(0, 1), 1.0},
@@ -24,6 +24,7 @@ const std::array<MapGraph::Edge, 8> expansion_dirs{{
 }  // namespace
 
 namespace navigation {
+namespace global {
 
 MapGraph::Edge::Edge(const MapGraph::Vertex& v, double w) : dest(v), weight(w) {}
 MapGraph::Edge::Edge(MapGraph::Vertex&& v, double w) : dest(v), weight(w) {}
@@ -118,4 +119,5 @@ Eigen::Vector2f MapGraph::vertex_to_coord(const Vertex& v) const {
   return Eigen::Vector2f(index_to_meters(v.x()), index_to_meters(v.y()));
 }
 
+}  // namespace global
 }  // namespace navigation
