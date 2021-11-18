@@ -59,6 +59,9 @@ ROSBUILD_ADD_EXECUTABLE(particle_filter
                        src/common/common.cc
                        src/util/profiling.cc
                        src/concurrent/thread_pool.cc
+                       src/models/normdist.cc
+                       src/models/motion.cc
+                       src/models/sensor.cc
 )
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 

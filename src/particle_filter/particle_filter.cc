@@ -29,6 +29,7 @@
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "models/motion.hh"
 #include "shared/math/geometry.h"
 #include "shared/math/line2d.h"
 #include "shared/math/math_util.h"
@@ -344,17 +345,12 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   const Eigen::Vector2f base_disp = Eigen::Rotation2Df(-prev_odom_angle_) * odom_disp;
   const float angular_disp = math_util::ReflexToConvexAngle(odom_angle - prev_odom_angle_);
 
-  const double translate_std = CONFIG_k1 * base_disp.norm() + CONFIG_k2 * std::abs(angular_disp);
-  const double rotate_std = CONFIG_k3 * base_disp.norm() + CONFIG_k4 * std::abs(angular_disp);
-
   for (Particle& p : particles_) {
-    const Eigen::Vector2f translate_err(rng_.Gaussian(0, translate_std),
-                                        rng_.Gaussian(0, translate_std));
-    const double rotate_err = rng_.Gaussian(0, rotate_std);
+    const auto [noisy_disp, noisy_rotation] = models::SampleMotionModel(base_disp, angular_disp);
 
     // Rotate the translation to occur in the particle's frame.
-    p.loc += Eigen::Rotation2Df(p.angle) * (base_disp + translate_err);
-    p.angle += angular_disp + rotate_err;
+    p.loc += Eigen::Rotation2Df(p.angle) * noisy_disp;
+    p.angle += noisy_rotation;
   }
 
   prev_odom_loc_ = odom_loc;
