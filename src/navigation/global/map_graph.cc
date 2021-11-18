@@ -119,5 +119,12 @@ Eigen::Vector2f MapGraph::vertex_to_coord(const Vertex& v) const {
   return Eigen::Vector2f(index_to_meters(v.x()), index_to_meters(v.y()));
 }
 
+double MapGraph::heuristic(const Vertex& v, const Vertex& goal) {
+  const int dx = std::abs(goal.x() - v.x());
+  const int dy = std::abs(goal.y() - v.y());
+
+  return std::min(dx, dy) * sqrt2 + std::abs(dx - dy);
+}
+
 }  // namespace global
 }  // namespace navigation

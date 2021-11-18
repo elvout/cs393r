@@ -27,8 +27,8 @@ constexpr float kBaseToBack = kCarXLength - kBaseToFront;      // m
 constexpr float kBaseToSide = 0.14;                            // m
 constexpr float kSafetyMargin = 0.05;                          // m
 constexpr float kWheelBase = 0.33;                             // m
-const float kMinSteeringAngle = std::atan2(kWheelBase, -1.1);  // rad
-const float kMaxSteeringAngle = std::atan2(kWheelBase, 1.1);   // rad
+const float kMinSteeringAngle = std::atan(kWheelBase / -1.1);  // rad
+const float kMaxSteeringAngle = std::atan(kWheelBase / 1.1);   // rad
 
 // TODO: extern bc of one-def-rule?
 

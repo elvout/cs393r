@@ -9,10 +9,6 @@
 namespace navigation {
 namespace global {
 
-std::vector<Eigen::Vector2f> dijkstra(MapGraph& graph,
-                                      const Eigen::Vector2f& start,
-                                      const Eigen::Vector2f& goal);
-
 std::vector<Eigen::Vector2f> astar(MapGraph& graph,
                                    const Eigen::Vector2f& start,
                                    const Eigen::Vector2f& goal);

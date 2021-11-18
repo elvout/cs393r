@@ -3,10 +3,12 @@
 
 #include <future>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include "eigen3/Eigen/Dense"
 #include "navigation/global/map_graph.hh"
+#include "vector_map/vector_map.h"
 
 namespace navigation {
 namespace global {
@@ -29,6 +31,15 @@ class GlobalPlanner {
    */
   std::shared_ptr<std::vector<Eigen::Vector2f>> get_plan_path();
 
+  /**
+   * Generate an intermediate waypoint in the robot's local reference frame
+   * for the local obstacle avoidance system.
+   *
+   * If no waypoint is found, an empty std::optional is returned.
+   */
+  std::optional<Eigen::Vector2f> intermediate_waypoint(const Eigen::Vector2f& loc,
+                                                       const float angle);
+
   // TODO: force a replan, e.g. after updating obstacles
   void replan();
 
@@ -36,6 +47,7 @@ class GlobalPlanner {
   void update_obstacles(/* TODO: pointcloud type */);
 
  private:
+  vector_map::VectorMap vec_map_;
   MapGraph nav_graph_;
 
   Eigen::Vector2f start_loc_;
