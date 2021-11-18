@@ -44,7 +44,7 @@ ROSBUILD_ADD_EXECUTABLE(slam
                        src/slam/raster_map.cc
                        src/slam/belief_cube.cc
                        src/slam/models.cc
-                       src/slam/common.cc
+                       src/common/common.cc
                        src/util/profiling.cc
                        src/concurrent/thread_pool.cc
 )

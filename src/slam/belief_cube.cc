@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
-#include "common.hh"
+#include "common/common.hh"
 #include "eigen3/Eigen/Dense"
 #include "math/math_util.h"
 #include "models.hh"
@@ -54,7 +54,7 @@ void BeliefCube::eval(const RasterMap& ref_map,
                       const sensor_msgs::LaserScan& new_obs,
                       const bool ignore_motion_model,
                       const bool enable_obs_pruning) {
-  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::eval");
+  auto __delayedfn = common::runtime_dist.auto_lap("BeliefCube::eval");
   cube_.clear();
   max_belief_.reset();
 
@@ -78,7 +78,7 @@ void BeliefCube::eval_with_coarse(const RasterMap& ref_map,
                                   const double odom_angle_disp,
                                   const sensor_msgs::LaserScan& new_obs,
                                   const BeliefCube& coarse_cube) {
-  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::eval_with_coarse");
+  auto __delayedfn = common::runtime_dist.auto_lap("BeliefCube::eval_with_coarse");
 
   // these checks probably aren't strictly necessary
   // TODO: should also be even multiples (coarse res should be even)
@@ -249,7 +249,7 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
-  auto __delayedfn = common::runtime_dist().auto_lap("BeliefCube::max_belief");
+  auto __delayedfn = common::runtime_dist.auto_lap("BeliefCube::max_belief");
   if (max_belief_.has_value()) {
     return max_belief_.value();
   }
