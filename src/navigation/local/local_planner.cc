@@ -54,7 +54,7 @@ PathOption findBestPath(const std::vector<Eigen::Vector2f>& point_cloud,
       closest_approach_path = path;
     }
 
-    path.visualize(local_viz_msg, 0x000000);
+    path.visualize(local_viz_msg, 0xdddddd);
   }
 
   // visualize the best path in green
@@ -178,7 +178,7 @@ amrl_msgs::AckermannCurvatureDriveMsg LocalPlanner::get_drive_msg(
   //        predicted_target_disp.y());
   // printf("\tremaining arc length: %.2f\n", remaining_distance);
 
-  visualization::DrawCross(target_disp_, 1, 0xff0000, local_viz_msg);
+  visualization::DrawCross(target_disp_, 0.25, 0xff0000, local_viz_msg);
 
   return drive_msg_hist_.back();
 }
