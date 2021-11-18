@@ -18,7 +18,7 @@ constexpr float kSafetyMargin = 0.05;                          // m
 constexpr float kWheelBase = 0.33;                             // m
 const float kMinSteeringAngle = std::atan(kWheelBase / -1.1);  // rad
 const float kMaxSteeringAngle = std::atan(kWheelBase / 1.1);   // rad
-
+const Eigen::Vector2f kLaserLoc(0.2, 0);
 // Define the boundaries of the car in terms of its corners
 // in each quadrant of the base_link reference frame.
 const Eigen::Vector2f q1_corner(kBaseToFront + kSafetyMargin, kBaseToSide + kSafetyMargin);
