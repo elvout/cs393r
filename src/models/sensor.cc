@@ -7,7 +7,7 @@
 #include "sensor_msgs/LaserScan.h"
 
 namespace {
-constexpr double kLidarStddev = 0.1;
+constexpr double kLidarStddev = 0.08;
 constexpr double kGaussianLowerBound = -2.5 * kLidarStddev;
 constexpr double kGaussianUpperBound = 2.5 * kLidarStddev;
 constexpr double kGamma = 0.12;
