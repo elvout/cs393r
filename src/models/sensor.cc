@@ -1,19 +1,18 @@
 #include "sensor.hh"
 
 #include <limits>
-#include "config_reader/config_reader.h"
 #include "eigen3/Eigen/Dense"
 #include "models/constraints.hh"
 #include "models/normdist.hh"
 #include "sensor_msgs/LaserScan.h"
 
 namespace {
-CONFIG_DOUBLE(LidarStddev, "lidar_stddev");
-CONFIG_DOUBLE(GaussianLowerBound, "sensor_model_d_short");
-CONFIG_DOUBLE(GaussianUpperBound, "sensor_model_d_long");
-CONFIG_DOUBLE(Gamma, "sensor_model_gamma");
+constexpr double kLidarStddev = 0.1;
+constexpr double kGaussianLowerBound = -2.5 * kLidarStddev;
+constexpr double kGaussianUpperBound = 2.5 * kLidarStddev;
+constexpr double kGamma = 0.12;
 
-const double kLogObsNormalization = models::LnOfNormalPdf(0, 0, CONFIG_LidarStddev);
+const double kLogObsNormalization = models::LnOfNormalPdf(0, 0, kLidarStddev);
 }  // namespace
 
 namespace models {
@@ -26,11 +25,11 @@ double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
   }
 
   const float range_diff = (expected_obs - sample_obs).norm();
-  return LnOfNormalPdf(range_diff, 0, CONFIG_LidarStddev) - kLogObsNormalization;
+  return LnOfNormalPdf(range_diff, 0, kLidarStddev) - kLogObsNormalization;
 }
 
 double RobustLogSensorModelThreshold(const double stddevs) {
-  return LnOfNormalPdf(stddevs * CONFIG_LidarStddev, 0, CONFIG_LidarStddev) - kLogObsNormalization;
+  return LnOfNormalPdf(stddevs * kLidarStddev, 0, kLidarStddev) - kLogObsNormalization;
 }
 
 }  // namespace models
