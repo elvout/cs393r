@@ -125,9 +125,13 @@ amrl_msgs::AckermannCurvatureDriveMsg LocalPlanner::get_drive_msg(
     }
   }
 
-  for (auto& point : predicted_point_cloud) {
-    visualization::DrawPoint(point, 0x000000, local_viz_msg);
-  }
+  // Debugging: draw predicted point cloud
+  // The point cloud will generally be shifted a little towards the car's
+  // location. Honestly this isn't super useful unless something is very
+  // wrong.
+  // for (auto& point : predicted_point_cloud) {
+  //   visualization::DrawPoint(point, 0xd1e231, local_viz_msg);
+  // }
 
   const PathOption best_path =
       findBestPath(predicted_point_cloud, predicted_target_disp, local_viz_msg);
@@ -162,17 +166,17 @@ amrl_msgs::AckermannCurvatureDriveMsg LocalPlanner::get_drive_msg(
     drive_msg_hist_.pop_front();
   }
 
-  printf("[LocalPlanner::get_drive_msg]\n");
-  printf("\tinstantaneous displacement (odom): [%.4f, %.4f]\n", odom_disp.x(), odom_disp.y());
-  printf("\tinstantaneous displacement (local frame): [%.4f, %.4f]\n", local_disp.x(),
-         local_disp.y());
-  printf("\tinstantaneous angular difference: %.2fº\n", math_util::RadToDeg(local_angular_disp));
-  printf("\tcommand curvature: %.2f\n", best_path.curvature);
-  printf("\tcommand turning radius: %.2f\n", 1 / best_path.curvature);
-  printf("\tcommand speed: %.2f\n", new_velocity);
-  printf("\tremaining displacement: [%.2f, %.2f]\n", predicted_target_disp.x(),
-         predicted_target_disp.y());
-  printf("\tremaining arc length: %.2f\n", remaining_distance);
+  // printf("[LocalPlanner::get_drive_msg]\n");
+  // printf("\tinstantaneous displacement (odom): [%.4f, %.4f]\n", odom_disp.x(), odom_disp.y());
+  // printf("\tinstantaneous displacement (local frame): [%.4f, %.4f]\n", local_disp.x(),
+  //        local_disp.y());
+  // printf("\tinstantaneous angular difference: %.2fº\n",
+  // math_util::RadToDeg(local_angular_disp)); printf("\tcommand curvature: %.2f\n",
+  // best_path.curvature); printf("\tcommand turning radius: %.2f\n", 1 / best_path.curvature);
+  // printf("\tcommand speed: %.2f\n", new_velocity);
+  // printf("\tremaining displacement: [%.2f, %.2f]\n", predicted_target_disp.x(),
+  //        predicted_target_disp.y());
+  // printf("\tremaining arc length: %.2f\n", remaining_distance);
 
   visualization::DrawCross(target_disp_, 1, 0xff0000, local_viz_msg);
 
