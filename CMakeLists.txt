@@ -54,8 +54,6 @@ ROSBUILD_ADD_EXECUTABLE(particle_filter
                        src/particle_filter/particle_filter_main.cc
                        src/particle_filter/particle_filter.cc
                        src/particle_filter/observe_laser.cc
-                       src/concurrent/barrier.cc
-                       src/concurrent/fork_join.cc
                        src/common/common.cc
                        src/util/profiling.cc
                        src/concurrent/thread_pool.cc
