@@ -1,6 +1,7 @@
 #include "sensor.hh"
 
 #include <limits>
+#include <vector>
 #include "eigen3/Eigen/Dense"
 #include "models/constraints.hh"
 #include "models/normdist.hh"
@@ -16,6 +17,28 @@ const double kLogObsNormalization = models::LnOfNormalPdf(0, 0, kLidarStddev);
 }  // namespace
 
 namespace models {
+
+std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) {
+  const std::vector<float>& ranges = scan.ranges;
+  const size_t n_ranges = ranges.size();
+
+  std::vector<Eigen::Vector2f> points;
+  points.reserve(n_ranges);
+
+  for (size_t i = 0; i < n_ranges; i++) {
+    const float scan_range = ranges[i];
+    if (scan_range <= scan.range_min || scan_range >= scan.range_max) {
+      continue;
+    }
+
+    const float scan_angle = scan.angle_min + i * scan.angle_increment;
+    const Eigen::Rotation2Df scan_rot(scan_angle);
+    points.push_back(kLaserLoc + scan_rot * Eigen::Vector2f(scan_range, 0));
+  }
+
+  return points;
+}
+
 double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
                           const Eigen::Vector2f& expected_obs,
                           const Eigen::Vector2f& sample_obs) {
