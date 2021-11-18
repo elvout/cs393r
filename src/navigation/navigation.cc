@@ -149,6 +149,16 @@ void Navigation::Run() {
       visualization::DrawLine((*global_path)[i], (*global_path)[i + 1], kGlobalPathColor,
                               global_viz_msg_);
     }
+
+    std::optional<Eigen::Vector2f> local_waypoint =
+        global_planner_.intermediate_waypoint(robot_loc_, robot_angle_);
+    if (!local_waypoint) {
+      printf("no waypoint found\n");
+    } else {
+      local_planner_.set_target_disp(*local_waypoint);
+      drive_msg_ =
+          local_planner_.get_drive_msg(odom_loc_, odom_angle_, point_cloud_, local_viz_msg_);
+    }
   }
 
   // TODO: compute intermediate waypoint
