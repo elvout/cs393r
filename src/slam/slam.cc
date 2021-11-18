@@ -25,7 +25,7 @@
 #include <cmath>
 #include <iostream>
 #include <utility>
-#include "common.hh"
+#include "common/common.hh"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
@@ -147,7 +147,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
     return;
   }
 
-  auto __delayedfn = common::runtime_dist().auto_lap("SLAM::ObserveLaser");
+  auto __delayedfn = common::runtime_dist.auto_lap("SLAM::ObserveLaser");
 
   SLAMBelief bel;
   bel.odom_disp = Eigen::Rotation2Df(-last_obs_odom_angle) * (prev_odom_loc_ - last_obs_odom_loc);
@@ -160,8 +160,8 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
   // Execute these tasks in the background.
   // RasterMap::eval generally runs faster than BeliefCube::eval, but this could
   // potentially cause a segfault if `bel` goes out of scope. (fix: wrap & await)
-  common::thread_pool_exec(std::bind(&RasterMap::eval, &bel.fine_ref_map, bel.obs));
-  common::thread_pool_exec(std::bind(&RasterMap::eval, &bel.coarse_ref_map, bel.obs));
+  common::thread_pool.put(std::bind(&RasterMap::eval, &bel.fine_ref_map, bel.obs));
+  common::thread_pool.put(std::bind(&RasterMap::eval, &bel.coarse_ref_map, bel.obs));
 
   BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
                          global_rot_resolution);
@@ -235,7 +235,7 @@ vector<Vector2f> SLAM::GetMap() {
   // and their respective scans.
   static size_t last_update_idx = 0;
 
-  auto __delayedfn = common::runtime_dist().auto_lap("SLAM::GetMap");
+  auto __delayedfn = common::runtime_dist.auto_lap("SLAM::GetMap");
 
   size_t i = last_update_idx + 1;
   for (; i < belief_history.size(); i++) {

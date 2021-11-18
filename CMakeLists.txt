@@ -44,7 +44,7 @@ ROSBUILD_ADD_EXECUTABLE(slam
                        src/slam/raster_map.cc
                        src/slam/belief_cube.cc
                        src/slam/models.cc
-                       src/slam/common.cc
+                       src/common/common.cc
                        src/util/profiling.cc
                        src/concurrent/thread_pool.cc
 )
@@ -54,9 +54,10 @@ ROSBUILD_ADD_EXECUTABLE(particle_filter
                        src/particle_filter/particle_filter_main.cc
                        src/particle_filter/particle_filter.cc
                        src/particle_filter/observe_laser.cc
-                       src/concurrent/barrier.cc
-                       src/concurrent/fork_join.cc
-                       src/util/profiling.cc)
+                       src/common/common.cc
+                       src/util/profiling.cc
+                       src/concurrent/thread_pool.cc
+)
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(navigation

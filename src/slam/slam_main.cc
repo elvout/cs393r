@@ -48,7 +48,7 @@
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 
-#include "common.hh"
+#include "common/common.hh"
 #include "raster_map.hh"
 #include "slam.h"
 #include "vector_map/vector_map.h"
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
   ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
   ros::spin();
 
-  printf("%s\n", slam::common::runtime_dist().summary().c_str());
+  printf("%s\n", common::runtime_dist.summary().c_str());
 
   return 0;
 }
