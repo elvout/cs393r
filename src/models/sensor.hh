@@ -24,6 +24,12 @@ double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
                           const Eigen::Vector2f& sample_obs);
 
 /**
+ * Same as above, but assume the the two ranges are valid and have the
+ * same scan angle.
+ */
+double EvalLogSensorModel(const float expected_range, const float sample_range);
+
+/**
  * Log-likelihood threshold for the simple robust sensor model.
  */
 double RobustLogSensorModelThreshold(const double stddevs);

@@ -51,6 +51,11 @@ double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
   return LnOfNormalPdf(range_diff, 0, kLidarStddev) - kLogObsNormalization;
 }
 
+double EvalLogSensorModel(const float expected_range, const float sample_range) {
+  const float range_diff = expected_range - sample_range;
+  return LnOfNormalPdf(range_diff, 0, kLidarStddev) - kLogObsNormalization;
+}
+
 double RobustLogSensorModelThreshold(const double stddevs) {
   return LnOfNormalPdf(stddevs * kLidarStddev, 0, kLidarStddev) - kLogObsNormalization;
 }
