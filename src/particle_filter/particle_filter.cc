@@ -178,6 +178,50 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
   return point_cloud;
 }
 
+std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::DensitySampledPointCloud(
+    const Eigen::Vector2f& loc,
+    const float angle,
+    const std::vector<std::optional<Eigen::Vector2f>>& point_cloud) {
+  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
+  float range_sum = 0;
+  float max_valid_range = 0;
+  size_t valid_ranges = 0;
+
+  for (const auto& point : point_cloud) {
+    if (!point.has_value()) {
+      continue;
+    }
+
+    valid_ranges++;
+    const float range = (*point - laser_loc).norm();
+    range_sum += range;
+    max_valid_range = std::max(max_valid_range, range);
+  }
+
+  const size_t target_sample_size = valid_ranges / 10;
+  const double p_take_max = target_sample_size * max_valid_range / range_sum;
+
+  std::vector<std::optional<Eigen::Vector2f>> samples;
+  samples.reserve(target_sample_size);
+
+  for (const auto& point : point_cloud) {
+    if (!point.has_value()) {
+      continue;
+    }
+
+    const float range = (*point - laser_loc).norm();
+    const float p_take = range / max_valid_range * p_take_max;
+    if (rng_.UniformRandom() <= p_take) {
+      samples.emplace_back(point);
+    }
+  }
+
+  // printf("[DensitySampledPointCloud]: # valid ranges: %lu\n", valid_ranges);
+  // printf("[DensitySampledPointCloud]: target sample size: %lu\n", target_sample_size);
+  // printf("[DensitySampledPointCloud]: actual sample size %lu\n", samples.size());
+  return samples;
+}
+
 /**
  * Updates the weight of the particle in-place using the observation
  * likelihood model, the LIDAR sensor data, and the predicted point

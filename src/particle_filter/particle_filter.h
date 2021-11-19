@@ -93,6 +93,11 @@ class ParticleFilter {
                                                                      const float angle_min,
                                                                      const float angle_max) const;
 
+  std::vector<std::optional<Eigen::Vector2f>> DensitySampledPointCloud(
+      const Eigen::Vector2f& loc,
+      const float angle,
+      const std::vector<std::optional<Eigen::Vector2f>>& point_cloud);
+
  private:
   // List of particles being tracked.
   std::vector<Particle> particles_;

@@ -110,7 +110,7 @@ void PublishParticles() {
 }
 
 void PublishPredictedScan() {
-  constexpr uint32_t kColor = 0xd67d00;
+  constexpr uint32_t kColor = 0;
 
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
 
@@ -120,10 +120,17 @@ void PublishPredictedScan() {
       last_laser_msg_.range_max, last_laser_msg_.angle_min, last_laser_msg_.angle_max);
   common::runtime_dist.end_lap("GetPredictedPointCloud (full scan)");
 
-  for (const auto& p : predicted_scan) {
-    if (p.has_value()) {
-      DrawPoint(*p, kColor, vis_msg_);
-    }
+  // systematic sampling
+  // for (size_t i = 0; i < predicted_scan.size(); i += 10) {
+  //   if (predicted_scan[i].has_value()) {
+  //     DrawPoint(*predicted_scan[i], kColor, vis_msg_);
+  //   }
+  // }
+
+  auto sampled_scan =
+      particle_filter_.DensitySampledPointCloud(robot_loc, robot_angle, predicted_scan);
+  for (const auto& point : sampled_scan) {
+    DrawPoint(*point, kColor, vis_msg_);
   }
 }
 
