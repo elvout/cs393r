@@ -9,7 +9,9 @@
 #include "common/common.hh"
 #include "eigen3/Eigen/Dense"
 #include "math/math_util.h"
-#include "models.hh"
+#include "models/motion.hh"
+#include "models/normdist.hh"
+#include "models/sensor.hh"
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
@@ -156,10 +158,10 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
                               const bool enable_obs_pruning) {
   // not a great threshold, as the standard deviations are dependent
   // on the magnitudes of displacement
-  static const double log_motion_prob_threshold = LogNormalPdf(3, 0, 1);
+  static const double log_motion_prob_threshold = models::LnOfNormalPdf(3, 0, 1);
 
   // approximate the symmetric robust observation likelihood model
-  static const double log_obs_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
+  static const double log_obs_prob_threshold = models::RobustLogSensorModelThreshold(2.5);
 
   std::priority_queue<Entry> plausible_entries;
 
@@ -176,8 +178,8 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
         const Point index(dx_index, dy_index, dtheta_index);
         const auto [hypothesis_disp, hypothesis_rot] = unbinify(index);
 
-        const double log_motion_prob =
-            LogMotionModel(odom_disp, odom_angle_disp, hypothesis_disp, hypothesis_rot);
+        const double log_motion_prob = models::EvalLogMotionModel(odom_disp, odom_angle_disp,
+                                                                  hypothesis_disp, hypothesis_rot);
 
         if (ignore_motion_model) {
           plausible_entries.emplace(index, 0);
@@ -195,7 +197,7 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
   // we can keep track of the running maximium likelihood and prune
   // while evaluating the model if we know that the current likelihood
   // cannot be greater than the maximum likelihood.
-  const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(new_obs);
+  const std::vector<Eigen::Vector2f> obs_points = models::PointsFromScan(new_obs);
   double max_prob = -std::numeric_limits<double>::infinity();
   double max_obs_prob = max_prob;
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include "eigen3/Eigen/Dense"
+#include "models/constraints.hh"
 #include "navigation/constants.hh"
 #include "shared/math/math_util.h"
 #include "visualization/visualization.h"
@@ -79,8 +80,8 @@ PathOption::PathOption(const float curvature,
     // Edge case: The car is driving straight.
     // An obstacle can only hit the front of the car.
 
-    const float min_y = constants::q4_corner.y();
-    const float max_y = constants::q1_corner.y();
+    const float min_y = models::q4_corner.y();
+    const float max_y = models::q1_corner.y();
     assert(min_y < max_y);
 
     // Don't travel further than the target's `x` coordinate,
@@ -91,7 +92,7 @@ PathOption::PathOption(const float curvature,
       bool collision = min_y <= point.y() && point.y() <= max_y;
       if (collision) {
         // Assumes the point is in front of the car.
-        float dist = point.x() - constants::kBaseToFront;
+        float dist = point.x() - models::kBaseToFront;
         free_path_length = std::min(free_path_length, dist);
       }
     }
@@ -137,13 +138,13 @@ PathOption::PathOption(const float curvature,
     for (const auto& point : point_cloud) {
       if (turning_radius > 0) {
         // Front side hit
-        update_free_path_angle(constants::q1_corner, constants::q4_corner, point);
+        update_free_path_angle(models::q1_corner, models::q4_corner, point);
         // Left side hit
-        update_free_path_angle(constants::q2_corner, constants::q1_corner, point);
+        update_free_path_angle(models::q2_corner, models::q1_corner, point);
       } else {
         // Front side hit
-        update_free_path_angle(constants::q4_corner, constants::q1_corner, point);
-        update_free_path_angle(constants::q3_corner, constants::q4_corner,
+        update_free_path_angle(models::q4_corner, models::q1_corner, point);
+        update_free_path_angle(models::q3_corner, models::q4_corner,
                                point);  // Right side hit
       }
 

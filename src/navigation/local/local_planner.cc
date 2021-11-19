@@ -5,6 +5,7 @@
 #include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "amrl_msgs/VisualizationMsg.h"
 #include "eigen3/Eigen/Dense"
+#include "models/constraints.hh"
 #include "navigation/constants.hh"
 #include "navigation/local/path_option.hh"
 #include "shared/math/math_util.h"
@@ -26,9 +27,9 @@ using navigation::local::PathOption;
 PathOption findBestPath(const std::vector<Eigen::Vector2f>& point_cloud,
                         const Eigen::Vector2f& target,
                         amrl_msgs::VisualizationMsg& local_viz_msg) {
-  using navigation::constants::kMaxSteeringAngle;
-  using navigation::constants::kMinSteeringAngle;
-  using navigation::constants::kWheelBase;
+  using models::kMaxSteeringAngle;
+  using models::kMinSteeringAngle;
+  using models::kWheelBase;
 
   constexpr size_t kNumSteps = 50;
   const float angle_step_size = (kMaxSteeringAngle - kMinSteeringAngle) / kNumSteps;
@@ -82,11 +83,11 @@ amrl_msgs::AckermannCurvatureDriveMsg LocalPlanner::get_drive_msg(
     const float odom_angle,
     const std::vector<Eigen::Vector2f>& point_cloud,
     amrl_msgs::VisualizationMsg& local_viz_msg) {
-  using constants::kBrakingDistance;
-  using constants::kMaxAccel;
-  using constants::kMaxDecel;
-  using constants::kMaxSpeed;
   using constants::kUpdateFrequency;
+  using models::kBrakingDistance;
+  using models::kMaxAccel;
+  using models::kMaxDecel;
+  using models::kMaxSpeed;
 
   // Update the displacement target based on new odometry data.
   const Eigen::Vector2f odom_disp = odom_loc - last_odom_pose_.translation;

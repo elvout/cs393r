@@ -29,6 +29,8 @@
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "models/motion.hh"
+#include "models/sensor.hh"
 #include "shared/math/geometry.h"
 #include "shared/math/line2d.h"
 #include "shared/math/math_util.h"
@@ -52,13 +54,7 @@ using vector_map::VectorMap;
 DEFINE_uint32(num_particles, 50, "Number of particles");
 
 // read configuration values from particle_filter.lua
-CONFIG_DOUBLE(k1, "motion_model_k1");
-CONFIG_DOUBLE(k2, "motion_model_k2");
-CONFIG_DOUBLE(k3, "motion_model_k3");
-CONFIG_DOUBLE(k4, "motion_model_k4");
-CONFIG_DOUBLE(LidarStddev, "lidar_stddev");
-CONFIG_DOUBLE(GaussianLowerBound, "sensor_model_d_short");
-CONFIG_DOUBLE(GaussianUpperBound, "sensor_model_d_long");
+CONFIG_DOUBLE(RobustSymmetricThreshold, "symmetric_threshold");
 CONFIG_DOUBLE(Gamma, "sensor_model_gamma");
 
 namespace particle_filter {
@@ -98,22 +94,6 @@ void NormalizeParticles(std::vector<Particle>& particles) {
       p.weight -= max_particle_weight;
     }
   }
-}
-
-double NormalPdf(const double val, const double mean, const double stddev) {
-  // precomputed value for (1 / sqrt(2pi))
-  constexpr double inv_sqrt2pi = 0.39894228040143267794;
-
-  double z = (val - mean) / stddev;
-  return inv_sqrt2pi / stddev * std::exp(-0.5 * z * z);
-}
-
-double NormalCdf(const double val, const double mean, const double stddev) {
-  // precomputed value for (1 / sqrt(2))
-  constexpr double inv_sqrt2 = 0.70710678118654752440;
-
-  double z = (val - mean) / stddev;
-  return 0.5 + 0.5 * std::erf(z * inv_sqrt2);
 }
 
 }  // namespace
@@ -158,7 +138,7 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
 
   // For each laser scan, we want to find the closest line intersection within the
   // valid range interval.
-  const float scan_res = (angle_max - angle_min) / num_ranges;
+  const float scan_res = (angle_max - angle_min) / (num_ranges - 1);
   const Eigen::Vector2f range_min_v(range_min, 0);
   const Eigen::Vector2f range_max_v(range_max, 0);
 
@@ -228,51 +208,22 @@ void ParticleFilter::Update(const vector<float>& ranges,
   const Eigen::Vector2f laser_loc =
       particle.loc + Eigen::Rotation2Df(particle.angle) * kLaserOffset;
 
+  const double log_threshold =
+      models::RobustLogSensorModelThreshold(CONFIG_RobustSymmetricThreshold);
+
   for (size_t i = 0; i < ranges.size(); i++) {
     const double actual_range = static_cast<double>(ranges[i]);
     if (actual_range <= range_min || actual_range >= range_max) {
       continue;
     }
 
-    double p_integral = 0;
-    // Integral for the lower interval.
-    p_integral += (actual_range + CONFIG_GaussianLowerBound - range_min) *
-                  NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-    // Integral for the Gaussian interval.
-    p_integral += NormalCdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev) -
-                  NormalCdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-    // Integral for the upper interval.
-    p_integral += (range_max - (actual_range + CONFIG_GaussianUpperBound)) *
-                  NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
-
-    // Calculate the linear probability since we need to normalize the value
-    // with the integral.
-    double p = 0;
-
     if (!point_cloud[i].has_value()) {
-      // No intersection was found in the map file, but there is an
-      // object observed by the actual LIDAR scanner. Since this could
-      // be an object that was simply not included in the map (e.g. a chair),
-      // incur a penalty based on the upper interval.
-
-      p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
+      log_p += std::max(log_threshold, models::EvalLogSensorModel(actual_range, range_max - 1e-5));
     } else {
       const Eigen::Vector2f& predicted_point = *point_cloud[i];
-      const double predicted_range = static_cast<double>((laser_loc - predicted_point).norm());
-
-      if (predicted_range <= range_min || predicted_range >= range_max) {
-        p = 0;
-      } else if (predicted_range < actual_range + CONFIG_GaussianLowerBound) {
-        p = NormalPdf(CONFIG_GaussianLowerBound, 0, CONFIG_LidarStddev);
-      } else if (predicted_range > actual_range + CONFIG_GaussianUpperBound) {
-        p = NormalPdf(CONFIG_GaussianUpperBound, 0, CONFIG_LidarStddev);
-      } else {
-        p = NormalPdf(predicted_range, actual_range, CONFIG_LidarStddev);
-      }
+      const double predicted_range = static_cast<double>((predicted_point - laser_loc).norm());
+      log_p += std::max(log_threshold, models::EvalLogSensorModel(actual_range, predicted_range));
     }
-
-    p /= p_integral;
-    log_p += std::log(p);
   }
 
   particle.weight += CONFIG_Gamma * log_p;
@@ -344,17 +295,12 @@ void ParticleFilter::Predict(const Vector2f& odom_loc, const float odom_angle) {
   const Eigen::Vector2f base_disp = Eigen::Rotation2Df(-prev_odom_angle_) * odom_disp;
   const float angular_disp = math_util::ReflexToConvexAngle(odom_angle - prev_odom_angle_);
 
-  const double translate_std = CONFIG_k1 * base_disp.norm() + CONFIG_k2 * std::abs(angular_disp);
-  const double rotate_std = CONFIG_k3 * base_disp.norm() + CONFIG_k4 * std::abs(angular_disp);
-
   for (Particle& p : particles_) {
-    const Eigen::Vector2f translate_err(rng_.Gaussian(0, translate_std),
-                                        rng_.Gaussian(0, translate_std));
-    const double rotate_err = rng_.Gaussian(0, rotate_std);
+    const auto [noisy_disp, noisy_rotation] = models::SampleMotionModel(base_disp, angular_disp);
 
     // Rotate the translation to occur in the particle's frame.
-    p.loc += Eigen::Rotation2Df(p.angle) * (base_disp + translate_err);
-    p.angle += angular_disp + rotate_err;
+    p.loc += Eigen::Rotation2Df(p.angle) * noisy_disp;
+    p.angle += noisy_rotation;
   }
 
   prev_odom_loc_ = odom_loc;

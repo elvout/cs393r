@@ -7,7 +7,7 @@
 #include <vector>
 #include "common/common.hh"
 #include "eigen3/Eigen/Dense"
-#include "models.hh"
+#include "models/sensor.hh"
 #include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
@@ -39,8 +39,8 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
   // of the same object.
   std::unordered_set<Point, util::EigenMatrixHash<Point>> observation_bins;
 
-  const double log_prob_threshold = SymmetricRobustLogObsModelThreshold(2.5);
-  const std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
+  const double log_prob_threshold = models::RobustLogSensorModelThreshold(2.5);
+  const std::vector<Eigen::Vector2f> obs_points = models::PointsFromScan(obs);
   for (const Eigen::Vector2f& observed_point : obs_points) {
     const Point observed_bin = binify(observed_point);
 
@@ -62,7 +62,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
       const Point bin_dist = bin - observed_bin;
       const Eigen::Vector2f coord_dist = unbinify(bin_dist);
       const Eigen::Vector2f bin_point = observed_point + coord_dist;
-      const double log_prob = LogObsModel(obs, observed_point, bin_point);
+      const double log_prob = models::EvalLogSensorModel(obs, observed_point, bin_point);
 
       if (log_prob > log_prob_threshold) {
         // This bin won't be revisited during this expansion, but the expansion

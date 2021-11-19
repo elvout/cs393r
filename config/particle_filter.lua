@@ -18,5 +18,6 @@ lidar_stddev = 0.1  -- meters, inflated
 -- distribution is used.
 sensor_model_d_short = -2.5 * lidar_stddev
 sensor_model_d_long = 2.5 * lidar_stddev
+symmetric_threshold = 2.5
 
 sensor_model_gamma = 0.12

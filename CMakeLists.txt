@@ -43,7 +43,9 @@ ROSBUILD_ADD_EXECUTABLE(slam
                        src/slam/slam.cc
                        src/slam/raster_map.cc
                        src/slam/belief_cube.cc
-                       src/slam/models.cc
+                       src/models/motion.cc
+                       src/models/sensor.cc
+                       src/models/normdist.cc
                        src/common/common.cc
                        src/util/profiling.cc
                        src/concurrent/thread_pool.cc
@@ -57,6 +59,9 @@ ROSBUILD_ADD_EXECUTABLE(particle_filter
                        src/common/common.cc
                        src/util/profiling.cc
                        src/concurrent/thread_pool.cc
+                       src/models/normdist.cc
+                       src/models/motion.cc
+                       src/models/sensor.cc
 )
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 

@@ -30,7 +30,7 @@
 #include "eigen3/Eigen/Geometry"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "models.hh"
+#include "models/sensor.hh"
 #include "sensor_msgs/LaserScan.h"
 #include "shared/math/geometry.h"
 #include "shared/math/math_util.h"
@@ -73,7 +73,7 @@ SLAMBelief::SLAMBelief()
       fine_ref_map(fine_tx_resolution) {}
 
 std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) const {
-  std::vector<Eigen::Vector2f> obs_points = PointsFromScan(obs);
+  std::vector<Eigen::Vector2f> obs_points = models::PointsFromScan(obs);
   std::vector<Eigen::Vector2f> correlations;
 
   const Eigen::Rotation2Df dtheta_rot(belief_angle_disp);
@@ -241,7 +241,7 @@ vector<Vector2f> SLAM::GetMap() {
   for (; i < belief_history.size(); i++) {
     const SLAMBelief& bel = belief_history[i];
 
-    std::vector<Eigen::Vector2f> points = PointsFromScan(bel.obs);
+    std::vector<Eigen::Vector2f> points = models::PointsFromScan(bel.obs);
     std::vector<Eigen::Vector2f> corrs = bel.correlated_points(belief_history[i - 1].fine_ref_map);
     printf("[SLAM::GetMap INFO] points: %lu, correlations: %lu\n", points.size(), corrs.size());
     const Eigen::Rotation2Df bel_rot(bel.belief_angle);
