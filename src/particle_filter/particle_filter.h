@@ -86,7 +86,8 @@ class ParticleFilter {
   std::pair<Eigen::Vector2f, float> GetLocation() const;
 
   // Update particle weight based on laser.
-  void Update(const std::vector<float>& ranges,
+  void Update(const std::vector<Observation>& ranges,
+              const size_t full_size,
               const float range_min,
               const float range_max,
               const float angle_min,

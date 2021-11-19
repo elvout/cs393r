@@ -245,14 +245,15 @@ std::vector<Observation> ParticleFilter::DensitySampledPointCloud(
  *  - angle_max: The maximum laser scan angle. (ccw)
  *  - particle: The particle to update in-place.
  */
-void ParticleFilter::Update(const vector<float>& ranges,
+void ParticleFilter::Update(const vector<Observation>& ranges,
+                            const size_t full_size,
                             const float range_min,
                             const float range_max,
                             const float angle_min,
                             const float angle_max,
                             Particle& particle) {
   double log_p = 0;
-  const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
+  const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, full_size,
                                                   range_min, range_max, angle_min, angle_max);
   const Eigen::Vector2f laser_loc =
       particle.loc + Eigen::Rotation2Df(particle.angle) * kLaserOffset;
@@ -260,17 +261,18 @@ void ParticleFilter::Update(const vector<float>& ranges,
   const double log_threshold =
       models::RobustLogSensorModelThreshold(CONFIG_RobustSymmetricThreshold);
 
-  for (size_t i = 0; i < ranges.size(); i++) {
-    const double actual_range = static_cast<double>(ranges[i]);
+  for (const auto& obs : ranges) {
+    const double actual_range = static_cast<double>(obs.range);
     if (actual_range <= range_min || actual_range >= range_max) {
       continue;
     }
 
-    if (!point_cloud[i].valid) {
+    int msg_idx = obs.msg_idx;
+
+    if (!point_cloud[msg_idx].valid) {
       log_p += std::max(log_threshold, models::EvalLogSensorModel(actual_range, range_max - 1e-5));
     } else {
-      const Eigen::Vector2f& predicted_point = point_cloud[i].obs_point;
-      const double predicted_range = static_cast<double>((predicted_point - laser_loc).norm());
+      const double predicted_range = static_cast<double>(point_cloud[msg_idx].range);
       log_p += std::max(log_threshold, models::EvalLogSensorModel(actual_range, predicted_range));
     }
   }
