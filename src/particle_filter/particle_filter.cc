@@ -159,7 +159,7 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
 
   // For each laser scan, we want to find the closest line intersection within the
   // valid range interval.
-  const float scan_res = (angle_max - angle_min) / num_ranges;
+  const float scan_res = (angle_max - angle_min) / (num_ranges - 1);
   const Eigen::Vector2f range_min_v(range_min, 0);
   const Eigen::Vector2f range_max_v(range_max, 0);
 
