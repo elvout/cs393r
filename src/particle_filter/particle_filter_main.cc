@@ -115,9 +115,10 @@ void PublishPredictedScan() {
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
 
   common::runtime_dist.start_lap("GetPredictedPointCloud (full scan)");
-  std::vector<std::optional<Vector2f>> predicted_scan = particle_filter_.GetPredictedPointCloud(
-      robot_loc, robot_angle, last_laser_msg_.ranges.size(), last_laser_msg_.range_min,
-      last_laser_msg_.range_max, last_laser_msg_.angle_min, last_laser_msg_.angle_max);
+  std::vector<particle_filter::Observation> predicted_scan =
+      particle_filter_.GetPredictedPointCloud(
+          robot_loc, robot_angle, last_laser_msg_.ranges.size(), last_laser_msg_.range_min,
+          last_laser_msg_.range_max, last_laser_msg_.angle_min, last_laser_msg_.angle_max);
   common::runtime_dist.end_lap("GetPredictedPointCloud (full scan)");
 
   // systematic sampling
@@ -127,10 +128,9 @@ void PublishPredictedScan() {
   //   }
   // }
 
-  auto sampled_scan =
-      particle_filter_.DensitySampledPointCloud(robot_loc, robot_angle, predicted_scan);
+  auto sampled_scan = particle_filter_.DensitySampledPointCloud(predicted_scan);
   for (const auto& point : sampled_scan) {
-    DrawPoint(*point, kColor, vis_msg_);
+    DrawPoint(point.obs_point, kColor, vis_msg_);
   }
 }
 
