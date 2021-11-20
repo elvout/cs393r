@@ -64,12 +64,17 @@ std::optional<Eigen::Vector2f> GlobalPlanner::intermediate_waypoint(const Eigen:
   // sight from the location and project it into the local reference frame.
   //
   // TODO: find the maximally furthest point along the plan path
+  constexpr double max_waypoint_distance = 3.0;
   const std::vector<Eigen::Vector2f>& plan_path = *plan_path_p;
   auto furthest_vertex = plan_path.cend();
 
   // TODO: is there a more efficient way of doing this (like bsearch?)
   for (auto it = plan_path.begin(); it != plan_path.cend(); it++) {
     const geometry::line2f line_of_sight(loc, *it);
+
+    if ((loc - *it).norm() > max_waypoint_distance) {
+      continue;
+    }
 
     bool intersection = false;
     for (const geometry::line2f& map_line : vec_map_.lines) {
