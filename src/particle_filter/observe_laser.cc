@@ -28,19 +28,14 @@ class ObserveLaserTask {
   size_t start_idx;
   size_t end_idx;
 
-  // std::vector<float>* sampled_ranges;
   std::vector<particle_filter::Observation>* sampled_ranges;
-  size_t full_size;
   float range_min;
   float range_max;
-  float angle_min;
-  float angle_max;
 
  private:
   void exec() {
     for (size_t idx = start_idx; idx < end_idx; idx++) {
-      pfilter->Update(*sampled_ranges, full_size, range_min, range_max, angle_min, angle_max,
-                      (*particles)[idx]);
+      pfilter->Update(*sampled_ranges, range_min, range_max, (*particles)[idx]);
     }
 
     promise_.set_value();
@@ -56,11 +51,7 @@ std::vector<ObserveLaserTask> tasks(kObserveLaserTaskCount);
 
 namespace particle_filter {
 
-void ParticleFilter::ObserveLaser(const vector<float>& ranges,
-                                  const float range_min,
-                                  const float range_max,
-                                  const float angle_min,
-                                  const float angle_max) {
+void ParticleFilter::ObserveLaser(const sensor_msgs::LaserScan& msg) {
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
 
@@ -82,18 +73,12 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   // Sample the sensor readings before computing point cloud estimations
   // to improve performance.
-  // std::vector<float> ranges_sample;
-  // ranges_sample.reserve(ranges.size() / 10);
-  // for (size_t i = 0; i < ranges.size(); i += 10) {
-  //   ranges_sample.push_back(ranges[i]);
-  // }
-  // const float sample_angle_max =
-  //     angle_max - (angle_max - angle_min) / ranges.size() * (ranges.size() % 10);
-  std::vector<Observation> range_cloud(ranges.size());
-  for (int i = 0; i < ranges.size(); i++) {
-    range_cloud[i].range = ranges[i];
+  std::vector<Observation> range_cloud(msg.ranges.size());
+  for (size_t i = 0; i < msg.ranges.size(); i++) {
+    range_cloud[i].range = msg.ranges[i];
     range_cloud[i].msg_idx = i;
-    range_cloud[i].valid = (ranges[i] > range_min && ranges[i] < range_max);
+    range_cloud[i].valid = (msg.ranges[i] > msg.range_min && msg.ranges[i] < msg.range_max);
+    range_cloud[i].angle = msg.angle_min + i * msg.angle_increment;
   }
 
   std::vector<Observation> sampled_cloud = DensitySampledPointCloud(range_cloud);
@@ -106,14 +91,9 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
     task.particles = &particles_;
     task.start_idx = num_particles * i / tasks.size();
     task.end_idx = num_particles * (i + 1) / tasks.size();
-    // task.sampled_ranges = &ranges_sample;
     task.sampled_ranges = &sampled_cloud;
-    task.full_size = ranges.size();
-    task.range_min = range_min;
-    task.range_max = range_max;
-    task.angle_min = angle_min;
-    // task.angle_max = sample_angle_max;
-    task.angle_max = angle_max;
+    task.range_min = msg.range_min;
+    task.range_max = msg.range_max;
     common::thread_pool.put(task.as_fn());
   }
 
