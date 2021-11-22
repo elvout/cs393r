@@ -13,7 +13,7 @@ namespace {
 // constexpr double k3 = 0.65;
 // constexpr double k4 = 2.3;
 
-constexpr double k1 = 0.35;
+constexpr double k1 = 0.4;
 constexpr double k2 = 0.3;
 constexpr double k3 = 0.4;
 constexpr double k4 = 0.6;
