@@ -55,8 +55,8 @@ struct Observation {
 
   bool valid;
   int msg_idx;
-  float range;
-  float angle;
+  float range;  // in sensor reference frame
+  float angle;  // in sensor reference frame
 
   // May not necessarily be assigned.
   Eigen::Vector2f obs_point;  // in map frame

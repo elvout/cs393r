@@ -101,8 +101,8 @@ void NormalizeParticles(std::vector<Particle>& particles) {
 
 /**
  * Computes what the predicted point cloud (sensor readings) would be
- * if the car was at the pose (loc, angle) with sensor characteristics
- * defined by the remaining parameters.
+ * based on the vector map if the car was at the pose (loc, angle) with
+ * sensor characteristics defined by the remaining parameters.
  *
  * This function is used as part of the Observation Likelihood Model and
  * Update step.
@@ -110,18 +110,16 @@ void NormalizeParticles(std::vector<Particle>& particles) {
  * Parameters:
  *  - loc: the location of the base link of the car in the map frame
  *  - angle: the angle of the base link of the car in the map frame
- *  - ref_scan: A vector of (possibly sampled) real observations. The
- *      corresponding predicted observations are calculated.s
+ *  - ref_scan: A vector of (possibly sampled) real Observations. The
+ *      corresponding predicted observations are calculated.
  *  - range_min: the closest meaningful reading value
  *  - range_max: the farthest meaningful reading value
- *  - angle_min: the minimum laser scan angle (ccw)
- *  - angle_max: the maximum laser scan angle (ccw)
  *
  * Returns:
- *  A std::vector containing a point cloud in the map frame. The vector
- *  contains exactly `ref_scan.size()` elements, some of which may be
- *  marked invalid, indicating that no intersections were found for the
- *  corresponding laser scans.
+ *  A std::vector of Observations. The vector contains exactly
+ * `ref_scan.size()` elements, some of which may be marked invalid,
+ *  indicating that no intersections were found for the corresponding
+ * laser scans.
  */
 
 std::vector<Observation> ParticleFilter::GetPredictedPointCloud(
@@ -131,8 +129,8 @@ std::vector<Observation> ParticleFilter::GetPredictedPointCloud(
     const float range_min,
     const float range_max) const {
   constexpr float infinity = std::numeric_limits<float>::infinity();
-  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
 
+  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
   const size_t num_ranges = ref_scan.size();
 
   std::vector<Observation> point_cloud(num_ranges);
@@ -151,7 +149,8 @@ std::vector<Observation> ParticleFilter::GetPredictedPointCloud(
     const Eigen::Vector2f scan_start = laser_loc + scan_rot * range_min_v;
     const Eigen::Vector2f scan_end = laser_loc + scan_rot * range_max_v;
 
-    scan_lines[i] = line2f(scan_start.x(), scan_start.y(), scan_end.x(), scan_end.y());
+    scan_lines[i].p0 = scan_start;
+    scan_lines[i].p1 = scan_end;
     point_cloud[i].msg_idx = obs.msg_idx;
     point_cloud[i].angle = obs.angle;
   }
