@@ -1,0 +1,251 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{fullpage}
+\usepackage{geometry}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[utf8]{inputenc}
+
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+
+\newcommand{\code}[1]{{\small \tt #1}}
+
+
+\title{CS 393R Autonomous Robots \\ \large Assignment 4: Autonomous Navigation}
+\author{Elvin Yang, Jierui Lin, Aidan Dunlap}
+\date{November 24, 2021}
+
+\begin{document}
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Global Planning}
+For global planning, we use the A* algorithm for its familiarity, completeness,
+path distance optimality, and computational efficiency.
+
+\subsection{Graph Representation}
+We represent maps as eight-connected, undirected, weighted graphs. Vertices of
+these graphs are discretized bins of the map that do not contain obstacles, and
+edges are created between eight-adjacent vertices. We use the suggested map
+resolution of 0.25 meters.
+
+\bigskip
+\noindent
+We represent the graph as mapped adjacency lists since edge enumeration is the
+most frequent operation in graph search. Graphs are lazily generated as they are
+being queried because A* tends to explore only a small subset of the map. To
+accelerate obstacle checking, we store a lookup table of discretized obstacle
+bins.
+
+\subsection{A* Details}
+We implement A* with lazy relaxation by pairing a binary heap with a lookup
+table. As in standard A*, we maintain a fringe of nodes to explore, terminating
+the search either when the goal node is popped from the fringe or the fringe
+becomes empty. To determine which node to pop from the fringe, we define a
+priority function $f(n) = c(n) + h(n)$, where $c(n)$ is the edge-weight cost
+from the start node to node $n$, and $h(n)$ is a heuristic for the cost between
+node $n$ and the goal node. In each iteration of A*, the minimum-priority node
+is popped from the heap and each of its neighbors are added to the fringe if the
+path to the neighbor through $n$ is min-priority optimal. Our binary heap does
+not support \code{decrease\_key}, so we use a lookup table to test for duplicate
+nodes when popping from the heap.
+
+\bigskip
+\noindent
+Two commonly-used heuristics for grid-based graphs are Manhattan distance and
+Euclidean distance. However, Manhattan distance is not admissible for an eight
+connected graph as it often provides an overestimate for the distance between
+two nodes (e.g. a straight, diagonal path). Euclidean distance is admissible for
+eight-connected graphs, but is not always computationally optimal since the
+minimum distance straight-line path between two points is not always
+representable in the graph.
+
+\subsubsection{Eight-Connected Graph Heuristic}
+To minimize path cost in an eight-connected graph, it is preferable to use a
+diagonal edge if one exists when expanding to a neighboring vertex rather than
+using the two corresponding axis-aligned edges. This extends to longer paths as
+well: for two points forming opposite corners of a square, in an eight-connected
+graph it is preferable to take only diagonal edges to form a path connecting the
+points. Our heuristic encodes a generalization of this: it finds the
+shortest diagonal path between a node and the goal until only an axis-aligned
+path between the endpoint of the diagonal path and the goal exists.
+
+Let the coordinate of a node under consideration and the goal node be
+represented as $(x_n, y_n)$ and $(x_g, y_g)$, respectively. The eight-connected
+graph heuristic is defined as:
+\begin{align*}
+    \Delta x &= |x_g - x_n| \\
+    \Delta y &= |y_g - y_n| \\
+    h(n) &= \sqrt{2}\min(\Delta x, \Delta y) + \max(\Delta x, \Delta y) - \min(\Delta x, \Delta y) \\
+    &= \sqrt{2}\min(\Delta x, \Delta y) + |\Delta x - \Delta y|
+\end{align*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Global to Local Navigation}
+
+We choose intermediate waypoints along the global path by searching for the
+furthest point along the global path up to 3 meters away from the robot's
+location. We found that this was a good maximum waypoint distance as it keeps
+the robot close to the global path while giving it leeway to avoid obstacles.
+
+\bigskip
+\noindent
+To project the navigation plan in the map frame to the local frame of the car,
+we can think of the car's location and points along the plan as coordinate
+transforms in the map frame. Thus, to transform a point $p$ in the map frame to
+the local frame of the car, we perform a reverse transformation using the
+car's pose ($T_{car}, \theta_{car}$) in the map frame.
+$$ p_{car} = R_{2 \times 2}(-\theta_{car})(p_{map} - T_{car})$$
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Hyperparameters}
+
+At the suggestion of the course staff, we decreased the motion model's standard
+deviation hyperparameters, particularly those related to rotation, to make the
+model more optimistic. However, we found that we still needed fairly high values
+for the particle filter to perform consistently while turning in simulation. We
+tuned these parameters by incrementally increasing values until the particle
+filter was accurate and robust in simulation. We found that the values we came
+up analytically did not work well. We used the same sensor model hyperparameters
+as in our SLAM implementation.
+
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item Motion Model
+    \begin{itemize}
+        \setlength\itemsep{0pt}
+        \item $k_1 = 0.4$, the coefficient for translational error caused by translational movement.
+        \item $k_2 = 0.3$, the coefficient for translational error caused by rotational movement.
+        \item $k_3 = 0.4$, the coefficient for rotational error caused by translational movement.
+        \item $k_4 = 0.6$, the coefficient for rotational error caused by rotational movement.
+    \end{itemize}
+
+    \item Observation Likelihood Model
+    \begin{itemize}
+        \setlength\itemsep{0pt}
+        \item $\sigma_s = 0.08$, the standard deviation of the LIDAR sensor.
+        \item $d_{short} = -2.5 \sigma_s$, the lower bound for the Gaussian section of the robust model.
+        \item $d_{long} = 2.5 \sigma_s$, the upper bound for the Gaussian section of the robust model.
+        \item $\gamma = 0.12$, the observation correlation factor.
+    \end{itemize}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Component Integration}
+
+We used our own implementations for the obstacle avoidance and particle filter.
+We performed a lot of restructuring and refactoring in the \code{navigation}
+namespace to isolate the local and global planners and centralized code for car
+models so that all components use the same constants and functions.
+
+\bigskip
+\noindent
+We made a number of significant changes to our particle filter. As mentioned
+before, we readjusted standard deviation hyperparameters for the motion model.
+For increased numerical precision, we now evaluate the log of the Normal PDF
+directly rather than evaluating the PDF first and taking its log.
+\begin{align*}
+    \ln f(x; \mu, \sigma) &= -\frac{1}{2}\ln(2\pi) - \ln(\sigma) - \frac{1}{2}z^2 \\
+    &\approx -0.91894 - \ln(\sigma) - \frac{1}{2}z^2 \\
+    z &= \frac{x - \mu}{\sigma}
+\end{align*}
+
+\noindent
+While tuning our particle filter, we noticed that the sensor model would be
+heavily biased towards correcting errors in close observations and often fail to
+correct errors in distance observations. After visualizing the sampled points,
+we realized that this was caused by systematic random sampling, as observation
+density is inversely proportional to observation distance. To improve our sensor
+model, we implemented density-aware sampling in Appendix \ref{densityawaresampling}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Challenges}
+
+Restructuring code to reuse components was tedious as we implemented each assignment
+independently of all others, but it made integration much easier.
+
+\bigskip
+\noindent
+Early on, we had several memory leaks in our graph search implementation. The
+first occurred when the navigation target was set to a wall. Our path
+construction routine would assume that the goal was reached and the stop
+condition would never be met. The second memory leak was caused by searching for
+a point in a bounded space from a point in an unbounded space (i.e. setting the
+pose of the car outside a building and searching for a path inside a building),
+but this is fixable by placing a global boundary in the map.
+
+\bigskip
+\noindent
+We spent a good amount of effort integrating the particle filter by adding it as
+a member of the \code{Navigation} class before remembering that different
+processes can pass messages over ROS.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Results}
+
+We provide two demonstration videos: one
+\href{https://drive.google.com/file/d/1prjtLJ-S2PJ_5IOR8hiYJ8r8EqiVAX28/view?usp=sharing}{of the real car}
+and one
+\href{https://drive.google.com/file/d/1jECZf_MdrUwXP73rCSbKSITewcob6CJw/view?usp=sharing}{of a longer path in simulation}.
+
+\subsection{Limitations and Improvements}
+
+One of the key limitations of our implementation is that we have no SLAM
+integration or efficient replanning algorithm like D*. In the demonstration
+above of the real car, the distance-optimal path computed by A* between the
+start and the final endpoint passes through unmapped doors and stairs where the
+robot would get stuck in real life, which is why we set multiple navigation
+goals. Our local navigation also only considers moving forward, but backwards
+motion would be necessary for most replanning maneuvers.
+
+\bigskip
+\noindent
+Our global planner prioritizes distance optimality, which often results in plans
+that would be considered strange by a human driver, like keeping close to walls
+and making sharp turns around corners. Because of this, the local obstacle
+avoidance algorithm generally has to diverge from the global path. A more
+sophisticated and robust global planner would use lattices or RRT to create
+global paths that are kinematically feasible.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Contributions}
+
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item Planning and Discussion: Elvin, Aidan, Jierui
+    \item Implementation and Integration: Elvin
+    \item Video Demonstration: Elvin, Jierui
+    \item Report: Elvin, Jierui, Aidan
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Repository Link}
+\href{https://github.com/elvout/cs393r}{https://github.com/elvout/cs393r}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\appendix
+\section{Density-Aware Sampling}
+\label{densityawaresampling}
+
+To sample from a list of valid ranges $R$, we use a simple weighted probability
+based on ratios of distances.
+
+Let $r_{max} = \max{R}$ and $p_{take}^{max}$ be the probability that a range
+value of $r_{max}$ is chosen. For all $r_i \in R$,
+$$ p_{take}^{i} = \frac{r_i}{r_{max}} p_{take}^{max} $$
+
+Thus if all elements of $R$ are equal, this sampling method becomes
+simple random sampling.
+
+$p_{take}^{max}$ can be calculated for a target sample size $\hat{n}$.
+$$ p_{take}^{max} = \frac{\hat{n}\,r_{max}}{\sum\limits_{i}^{N} r_i}$$
+
+\noindent
+In general, this sampling method improved the accuracy of our particle filter
+compared to systematic random sampling. However, there are implementation and
+complexity overheads since the angular differences between scans are no longer
+constant.
+
+\end{document}
