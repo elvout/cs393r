@@ -7,11 +7,16 @@
 #include "shared/util/random.h"
 
 namespace {
-// Read hyperparameters from configuration file.
-constexpr double k1 = 0.45;
-constexpr double k2 = 1.6;
-constexpr double k3 = 0.65;
-constexpr double k4 = 2.3;
+// Hyperparameters used in a2 (large spread).
+// constexpr double k1 = 0.45;
+// constexpr double k2 = 1.6;
+// constexpr double k3 = 0.65;
+// constexpr double k4 = 2.3;
+
+constexpr double k1 = 0.4;
+constexpr double k2 = 0.3;
+constexpr double k3 = 0.4;
+constexpr double k4 = 0.6;
 
 util_random::Random rng_;
 }  // namespace

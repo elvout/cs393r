@@ -23,6 +23,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <queue>
 #include <utility>
 #include "eigen3/Eigen/Dense"
@@ -100,8 +101,8 @@ void NormalizeParticles(std::vector<Particle>& particles) {
 
 /**
  * Computes what the predicted point cloud (sensor readings) would be
- * if the car was at the pose (loc, angle) with sensor characteristics
- * defined by the remaining parameters.
+ * based on the vector map if the car was at the pose (loc, angle) with
+ * sensor characteristics defined by the remaining parameters.
  *
  * This function is used as part of the Observation Likelihood Model and
  * Update step.
@@ -109,48 +110,49 @@ void NormalizeParticles(std::vector<Particle>& particles) {
  * Parameters:
  *  - loc: the location of the base link of the car in the map frame
  *  - angle: the angle of the base link of the car in the map frame
- *  - num_ranges: the number of individual laser readings
+ *  - ref_scan: A vector of (possibly sampled) real Observations. The
+ *      corresponding predicted observations are calculated.
  *  - range_min: the closest meaningful reading value
  *  - range_max: the farthest meaningful reading value
- *  - angle_min: the minimum laser scan angle (ccw)
- *  - angle_max: the maximum laser scan angle (ccw)
  *
  * Returns:
- *  A std::vector containing a point cloud in the map frame. The vector
- *  contains exactly `num_ranges` elements, some of which may be empty,
+ *  A std::vector of Observations. The vector contains exactly
+ * `ref_scan.size()` elements, some of which may be marked invalid,
  *  indicating that no intersections were found for the corresponding
- *  laser scans.
+ * laser scans.
  */
-std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointCloud(
+
+std::vector<Observation> ParticleFilter::GetPredictedPointCloud(
     const Vector2f& loc,
     const float angle,
-    const int num_ranges,
+    const std::vector<Observation>& ref_scan,
     const float range_min,
-    const float range_max,
-    const float angle_min,
-    const float angle_max) const {
+    const float range_max) const {
   constexpr float infinity = std::numeric_limits<float>::infinity();
-  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
 
-  std::vector<std::optional<Eigen::Vector2f>> point_cloud(num_ranges);
+  const Eigen::Vector2f laser_loc = loc + Eigen::Rotation2Df(angle) * kLaserOffset;
+  const size_t num_ranges = ref_scan.size();
+
+  std::vector<Observation> point_cloud(num_ranges);
   std::vector<float> point_cloud_min_dist(num_ranges, infinity);
   std::vector<line2f> scan_lines(num_ranges);
 
   // For each laser scan, we want to find the closest line intersection within the
   // valid range interval.
-  const float scan_res = (angle_max - angle_min) / (num_ranges - 1);
   const Eigen::Vector2f range_min_v(range_min, 0);
   const Eigen::Vector2f range_max_v(range_max, 0);
 
   // precompute scan lines
-  for (int i = 0; i < num_ranges; i++) {
-    const float scan_angle = angle_min + i * scan_res;
-    const Eigen::Rotation2Df scan_rot(angle + scan_angle);
-
+  for (size_t i = 0; i < num_ranges; i++) {
+    const auto& obs = ref_scan[i];
+    const Eigen::Rotation2Df scan_rot(angle + obs.angle);
     const Eigen::Vector2f scan_start = laser_loc + scan_rot * range_min_v;
     const Eigen::Vector2f scan_end = laser_loc + scan_rot * range_max_v;
-    const line2f scan_line(scan_start.x(), scan_start.y(), scan_end.x(), scan_end.y());
-    scan_lines[i] = scan_line;
+
+    scan_lines[i].p0 = scan_start;
+    scan_lines[i].p1 = scan_end;
+    point_cloud[i].msg_idx = obs.msg_idx;
+    point_cloud[i].angle = obs.angle;
   }
 
   float __dummy_float;
@@ -168,7 +170,9 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
       if (map_line.Intersection(scan_lines[i], &intersection_point)) {
         const float intersect_dist = (intersection_point - laser_loc).norm();
         if (intersect_dist < point_cloud_min_dist[i]) {
-          point_cloud[i] = intersection_point;
+          point_cloud[i].valid = true;
+          point_cloud[i].obs_point = intersection_point;
+          point_cloud[i].range = intersect_dist;
           point_cloud_min_dist[i] = intersect_dist;
         }
       }
@@ -176,6 +180,49 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
   }
 
   return point_cloud;
+}
+
+std::vector<Observation> ParticleFilter::DensitySampledPointCloud(
+    const std::vector<Observation>& point_cloud) {
+  if (point_cloud.empty()) {
+    return point_cloud;
+  }
+
+  float range_sum = 0;
+  float max_valid_range = 0;
+  size_t valid_ranges = 0;
+
+  for (const auto& point : point_cloud) {
+    if (!point.valid) {
+      continue;
+    }
+
+    valid_ranges++;
+    range_sum += point.range;
+    max_valid_range = std::max(max_valid_range, point.range);
+  }
+
+  const size_t target_sample_size = valid_ranges / 10;
+  const double p_take_max = target_sample_size * max_valid_range / range_sum;
+
+  std::vector<Observation> samples;
+  samples.reserve(target_sample_size);
+
+  for (const auto& point : point_cloud) {
+    if (!point.valid) {
+      continue;
+    }
+
+    const float p_take = point.range / max_valid_range * p_take_max;
+    if (rng_.UniformRandom() <= p_take) {
+      samples.push_back(point);
+    }
+  }
+
+  // printf("[DensitySampledPointCloud]: # valid ranges: %lu\n", valid_ranges);
+  // printf("[DensitySampledPointCloud]: target sample size: %lu\n", target_sample_size);
+  // printf("[DensitySampledPointCloud]: actual sample size %lu\n", samples.size());
+  return samples;
 }
 
 /**
@@ -196,32 +243,27 @@ std::vector<std::optional<Eigen::Vector2f>> ParticleFilter::GetPredictedPointClo
  *  - angle_max: The maximum laser scan angle. (ccw)
  *  - particle: The particle to update in-place.
  */
-void ParticleFilter::Update(const vector<float>& ranges,
+void ParticleFilter::Update(const vector<Observation>& ranges,
                             const float range_min,
                             const float range_max,
-                            const float angle_min,
-                            const float angle_max,
                             Particle& particle) {
   double log_p = 0;
-  const auto point_cloud = GetPredictedPointCloud(particle.loc, particle.angle, ranges.size(),
-                                                  range_min, range_max, angle_min, angle_max);
-  const Eigen::Vector2f laser_loc =
-      particle.loc + Eigen::Rotation2Df(particle.angle) * kLaserOffset;
+  const auto point_cloud =
+      GetPredictedPointCloud(particle.loc, particle.angle, ranges, range_min, range_max);
 
   const double log_threshold =
       models::RobustLogSensorModelThreshold(CONFIG_RobustSymmetricThreshold);
 
   for (size_t i = 0; i < ranges.size(); i++) {
-    const double actual_range = static_cast<double>(ranges[i]);
+    const double actual_range = static_cast<double>(ranges[i].range);
     if (actual_range <= range_min || actual_range >= range_max) {
       continue;
     }
 
-    if (!point_cloud[i].has_value()) {
+    if (!point_cloud[i].valid) {
       log_p += std::max(log_threshold, models::EvalLogSensorModel(actual_range, range_max - 1e-5));
     } else {
-      const Eigen::Vector2f& predicted_point = *point_cloud[i];
-      const double predicted_range = static_cast<double>((predicted_point - laser_loc).norm());
+      const double predicted_range = static_cast<double>(point_cloud[i].range);
       log_p += std::max(log_threshold, models::EvalLogSensorModel(actual_range, predicted_range));
     }
   }

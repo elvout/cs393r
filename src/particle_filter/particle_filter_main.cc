@@ -110,20 +110,28 @@ void PublishParticles() {
 }
 
 void PublishPredictedScan() {
-  constexpr uint32_t kColor = 0xd67d00;
+  constexpr uint32_t kColor = 0;
 
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
 
+  std::vector<particle_filter::Observation> range_cloud(last_laser_msg_.ranges.size());
+  for (int i = 0; i < range_cloud.size(); i++) {
+    range_cloud[i].range = last_laser_msg_.ranges[i];
+    range_cloud[i].msg_idx = i;
+    range_cloud[i].valid = true;
+    range_cloud[i].angle = last_laser_msg_.angle_min + i * last_laser_msg_.angle_increment;
+  }
+
   common::runtime_dist.start_lap("GetPredictedPointCloud (full scan)");
-  std::vector<std::optional<Vector2f>> predicted_scan = particle_filter_.GetPredictedPointCloud(
-      robot_loc, robot_angle, last_laser_msg_.ranges.size(), last_laser_msg_.range_min,
-      last_laser_msg_.range_max, last_laser_msg_.angle_min, last_laser_msg_.angle_max);
+  std::vector<particle_filter::Observation> predicted_scan =
+      particle_filter_.GetPredictedPointCloud(robot_loc, robot_angle, range_cloud,
+                                              last_laser_msg_.range_min,
+                                              last_laser_msg_.range_max);
   common::runtime_dist.end_lap("GetPredictedPointCloud (full scan)");
 
-  for (const auto& p : predicted_scan) {
-    if (p.has_value()) {
-      DrawPoint(*p, kColor, vis_msg_);
-    }
+  auto sampled_scan = particle_filter_.DensitySampledPointCloud(predicted_scan);
+  for (const auto& point : sampled_scan) {
+    DrawPoint(point.obs_point, kColor, vis_msg_);
   }
 }
 
@@ -167,8 +175,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   }
   last_laser_msg_ = msg;
   common::runtime_dist.start_lap("ObserveLaser");
-  particle_filter_.ObserveLaser(msg.ranges, msg.range_min, msg.range_max, msg.angle_min,
-                                msg.angle_max);
+  particle_filter_.ObserveLaser(msg);
   common::runtime_dist.end_lap("ObserveLaser");
   PublishVisualization();
 }

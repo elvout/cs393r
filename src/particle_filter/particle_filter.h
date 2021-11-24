@@ -20,12 +20,13 @@
 //========================================================================
 
 #include <algorithm>
-#include <optional>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
+#include "sensor_msgs/LaserScan.h"
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
 #include "vector_map/vector_map.h"
@@ -49,17 +50,25 @@ struct Particle {
       : loc(std::move(loc)), angle(angle), weight(weight) {}
 };
 
+struct Observation {
+  Observation() : valid(false), msg_idx(-1), range(-1), angle(0), obs_point(0, 0) {}
+
+  bool valid;
+  int msg_idx;
+  float range;  // in sensor reference frame
+  float angle;  // in sensor reference frame
+
+  // May not necessarily be assigned.
+  Eigen::Vector2f obs_point;  // in map frame
+};
+
 class ParticleFilter {
  public:
   // Default Constructor.
   ParticleFilter();
 
   // Observe a new laser scan.
-  void ObserveLaser(const std::vector<float>& ranges,
-                    const float range_min,
-                    const float range_max,
-                    const float angle_min,
-                    const float angle_max);
+  void ObserveLaser(const sensor_msgs::LaserScan& msg);
 
   // Predict particle motion based on odometry.
   void Predict(const Eigen::Vector2f& odom_loc, const float odom_angle);
@@ -74,24 +83,22 @@ class ParticleFilter {
   std::pair<Eigen::Vector2f, float> GetLocation() const;
 
   // Update particle weight based on laser.
-  void Update(const std::vector<float>& ranges,
+  void Update(const std::vector<Observation>& ranges,
               const float range_min,
               const float range_max,
-              const float angle_min,
-              const float angle_max,
               Particle& particle);
 
   // Resample particles.
   void Resample();
 
   // For debugging: get predicted point cloud from current location.
-  std::vector<std::optional<Eigen::Vector2f>> GetPredictedPointCloud(const Eigen::Vector2f& loc,
-                                                                     const float angle,
-                                                                     const int num_ranges,
-                                                                     const float range_min,
-                                                                     const float range_max,
-                                                                     const float angle_min,
-                                                                     const float angle_max) const;
+  std::vector<Observation> GetPredictedPointCloud(const Eigen::Vector2f& loc,
+                                                  const float angle,
+                                                  const std::vector<Observation>& ref_scan,
+                                                  const float range_min,
+                                                  const float range_max) const;
+
+  std::vector<Observation> DensitySampledPointCloud(const std::vector<Observation>& point_cloud);
 
  private:
   // List of particles being tracked.
