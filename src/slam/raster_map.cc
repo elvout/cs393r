@@ -5,7 +5,6 @@
 #include <limits>
 #include <unordered_set>
 #include <vector>
-#include "common/common.hh"
 #include "eigen3/Eigen/Dense"
 #include "models/sensor.hh"
 #include "sensor_msgs/LaserScan.h"
@@ -30,7 +29,6 @@ RasterMap::RasterMap(const int resolution) : resolution_(resolution), raster_tab
  * point until the probability falls below a threshold.
  */
 void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
-  auto __delayedfn = common::runtime_dist.auto_lap("RasterMap::eval");
   raster_table_.clear();
 
   // Keep track of which bins contain observation points. Assume

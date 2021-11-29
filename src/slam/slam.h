@@ -20,6 +20,7 @@
 //========================================================================
 
 #include <algorithm>
+#include <future>
 #include <vector>
 
 #include "belief_cube.hh"
@@ -36,22 +37,26 @@ namespace slam {
 // Components of the probabilistic model of the SLAM belief
 // at an arbitrary timestep.
 struct SLAMBelief {
-  SLAMBelief();
+  SLAMBelief(const Eigen::Vector2f& prev_odom_loc,
+             const float prev_odom_angle,
+             const Eigen::Vector2f& odom_loc,
+             const float odom_angle,
+             const sensor_msgs::LaserScan& obs);
 
-  // for use in this time step
+  // evidence for this time step
   Eigen::Vector2f odom_disp;
   float odom_angle_disp;
   sensor_msgs::LaserScan obs;
 
-  // to compute
+  // posterior belief of this time step
   Eigen::Vector2f belief_disp;
   float belief_angle_disp;
   Eigen::Vector2f belief_loc;
   float belief_angle;
 
-  // for use in the next time step
-  RasterMap coarse_ref_map;
-  RasterMap fine_ref_map;
+  // evidence for the next time step
+  std::shared_future<RasterMap> coarse_ref_map;
+  std::shared_future<RasterMap> fine_ref_map;
 
   std::vector<Eigen::Vector2f> correlated_points(const RasterMap& prev_ref_map) const;
 };
