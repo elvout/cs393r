@@ -100,7 +100,6 @@ SLAM::SLAM()
       prev_odom_angle_(0),
       odom_initialized_(false),
       belief_history(),
-      offline_eval_(false),
       map_(2) {}
 
 std::pair<Eigen::Vector2f, float> SLAM::GetPose() const {
@@ -189,37 +188,6 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
          math_util::RadToDeg(bel.belief_angle_disp));
 
   belief_history.push_back(std::move(bel));
-}
-
-void SLAM::OfflineBelEvaluation() {
-  offline_eval_ = true;
-
-  for (size_t i = 1; i < belief_history.size(); i++) {
-    SLAMBelief& bel = belief_history[i];
-
-    printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
-           math_util::RadToDeg(bel.odom_angle_disp));
-
-    BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
-                           global_rot_resolution);
-    BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
-                         global_rot_resolution);
-
-    coarse_cube.eval(belief_history[i - 1].coarse_ref_map, bel.odom_disp, bel.odom_angle_disp,
-                     bel.obs, true, true);
-    fine_cube.eval_with_coarse(belief_history[i - 1].fine_ref_map, bel.odom_disp,
-                               bel.odom_angle_disp, bel.obs, coarse_cube);
-
-    bel.coarse_ref_map.eval(bel.obs);
-    bel.fine_ref_map.eval(bel.obs);
-
-    auto [max_disp, max_angle_disp] = fine_cube.max_belief();
-    bel.belief_disp = max_disp;
-    bel.belief_angle_disp = max_angle_disp;
-    printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
-           math_util::RadToDeg(math_util::ReflexToConvexAngle(max_angle_disp)));
-    printf("------------\n");
-  }
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {

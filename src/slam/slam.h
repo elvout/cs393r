@@ -73,8 +73,6 @@ class SLAM {
   // Get latest robot pose.
   std::pair<Eigen::Vector2f, float> GetPose() const;
 
-  void OfflineBelEvaluation();
-
  private:
   // Previous odometry-reported locations.
   Eigen::Vector2f prev_odom_loc_;
@@ -82,7 +80,6 @@ class SLAM {
   bool odom_initialized_;
 
   std::vector<SLAMBelief> belief_history;
-  bool offline_eval_;
 
   IdentityRasterMap map_;
 };
