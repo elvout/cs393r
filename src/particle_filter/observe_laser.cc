@@ -5,6 +5,7 @@
 #include <vector>
 #include "common/common.hh"
 #include "eigen3/Eigen/Dense"
+#include "models/sensor.hh"
 #include "particle_filter.h"
 
 using std::vector;
@@ -28,14 +29,14 @@ class ObserveLaserTask {
   size_t start_idx;
   size_t end_idx;
 
-  std::vector<particle_filter::Observation>* sampled_ranges;
+  models::Observations* sampled_obs;
   float range_min;
   float range_max;
 
  private:
   void exec() {
     for (size_t idx = start_idx; idx < end_idx; idx++) {
-      pfilter->Update(*sampled_ranges, range_min, range_max, (*particles)[idx]);
+      pfilter->Update(*sampled_obs, range_min, range_max, (*particles)[idx]);
     }
 
     promise_.set_value();
@@ -73,15 +74,8 @@ void ParticleFilter::ObserveLaser(const sensor_msgs::LaserScan& msg) {
 
   // Sample the sensor readings before computing point cloud estimations
   // to improve performance.
-  std::vector<Observation> range_cloud(msg.ranges.size());
-  for (size_t i = 0; i < msg.ranges.size(); i++) {
-    range_cloud[i].range = msg.ranges[i];
-    range_cloud[i].msg_idx = i;
-    range_cloud[i].valid = (msg.ranges[i] > msg.range_min && msg.ranges[i] < msg.range_max);
-    range_cloud[i].angle = msg.angle_min + i * msg.angle_increment;
-  }
-
-  std::vector<Observation> sampled_cloud = DensitySampledPointCloud(range_cloud);
+  models::Observations obs(msg);
+  models::Observations sampled_obs = obs.density_aware_sample(0.1);
 
   size_t num_particles = particles_.size();
   for (size_t i = 0; i < tasks.size(); i++) {
@@ -91,7 +85,7 @@ void ParticleFilter::ObserveLaser(const sensor_msgs::LaserScan& msg) {
     task.particles = &particles_;
     task.start_idx = num_particles * i / tasks.size();
     task.end_idx = num_particles * (i + 1) / tasks.size();
-    task.sampled_ranges = &sampled_cloud;
+    task.sampled_obs = &sampled_obs;
     task.range_min = msg.range_min;
     task.range_max = msg.range_max;
     common::thread_pool.put(task.as_fn());

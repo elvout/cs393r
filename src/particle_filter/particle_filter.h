@@ -26,6 +26,7 @@
 
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
+#include "models/sensor.hh"
 #include "sensor_msgs/LaserScan.h"
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
@@ -50,18 +51,6 @@ struct Particle {
       : loc(std::move(loc)), angle(angle), weight(weight) {}
 };
 
-struct Observation {
-  Observation() : valid(false), msg_idx(-1), range(-1), angle(0), obs_point(0, 0) {}
-
-  bool valid;
-  int msg_idx;
-  float range;  // in sensor reference frame
-  float angle;  // in sensor reference frame
-
-  // May not necessarily be assigned.
-  Eigen::Vector2f obs_point;  // in map frame
-};
-
 class ParticleFilter {
  public:
   // Default Constructor.
@@ -83,7 +72,7 @@ class ParticleFilter {
   std::pair<Eigen::Vector2f, float> GetLocation() const;
 
   // Update particle weight based on laser.
-  void Update(const std::vector<Observation>& ranges,
+  void Update(const models::Observations& obs,
               const float range_min,
               const float range_max,
               Particle& particle);
@@ -92,13 +81,11 @@ class ParticleFilter {
   void Resample();
 
   // For debugging: get predicted point cloud from current location.
-  std::vector<Observation> GetPredictedPointCloud(const Eigen::Vector2f& loc,
-                                                  const float angle,
-                                                  const std::vector<Observation>& ref_scan,
-                                                  const float range_min,
-                                                  const float range_max) const;
-
-  std::vector<Observation> DensitySampledPointCloud(const std::vector<Observation>& point_cloud);
+  models::Observations GetPredictedPointCloud(const Eigen::Vector2f& loc,
+                                              const float angle,
+                                              const models::Observations& real_obs,
+                                              const float range_min,
+                                              const float range_max) const;
 
  private:
   // List of particles being tracked.

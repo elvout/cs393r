@@ -49,6 +49,7 @@
 #include "shared/util/timer.h"
 
 #include "common/common.hh"
+#include "models/sensor.hh"
 #include "particle_filter.h"
 #include "visualization/visualization.h"
 
@@ -114,24 +115,16 @@ void PublishPredictedScan() {
 
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
 
-  std::vector<particle_filter::Observation> range_cloud(last_laser_msg_.ranges.size());
-  for (int i = 0; i < range_cloud.size(); i++) {
-    range_cloud[i].range = last_laser_msg_.ranges[i];
-    range_cloud[i].msg_idx = i;
-    range_cloud[i].valid = true;
-    range_cloud[i].angle = last_laser_msg_.angle_min + i * last_laser_msg_.angle_increment;
-  }
+  models::Observations real_obs(last_laser_msg_);
 
   common::runtime_dist.start_lap("GetPredictedPointCloud (full scan)");
-  std::vector<particle_filter::Observation> predicted_scan =
-      particle_filter_.GetPredictedPointCloud(robot_loc, robot_angle, range_cloud,
-                                              last_laser_msg_.range_min,
-                                              last_laser_msg_.range_max);
+  models::Observations predicted_obs = particle_filter_.GetPredictedPointCloud(
+      robot_loc, robot_angle, real_obs, last_laser_msg_.range_min, last_laser_msg_.range_max);
   common::runtime_dist.end_lap("GetPredictedPointCloud (full scan)");
 
-  auto sampled_scan = particle_filter_.DensitySampledPointCloud(predicted_scan);
-  for (const auto& point : sampled_scan) {
-    DrawPoint(point.obs_point, kColor, vis_msg_);
+  models::Observations sampled_obs = predicted_obs.density_aware_sample(0.1);
+  for (size_t i = 0; i < sampled_obs.ranges().size(); i++) {
+    DrawPoint(sampled_obs.point_cloud().col(i), kColor, vis_msg_);
   }
 }
 
