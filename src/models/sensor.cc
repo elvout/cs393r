@@ -1,11 +1,13 @@
 #include "sensor.hh"
 
 #include <limits>
+#include <stdexcept>
 #include <vector>
 #include "eigen3/Eigen/Dense"
 #include "models/constraints.hh"
 #include "models/normdist.hh"
 #include "sensor_msgs/LaserScan.h"
+#include "shared/util/random.h"
 
 namespace {
 constexpr double kLidarStddev = 0.08;
@@ -14,6 +16,7 @@ constexpr double kGaussianUpperBound = 2.5 * kLidarStddev;
 constexpr double kGamma = 0.12;
 
 const double kLogObsNormalization = models::LnOfNormalPdf(0, 0, kLidarStddev);
+util_random::Random rng;
 }  // namespace
 
 namespace models {
@@ -47,6 +50,42 @@ Observations::Observations(const sensor_msgs::LaserScan& scan,
                                          Eigen::Rotation2Df(robot_angle_) *
                                          Eigen::Translation2f(kLaserOffset);
   point_cloud_ = A_laser_to_map * point_cloud_;
+}
+
+Observations Observations::density_aware_sample(const double sampling_fraction) const {
+  if (sampling_fraction < 0.0 || sampling_fraction > 1.0) {
+    throw std::invalid_argument("[Observations::density_aware_sample] invalid sampling fraction");
+  }
+
+  const size_t target_sample_size = ranges_.size() * sampling_fraction;
+  Observations sample;
+  sample.robot_loc_ = robot_loc_;
+  sample.robot_angle_ = robot_angle_;
+
+  float range_sum = 0;
+  float max_valid_range = 0;
+  for (const auto& range : ranges_) {
+    range_sum += range.dist;
+    max_valid_range = std::max(max_valid_range, range.dist);
+  }
+
+  const double p_take_max = target_sample_size * max_valid_range / range_sum;
+  for (size_t i = 0; i < ranges_.size(); i++) {
+    const auto& range = ranges_[i];
+    const float p_take = range.dist / max_valid_range * p_take_max;
+
+    if (rng.UniformRandom() <= p_take) {
+      sample.ranges_.push_back(range);
+      sample.ranges_.back().msg_idx = i;  // reassign msg_idx for point cloud sampling
+    }
+  }
+
+  sample.point_cloud_ = Eigen::Matrix<float, 2, Eigen::Dynamic>(2, sample.ranges_.size());
+  for (size_t i = 0; i < sample.ranges_.size(); i++) {
+    sample.point_cloud_.col(i) = point_cloud_.col(sample.ranges_[i].msg_idx);
+  }
+
+  return sample;
 }
 
 std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) {

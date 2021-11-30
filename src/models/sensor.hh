@@ -36,6 +36,15 @@ class Observations {
   const std::vector<LaserRange>& ranges() const { return ranges_; }
   const Eigen::Matrix<float, 2, Eigen::Dynamic>& point_cloud() const { return point_cloud_; }
 
+  /**
+   * Return a density-aware sample of this Observations instance with
+   * the specified sampling fraction.
+   */
+  Observations density_aware_sample(const double sampling_fraction = 0.1) const;
+
+ private:
+  Observations() = default;
+
  private:
   // Sensor readings in the laser reference frame.
   std::vector<LaserRange> ranges_;
