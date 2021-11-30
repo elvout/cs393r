@@ -66,23 +66,30 @@ Observations Observations::density_aware_sample(const double sampling_fraction) 
     throw std::invalid_argument("[Observations::density_aware_sample] invalid sampling fraction");
   }
 
-  const size_t target_sample_size = ranges_.size() * sampling_fraction;
   Observations sample;
   sample.robot_loc_ = robot_loc_;
   sample.robot_angle_ = robot_angle_;
 
+  size_t valid_ranges = 0;
   float range_sum = 0;
   float max_valid_range = 0;
   for (const auto& range : ranges_) {
-    range_sum += range.dist;
-    max_valid_range = std::max(max_valid_range, range.dist);
+    if (range.valid) {
+      valid_ranges++;
+      range_sum += range.dist;
+      max_valid_range = std::max(max_valid_range, range.dist);
+    }
   }
 
+  const size_t target_sample_size = valid_ranges * sampling_fraction;
   const double p_take_max = target_sample_size * max_valid_range / range_sum;
   for (size_t i = 0; i < ranges_.size(); i++) {
     const auto& range = ranges_[i];
-    const float p_take = range.dist / max_valid_range * p_take_max;
+    if (!range.valid) {
+      continue;
+    }
 
+    const float p_take = range.dist / max_valid_range * p_take_max;
     if (rng.UniformRandom() <= p_take) {
       sample.ranges_.push_back(range);
       sample.ranges_.back().msg_idx = i;  // reassign msg_idx for point cloud sampling
