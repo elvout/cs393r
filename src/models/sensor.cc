@@ -33,7 +33,7 @@ std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) 
 
     const float scan_angle = scan.angle_min + i * scan.angle_increment;
     const Eigen::Rotation2Df scan_rot(scan_angle);
-    points.push_back(kLaserLoc + scan_rot * Eigen::Vector2f(scan_range, 0));
+    points.push_back(kLaserOffset + scan_rot * Eigen::Vector2f(scan_range, 0));
   }
 
   return points;
@@ -42,7 +42,7 @@ std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) 
 double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
                           const Eigen::Vector2f& expected_obs,
                           const Eigen::Vector2f& sample_obs) {
-  const float sample_range = (sample_obs - kLaserLoc).norm();
+  const float sample_range = (sample_obs - kLaserOffset).norm();
   if (sample_range <= scan_info.range_min || sample_range >= scan_info.range_max) {
     return -std::numeric_limits<double>::infinity();
   }
