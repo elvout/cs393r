@@ -61,16 +61,33 @@ const int global_rot_resolution = 1;
 
 namespace slam {
 
-SLAMBelief::SLAMBelief()
-    : odom_disp(),
-      odom_angle_disp(),
-      obs(),
-      belief_disp(),
-      belief_angle_disp(),
-      belief_loc(),
-      belief_angle(),
-      coarse_ref_map(coarse_tx_resolution),
-      fine_ref_map(fine_tx_resolution) {}
+SLAMBelief::SLAMBelief(const Eigen::Vector2f& prev_odom_loc,
+                       const float prev_odom_angle,
+                       const Eigen::Vector2f& odom_loc,
+                       const float odom_angle,
+                       const sensor_msgs::LaserScan& obs)
+    : odom_disp(Eigen::Rotation2Df(-prev_odom_angle) * (odom_loc - prev_odom_loc)),
+      odom_angle_disp(math_util::ReflexToConvexAngle(odom_angle - prev_odom_angle)),
+      obs(obs) {
+  auto fine_promise = std::make_shared<std::promise<RasterMap>>();
+  auto coarse_promise = std::make_shared<std::promise<RasterMap>>();
+  this->fine_ref_map = fine_promise->get_future().share();
+  this->coarse_ref_map = coarse_promise->get_future().share();
+
+  common::thread_pool.put([this, fine_promise] {
+    auto __delayedfn = common::runtime_dist.auto_lap("Fine RasterMap");
+    RasterMap fine_map(fine_tx_resolution);
+    fine_map.eval(this->obs);
+    fine_promise->set_value(std::move(fine_map));
+  });
+
+  common::thread_pool.put([this, coarse_promise] {
+    auto __delayedfn = common::runtime_dist.auto_lap("Coarse RasterMap");
+    RasterMap coarse_map(coarse_tx_resolution);
+    coarse_map.eval(this->obs);
+    coarse_promise->set_value(std::move(coarse_map));
+  });
+}
 
 std::vector<Eigen::Vector2f> SLAMBelief::correlated_points(const RasterMap& prev_ref_map) const {
   std::vector<Eigen::Vector2f> obs_points = models::PointsFromScan(obs);
@@ -100,7 +117,6 @@ SLAM::SLAM()
       prev_odom_angle_(0),
       odom_initialized_(false),
       belief_history(),
-      offline_eval_(false),
       map_(2) {}
 
 std::pair<Eigen::Vector2f, float> SLAM::GetPose() const {
@@ -120,22 +136,21 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
 
   static Eigen::Vector2f last_obs_odom_loc(0, 0);
   static float last_obs_odom_angle = 0.0f;
-  static bool bel_initialized = false;
 
   if (!odom_initialized_) {
     return;
   }
 
-  if (!bel_initialized) {
-    SLAMBelief init_bel;
-    init_bel.obs = obs;
-    init_bel.coarse_ref_map.eval(init_bel.obs);
-    init_bel.fine_ref_map.eval(init_bel.obs);
+  if (belief_history.empty()) {
+    belief_history.emplace_back(last_obs_odom_loc, last_obs_odom_angle, prev_odom_loc_,
+                                prev_odom_angle_, obs);
+    belief_history.back().belief_disp = Eigen::Vector2f(0, 0);
+    belief_history.back().belief_angle_disp = 0;
+    belief_history.back().belief_loc = Eigen::Vector2f(0, 0);
+    belief_history.back().belief_angle = 0;
 
     last_obs_odom_loc = prev_odom_loc_;
     last_obs_odom_angle = prev_odom_angle_;
-    belief_history.push_back(std::move(init_bel));
-    bel_initialized = true;
     return;
   }
 
@@ -149,28 +164,18 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
 
   auto __delayedfn = common::runtime_dist.auto_lap("SLAM::ObserveLaser");
 
-  SLAMBelief bel;
-  bel.odom_disp = Eigen::Rotation2Df(-last_obs_odom_angle) * (prev_odom_loc_ - last_obs_odom_loc);
-  bel.odom_angle_disp = math_util::ReflexToConvexAngle(prev_odom_angle_ - last_obs_odom_angle);
+  SLAMBelief bel(last_obs_odom_loc, last_obs_odom_angle, prev_odom_loc_, prev_odom_angle_, obs);
   last_obs_odom_loc = prev_odom_loc_;
   last_obs_odom_angle = prev_odom_angle_;
-
-  bel.obs = obs;
-
-  // Execute these tasks in the background.
-  // RasterMap::eval generally runs faster than BeliefCube::eval, but this could
-  // potentially cause a segfault if `bel` goes out of scope. (fix: wrap & await)
-  common::thread_pool.put(std::bind(&RasterMap::eval, &bel.fine_ref_map, bel.obs));
-  common::thread_pool.put(std::bind(&RasterMap::eval, &bel.coarse_ref_map, bel.obs));
 
   BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
                          global_rot_resolution);
   BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
                        global_rot_resolution);
 
-  coarse_cube.eval(belief_history.back().coarse_ref_map, bel.odom_disp, bel.odom_angle_disp,
+  coarse_cube.eval(belief_history.back().coarse_ref_map.get(), bel.odom_disp, bel.odom_angle_disp,
                    bel.obs, true, true);
-  fine_cube.eval_with_coarse(belief_history.back().fine_ref_map, bel.odom_disp,
+  fine_cube.eval_with_coarse(belief_history.back().fine_ref_map.get(), bel.odom_disp,
                              bel.odom_angle_disp, bel.obs, coarse_cube);
 
   const std::pair<Eigen::Vector2f, double> max_prob_belief = fine_cube.max_belief();
@@ -189,37 +194,6 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& obs) {
          math_util::RadToDeg(bel.belief_angle_disp));
 
   belief_history.push_back(std::move(bel));
-}
-
-void SLAM::OfflineBelEvaluation() {
-  offline_eval_ = true;
-
-  for (size_t i = 1; i < belief_history.size(); i++) {
-    SLAMBelief& bel = belief_history[i];
-
-    printf("Odometry reported disp: [%.4f, %.4f] %.2fº\n", bel.odom_disp.x(), bel.odom_disp.y(),
-           math_util::RadToDeg(bel.odom_angle_disp));
-
-    BeliefCube coarse_cube(global_tx_windowsize, coarse_tx_resolution, global_rot_windowsize,
-                           global_rot_resolution);
-    BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
-                         global_rot_resolution);
-
-    coarse_cube.eval(belief_history[i - 1].coarse_ref_map, bel.odom_disp, bel.odom_angle_disp,
-                     bel.obs, true, true);
-    fine_cube.eval_with_coarse(belief_history[i - 1].fine_ref_map, bel.odom_disp,
-                               bel.odom_angle_disp, bel.obs, coarse_cube);
-
-    bel.coarse_ref_map.eval(bel.obs);
-    bel.fine_ref_map.eval(bel.obs);
-
-    auto [max_disp, max_angle_disp] = fine_cube.max_belief();
-    bel.belief_disp = max_disp;
-    bel.belief_angle_disp = max_angle_disp;
-    printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", max_disp.x(), max_disp.y(),
-           math_util::RadToDeg(math_util::ReflexToConvexAngle(max_angle_disp)));
-    printf("------------\n");
-  }
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
@@ -242,7 +216,8 @@ vector<Vector2f> SLAM::GetMap() {
     const SLAMBelief& bel = belief_history[i];
 
     std::vector<Eigen::Vector2f> points = models::PointsFromScan(bel.obs);
-    std::vector<Eigen::Vector2f> corrs = bel.correlated_points(belief_history[i - 1].fine_ref_map);
+    std::vector<Eigen::Vector2f> corrs =
+        bel.correlated_points(belief_history[i - 1].fine_ref_map.get());
     printf("[SLAM::GetMap INFO] points: %lu, correlations: %lu\n", points.size(), corrs.size());
     const Eigen::Rotation2Df bel_rot(bel.belief_angle);
     for (const Eigen::Vector2f& point : corrs) {
