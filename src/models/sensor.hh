@@ -33,6 +33,14 @@ class Observations {
                const Eigen::Vector2f& robot_loc = Eigen::Vector2f(0, 0),
                const float robot_angle = 0);
 
+  /**
+   * Fake move-constructor in lieu of friendship.
+   */
+  Observations(std::vector<LaserRange>&& ranges,
+               const Eigen::Vector2f& robot_loc,
+               const float robot_angle,
+               Eigen::Matrix<float, 2, Eigen::Dynamic>&& point_cloud);
+
   const std::vector<LaserRange>& ranges() const { return ranges_; }
   const Eigen::Matrix<float, 2, Eigen::Dynamic>& point_cloud() const { return point_cloud_; }
 

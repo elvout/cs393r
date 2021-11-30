@@ -52,6 +52,15 @@ Observations::Observations(const sensor_msgs::LaserScan& scan,
   point_cloud_ = A_laser_to_map * point_cloud_;
 }
 
+Observations::Observations(std::vector<LaserRange>&& ranges,
+                           const Eigen::Vector2f& robot_loc,
+                           const float robot_angle,
+                           Eigen::Matrix<float, 2, Eigen::Dynamic>&& point_cloud)
+    : ranges_(ranges),
+      robot_loc_(robot_loc),
+      robot_angle_(robot_angle),
+      point_cloud_(point_cloud) {}
+
 Observations Observations::density_aware_sample(const double sampling_fraction) const {
   if (sampling_fraction < 0.0 || sampling_fraction > 1.0) {
     throw std::invalid_argument("[Observations::density_aware_sample] invalid sampling fraction");
