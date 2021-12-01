@@ -84,12 +84,10 @@ std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan);
 
 /**
  * Evaluate the log-likelihood of the observation likelihood model.
- * The observation points should be in the base link reference frame of
- * the car.
+ * The observation points should be valid and in the base link reference
+ * frame of the car.
  */
-double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
-                          const Eigen::Vector2f& expected_obs,
-                          const Eigen::Vector2f& sample_obs);
+double EvalLogSensorModel(const Eigen::Vector2f& expected_obs, const Eigen::Vector2f& sample_obs);
 
 /**
  * Same as above, but assume the the two ranges are valid and have the

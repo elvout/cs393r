@@ -136,14 +136,7 @@ std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan) 
   return points;
 }
 
-double EvalLogSensorModel(const sensor_msgs::LaserScan& scan_info,
-                          const Eigen::Vector2f& expected_obs,
-                          const Eigen::Vector2f& sample_obs) {
-  const float sample_range = (sample_obs - kLaserOffset).norm();
-  if (sample_range <= scan_info.range_min || sample_range >= scan_info.range_max) {
-    return -std::numeric_limits<double>::infinity();
-  }
-
+double EvalLogSensorModel(const Eigen::Vector2f& expected_obs, const Eigen::Vector2f& sample_obs) {
   const float range_diff = (expected_obs - sample_obs).norm();
   return LnOfNormalPdf(range_diff, 0, kLidarStddev) - kLogObsNormalization;
 }
