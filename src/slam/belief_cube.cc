@@ -13,7 +13,6 @@
 #include "models/normdist.hh"
 #include "models/sensor.hh"
 #include "raster_map.hh"
-#include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
 namespace slam {
@@ -53,7 +52,7 @@ decltype(auto) BeliefCube::max_index_iterator() const {
 void BeliefCube::eval(const RasterMap& ref_map,
                       const Eigen::Vector2f& odom_disp,
                       const double odom_angle_disp,
-                      const sensor_msgs::LaserScan& new_obs,
+                      const models::Observations& new_obs,
                       const bool ignore_motion_model,
                       const bool enable_obs_pruning) {
   auto __delayedfn = common::runtime_dist.auto_lap("BeliefCube::eval");
@@ -78,7 +77,7 @@ struct Entry {
 void BeliefCube::eval_with_coarse(const RasterMap& ref_map,
                                   const Eigen::Vector2f& odom_disp,
                                   const double odom_angle_disp,
-                                  const sensor_msgs::LaserScan& new_obs,
+                                  const models::Observations& new_obs,
                                   const BeliefCube& coarse_cube) {
   auto __delayedfn = common::runtime_dist.auto_lap("BeliefCube::eval_with_coarse");
 
@@ -147,7 +146,7 @@ void BeliefCube::eval_with_coarse(const RasterMap& ref_map,
 double BeliefCube::eval_range(const RasterMap& ref_map,
                               const Eigen::Vector2f& odom_disp,
                               const double odom_angle_disp,
-                              const sensor_msgs::LaserScan& new_obs,
+                              const models::Observations& new_obs,
                               const int dtheta_start,
                               const int dtheta_end,
                               const int dx_start,
@@ -197,7 +196,6 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
   // we can keep track of the running maximium likelihood and prune
   // while evaluating the model if we know that the current likelihood
   // cannot be greater than the maximum likelihood.
-  const std::vector<Eigen::Vector2f> obs_points = models::PointsFromScan(new_obs);
   double max_prob = -std::numeric_limits<double>::infinity();
   double max_obs_prob = max_prob;
 
@@ -216,13 +214,13 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
     const double prune_threshold = max_prob - log_motion_prob;
     bool prune = false;
 
-    for (size_t scan_i = 0; scan_i < obs_points.size(); scan_i += 10) {
-      const Eigen::Vector2f& point = obs_points[scan_i];
+    for (Eigen::Index obs_i = 0; obs_i < new_obs.point_cloud().cols(); obs_i++) {
+      const Eigen::Vector2f& point = new_obs.point_cloud().col(obs_i);
 
       // Translate the observation into the previous reference frame.
       const Eigen::Vector2f query_point = dtheta_rot * point + d_loc;
       const float query_dist = query_point.norm();
-      if (query_dist <= new_obs.range_min || query_dist >= new_obs.range_max) {
+      if (query_dist <= new_obs.min_range_dist_ || query_dist >= new_obs.max_range_dist_) {
         continue;
       }
 
