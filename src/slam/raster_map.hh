@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include "eigen3/Eigen/Dense"
-#include "sensor_msgs/LaserScan.h"
+#include "models/sensor.hh"
 #include "util/matrix_hash.hh"
 
 namespace slam {
@@ -37,8 +37,8 @@ class RasterMap {
  public:
   RasterMap(const int resolution);
 
-  /// Generate the rasterized map given laser scan readings.
-  void eval(const sensor_msgs::LaserScan& obs);
+  /// Generate the rasterized map with the given observations.
+  void eval(const models::Observations& obs);
 
   /// Return the log probability value at the specified coordinate.
   double query(const double x, const double y) const;

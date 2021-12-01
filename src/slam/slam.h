@@ -26,6 +26,7 @@
 #include "belief_cube.hh"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
+#include "models/sensor.hh"
 #include "raster_map.hh"
 #include "sensor_msgs/LaserScan.h"
 
@@ -46,7 +47,7 @@ struct SLAMBelief {
   // evidence for this time step
   Eigen::Vector2f odom_disp;
   float odom_angle_disp;
-  sensor_msgs::LaserScan obs;
+  models::Observations obs;
 
   // posterior belief of this time step
   Eigen::Vector2f belief_disp;

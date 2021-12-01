@@ -7,7 +7,6 @@
 #include <vector>
 #include "eigen3/Eigen/Dense"
 #include "models/sensor.hh"
-#include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
 namespace {
@@ -28,7 +27,7 @@ RasterMap::RasterMap(const int resolution) : resolution_(resolution), raster_tab
  * Evaluates the probability of histogram bins around each observation
  * point until the probability falls below a threshold.
  */
-void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
+void RasterMap::eval(const models::Observations& obs) {
   raster_table_.clear();
 
   // Keep track of which bins contain observation points. Assume
@@ -38,8 +37,8 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
   std::unordered_set<Point, util::EigenMatrixHash<Point>> observation_bins;
 
   const double log_prob_threshold = models::RobustLogSensorModelThreshold(2.5);
-  const std::vector<Eigen::Vector2f> obs_points = models::PointsFromScan(obs);
-  for (const Eigen::Vector2f& observed_point : obs_points) {
+  for (Eigen::Index col_i = 0; col_i < obs.point_cloud().cols(); col_i++) {
+    const Eigen::Vector2f& observed_point = obs.point_cloud().col(col_i);
     const Point observed_bin = binify(observed_point);
 
     if (observation_bins.count(observed_bin) == 1) {
@@ -60,7 +59,7 @@ void RasterMap::eval(const sensor_msgs::LaserScan& obs) {
       const Point bin_dist = bin - observed_bin;
       const Eigen::Vector2f coord_dist = unbinify(bin_dist);
       const Eigen::Vector2f bin_point = observed_point + coord_dist;
-      const double log_prob = models::EvalLogSensorModel(obs, observed_point, bin_point);
+      const double log_prob = models::EvalLogSensorModel(observed_point, bin_point);
 
       if (log_prob > log_prob_threshold) {
         // This bin won't be revisited during this expansion, but the expansion

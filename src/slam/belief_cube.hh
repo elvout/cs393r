@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <utility>
 #include "eigen3/Eigen/Dense"
+#include "models/sensor.hh"
 #include "raster_map.hh"
-#include "sensor_msgs/LaserScan.h"
 #include "util/matrix_hash.hh"
 
 namespace slam {
@@ -38,7 +38,7 @@ class BeliefCube {
    *      correlative scan matching.
    *  - odom_disp: The odometry displacement data for the motion model.
    *  - odom_angle_disp: The odometry rotation data for the motion model.
-   *  - new_obs: New sensor data for correlative scan matching.
+   *  - new_obs: New observations for correlative scan matching.
    *  - ignore_motion_model: optimimzation flag to discard motion model
    *      probabilities
    *  - enable_online_obs_pruning: optimization flag to enable
@@ -47,20 +47,20 @@ class BeliefCube {
   void eval(const RasterMap& ref_map,
             const Eigen::Vector2f& odom_disp,
             const double odom_angle_disp,
-            const sensor_msgs::LaserScan& new_obs,
+            const models::Observations& new_obs,
             const bool ignore_motion_model = false,
             const bool enable_obs_pruning = true);
 
   void eval_with_coarse(const RasterMap& ref_map,
                         const Eigen::Vector2f& odom_disp,
                         const double odom_angle_disp,
-                        const sensor_msgs::LaserScan& new_obs,
+                        const models::Observations& new_obs,
                         const BeliefCube& coarse_cube);
 
   double eval_range(const RasterMap& ref_map,
                     const Eigen::Vector2f& odom_disp,
                     const double odom_angle_disp,
-                    const sensor_msgs::LaserScan& new_obs,
+                    const models::Observations& new_obs,
                     const int dtheta_start,
                     const int dtheta_end,
                     const int dx_start,
