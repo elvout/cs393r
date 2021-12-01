@@ -76,13 +76,6 @@ class Observations {
 };
 
 /**
- * Return a point cloud of observations in the base link reference
- * frame of the car from the valid sensor observations in the scan
- * message.
- */
-std::vector<Eigen::Vector2f> PointsFromScan(const sensor_msgs::LaserScan& scan);
-
-/**
  * Evaluate the log-likelihood of the observation likelihood model.
  * The observation points should be valid and in the base link reference
  * frame of the car.
