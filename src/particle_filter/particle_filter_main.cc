@@ -116,15 +116,15 @@ void PublishPredictedScan() {
   const auto [robot_loc, robot_angle] = particle_filter_.GetLocation();
 
   models::Observations real_obs(last_laser_msg_);
+  models::Observations sampled_obs = real_obs.density_aware_sample(0.1);
 
-  common::runtime_dist.start_lap("GetPredictedPointCloud (full scan)");
+  common::runtime_dist.start_lap("GetPredictedPointCloud (main)");
   models::Observations predicted_obs = particle_filter_.GetPredictedPointCloud(
-      robot_loc, robot_angle, real_obs, last_laser_msg_.range_min, last_laser_msg_.range_max);
-  common::runtime_dist.end_lap("GetPredictedPointCloud (full scan)");
+      robot_loc, robot_angle, sampled_obs, last_laser_msg_.range_min, last_laser_msg_.range_max);
+  common::runtime_dist.end_lap("GetPredictedPointCloud (main)");
 
-  models::Observations sampled_obs = predicted_obs.density_aware_sample(0.1);
-  for (size_t i = 0; i < sampled_obs.ranges().size(); i++) {
-    DrawPoint(sampled_obs.point_cloud().col(i), kColor, vis_msg_);
+  for (size_t i = 0; i < predicted_obs.ranges().size(); i++) {
+    DrawPoint(predicted_obs.point_cloud().col(i), kColor, vis_msg_);
   }
 }
 
