@@ -24,13 +24,17 @@ namespace models {
 Observations::Observations(const sensor_msgs::LaserScan& scan,
                            const Eigen::Vector2f& robot_loc,
                            const float robot_angle)
-    : ranges_(), robot_loc_(robot_loc), robot_angle_(robot_angle) {
+    : min_range_dist_(scan.range_min),
+      max_range_dist_(scan.range_max),
+      ranges_(),
+      robot_loc_(robot_loc),
+      robot_angle_(robot_angle) {
   ranges_.reserve(scan.ranges.size());
 
   // Current behavior: skip invalid ranges
   for (size_t i = 0; i < scan.ranges.size(); i++) {
     const float range_dist = scan.ranges[i];
-    if (range_dist <= scan.range_min || range_dist >= scan.range_max) {
+    if (range_dist <= min_range_dist_ || range_dist >= max_range_dist_) {
       continue;
     }
 
@@ -52,21 +56,28 @@ Observations::Observations(const sensor_msgs::LaserScan& scan,
   point_cloud_ = A_laser_to_map * point_cloud_;
 }
 
-Observations::Observations(std::vector<LaserRange>&& ranges,
+Observations::Observations(const float min_range_dist,
+                           const float max_range_dist,
+                           std::vector<LaserRange>&& ranges,
                            const Eigen::Vector2f& robot_loc,
                            const float robot_angle,
                            Eigen::Matrix<float, 2, Eigen::Dynamic>&& point_cloud)
-    : ranges_(ranges),
+    : min_range_dist_(min_range_dist),
+      max_range_dist_(max_range_dist),
+      ranges_(ranges),
       robot_loc_(robot_loc),
       robot_angle_(robot_angle),
       point_cloud_(point_cloud) {}
+
+Observations::Observations(const float min_range_dist, const float max_range_dist)
+    : min_range_dist_(min_range_dist), max_range_dist_(max_range_dist), ranges_() {}
 
 Observations Observations::density_aware_sample(const double sampling_fraction) const {
   if (sampling_fraction < 0.0 || sampling_fraction > 1.0) {
     throw std::invalid_argument("[Observations::density_aware_sample] invalid sampling fraction");
   }
 
-  Observations sample;
+  Observations sample(min_range_dist_, max_range_dist_);
   sample.robot_loc_ = robot_loc_;
   sample.robot_angle_ = robot_angle_;
 

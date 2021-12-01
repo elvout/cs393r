@@ -36,7 +36,9 @@ class Observations {
   /**
    * Fake move-constructor in lieu of friendship.
    */
-  Observations(std::vector<LaserRange>&& ranges,
+  Observations(const float min_range_dist,
+               const float max_range_dist,
+               std::vector<LaserRange>&& ranges,
                const Eigen::Vector2f& robot_loc,
                const float robot_angle,
                Eigen::Matrix<float, 2, Eigen::Dynamic>&& point_cloud);
@@ -51,7 +53,11 @@ class Observations {
   Observations density_aware_sample(const double sampling_fraction = 0.1) const;
 
  private:
-  Observations() = default;
+  Observations(const float min_range_dist, const float max_range_dist);
+
+ public:
+  const float min_range_dist_;
+  const float max_range_dist_;
 
  private:
   // Sensor readings in the laser reference frame.
@@ -62,7 +68,7 @@ class Observations {
   float robot_angle_;
 
   /**
-   * Point cloud representation in the map frame.
+   * Point cloud representation of valid ranges in the map frame.
    * If robot_loc_ and robot_angle_ are both zero, the point cloud
    *   is in the base_link reference frame.
    */

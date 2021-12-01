@@ -181,7 +181,9 @@ models::Observations ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     }
   }
 
-  return models::Observations(std::move(predicted_ranges), loc, angle,
+  // TODO: Violates the point cloud validity property, but the caller handles this.
+  return models::Observations(real_obs.min_range_dist_, real_obs.max_range_dist_,
+                              std::move(predicted_ranges), loc, angle,
                               std::move(predicted_point_cloud));
 }
 
