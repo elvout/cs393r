@@ -198,7 +198,6 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
   // cannot be greater than the maximum likelihood.
   double max_prob = -std::numeric_limits<double>::infinity();
   double max_obs_prob = max_prob;
-  models::Observations sampled_obs = new_obs.density_aware_sample(0.1);
 
   while (!plausible_entries.empty()) {
     Entry e = plausible_entries.top();
@@ -215,13 +214,13 @@ double BeliefCube::eval_range(const RasterMap& ref_map,
     const double prune_threshold = max_prob - log_motion_prob;
     bool prune = false;
 
-    for (Eigen::Index sample_i = 0; sample_i < sampled_obs.point_cloud().cols(); sample_i++) {
-      const Eigen::Vector2f& point = sampled_obs.point_cloud().col(sample_i);
+    for (Eigen::Index obs_i = 0; obs_i < new_obs.point_cloud().cols(); obs_i++) {
+      const Eigen::Vector2f& point = new_obs.point_cloud().col(obs_i);
 
       // Translate the observation into the previous reference frame.
       const Eigen::Vector2f query_point = dtheta_rot * point + d_loc;
       const float query_dist = query_point.norm();
-      if (query_dist <= sampled_obs.min_range_dist_ || query_dist >= sampled_obs.max_range_dist_) {
+      if (query_dist <= new_obs.min_range_dist_ || query_dist >= new_obs.max_range_dist_) {
         continue;
       }
 

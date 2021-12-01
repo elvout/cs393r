@@ -177,10 +177,11 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan_msg) {
   BeliefCube fine_cube(global_tx_windowsize, fine_tx_resolution, global_rot_windowsize,
                        global_rot_resolution);
 
-  coarse_cube.eval(prev_bel->coarse_ref_map.get(), bel->odom_disp, bel->odom_angle_disp, bel->obs,
-                   true, true);
+  const models::Observations sampled_obs = bel->obs.density_aware_sample(0.1);
+  coarse_cube.eval(prev_bel->coarse_ref_map.get(), bel->odom_disp, bel->odom_angle_disp,
+                   sampled_obs, true, true);
   fine_cube.eval_with_coarse(prev_bel->fine_ref_map.get(), bel->odom_disp, bel->odom_angle_disp,
-                             bel->obs, coarse_cube);
+                             sampled_obs, coarse_cube);
 
   const std::pair<Eigen::Vector2f, double> max_prob_belief = fine_cube.max_belief();
   bel->belief_disp = max_prob_belief.first;

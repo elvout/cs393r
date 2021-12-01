@@ -38,7 +38,7 @@ class BeliefCube {
    *      correlative scan matching.
    *  - odom_disp: The odometry displacement data for the motion model.
    *  - odom_angle_disp: The odometry rotation data for the motion model.
-   *  - new_obs: New observations for correlative scan matching.
+   *  - new_obs: New, sampled observations for correlative scan matching.
    *  - ignore_motion_model: optimimzation flag to discard motion model
    *      probabilities
    *  - enable_online_obs_pruning: optimization flag to enable
