@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <future>
+#include <memory>
 #include <vector>
 
 #include "belief_cube.hh"
@@ -85,7 +86,7 @@ class SLAM {
   float prev_odom_angle_;
   bool odom_initialized_;
 
-  std::vector<SLAMBelief> belief_history;
+  std::vector<std::shared_ptr<SLAMBelief>> belief_history;
 
   IdentityRasterMap map_;
 };
