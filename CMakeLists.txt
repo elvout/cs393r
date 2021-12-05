@@ -76,6 +76,14 @@ ROSBUILD_ADD_EXECUTABLE(navigation
 )
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 
+ROSBUILD_ADD_EXECUTABLE(rd_slam
+                        src/models/normdist.cc
+                        src/models/sensor.cc
+                        src/rd_slam/rd_slam_main.cc
+                        src/rd_slam/iepf.cc
+)
+TARGET_LINK_LIBRARIES(rd_slam shared_library ${libs})
+
 # ADD_EXECUTABLE(eigen_tutorial
 #               src/eigen_tutorial.cc)
 
