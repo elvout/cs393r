@@ -11,8 +11,10 @@
 
 #include "gflags/gflags.h"
 
+#include "common/common.hh"
 #include "models/sensor.hh"
 #include "rd_slam/iepf.hh"
+#include "rd_slam/rd_slam.hh"
 
 using amrl_msgs::VisualizationMsg;
 
@@ -26,6 +28,7 @@ ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
+rd_slam::SLAM slam_;
 }  // namespace
 
 void InitializeMsgs() {
@@ -42,14 +45,34 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   }
   last_laser_msg_ = msg;
 
-  models::Observations obs(msg);
-  std::vector<geometry::line2f> lines = rd_slam::iterative_end_point_fit(obs.point_cloud());
+  common::runtime_dist.start_lap("ObserveLaser");
+  slam_.ObserveLaser(msg);
+  common::runtime_dist.end_lap("ObserveLaser");
 
   visualization::ClearVisualizationMsg(vis_msg_);
   vis_msg_.header.stamp = ros::Time::now();
 
-  for (const geometry::line2f& line : lines) {
-    visualization::DrawLine(line.p0, line.p1, 0x00a6ff, vis_msg_);
+  static std::vector<uint32_t> colors = {0xff0000, 0x00ff00, 0x0080ff,
+                                         0x7F00FF, 0xFF00FF, 0x404040};
+  size_t color = 0;
+
+  if (slam_.belief_history_.size() > 1) {
+    auto it = slam_.belief_history_.end();
+    const rd_slam::SLAMBelief& cur = *(--it);
+    const rd_slam::SLAMBelief& prev = *(--it);
+
+    for (const auto& corr : cur.corrs) {
+      const auto& prev_line = prev.segments[corr.prev_i];
+      const auto& cur_line = cur.segments[corr.cur_i];
+
+      visualization::DrawLine(prev_line.p0, prev_line.p1, colors[color], vis_msg_);
+      visualization::DrawLine(cur_line.p0, cur_line.p1, colors[color], vis_msg_);
+
+      color++;
+      if (color == colors.size()) {
+        color = 0;
+      }
+    }
   }
 
   visualization_publisher_.publish(vis_msg_);
@@ -70,6 +93,8 @@ int main(int argc, char** argv) {
   //   ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
 
   ros::spin();
+
+  printf("%s\n", common::runtime_dist.summary().c_str());
 
   return 0;
 }
