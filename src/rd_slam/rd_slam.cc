@@ -126,7 +126,8 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
     // Naive correspondence matching based on min LSS.
     // ~O(N^2 log(N)), but N is usually small.
     MinHeap<std::pair<double, Correspondence>> q;
-    const std::vector<geometry::line2f>& prev_segments = belief_history_.back().segments;
+    const std::vector<geometry::line2f>& prev_segments = belief_history_.back().segments_;
+    const std::vector<uint64_t>& prev_ids = belief_history_.back().segment_ids_;
 
     for (size_t prev_i = 0; prev_i < prev_segments.size(); prev_i++) {
       for (size_t cur_i = 0; cur_i < segments.size(); cur_i++) {
@@ -138,6 +139,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
       }
     }
 
+    std::vector<uint64_t> segment_ids(segments.size(), SLAMBelief::INVALID_ID);
     std::vector<Correspondence> corrs;
     std::unordered_set<size_t> prev_used_idx;
     std::unordered_set<size_t> cur_used_idx;
@@ -148,13 +150,21 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
       if (prev_used_idx.count(c.prev_i) == 0 && cur_used_idx.count(c.cur_i) == 0) {
         prev_used_idx.insert(c.prev_i);
         cur_used_idx.insert(c.cur_i);
+        segment_ids[c.cur_i] = prev_ids[c.prev_i];
         corrs.push_back(c);
       }
 
       q.pop();
     }
 
-    belief_history_.emplace_back(std::move(segments), std::move(corrs), reference_pose);
+    for (uint64_t& id : segment_ids) {
+      if (id == SLAMBelief::INVALID_ID) {
+        id = SLAMBelief::gen_id();
+      }
+    }
+
+    belief_history_.emplace_back(std::move(segments), std::move(segment_ids), std::move(corrs),
+                                 reference_pose);
   }
 }
 

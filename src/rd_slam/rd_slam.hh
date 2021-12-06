@@ -27,7 +27,8 @@ namespace rd_slam {
  */
 double LSS(geometry::line2f a, geometry::line2f b, bool strict = true);
 
-struct SLAMBelief {
+class SLAMBelief {
+ public:
   struct Correspondence {
     size_t prev_i;
     size_t cur_i;
@@ -38,17 +39,32 @@ struct SLAMBelief {
     bool operator<(const Correspondence& other) const { return prev_i < other.prev_i; }
   };
 
-  SLAMBelief(std::vector<geometry::line2f>&& segments, const pose_2d::Pose2Df& ref_pose)
-      : segments(segments), corrs(), ref_pose(ref_pose) {}
-  SLAMBelief(std::vector<geometry::line2f>&& segments,
-             std::vector<Correspondence>&& corrs,
-             const pose_2d::Pose2Df& ref_pose)
-      : segments(segments), corrs(corrs), ref_pose(ref_pose) {}
+  static constexpr uint64_t INVALID_ID = 0;
+  static uint64_t gen_id() {
+    static uint64_t next_id = INVALID_ID + 1;
+    return next_id++;
+  }
 
  public:
-  std::vector<geometry::line2f> segments;
-  std::vector<Correspondence> corrs;
-  pose_2d::Pose2Df ref_pose;
+  SLAMBelief(std::vector<geometry::line2f>&& segments, const pose_2d::Pose2Df& ref_pose)
+      : segments_(segments), segment_ids_(), corrs_(), ref_pose_(ref_pose) {
+    segment_ids_.reserve(segments_.size());
+    for (size_t i = 0; i < segments_.size(); i++) {
+      segment_ids_.push_back(gen_id());
+    }
+  }
+
+  SLAMBelief(std::vector<geometry::line2f>&& segments,
+             std::vector<uint64_t>&& segment_ids,
+             std::vector<Correspondence>&& corrs,
+             const pose_2d::Pose2Df& ref_pose)
+      : segments_(segments), segment_ids_(segment_ids), corrs_(corrs), ref_pose_(ref_pose) {}
+
+ public:
+  std::vector<geometry::line2f> segments_;
+  std::vector<uint64_t> segment_ids_;
+  std::vector<Correspondence> corrs_;
+  pose_2d::Pose2Df ref_pose_;
 };
 
 class SLAM {

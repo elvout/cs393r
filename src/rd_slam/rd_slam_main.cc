@@ -61,9 +61,9 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
     const rd_slam::SLAMBelief& cur = *(--it);
     const rd_slam::SLAMBelief& prev = *(--it);
 
-    for (const auto& corr : cur.corrs) {
-      const auto& prev_line = prev.segments[corr.prev_i];
-      const auto& cur_line = cur.segments[corr.cur_i];
+    for (const auto& corr : cur.corrs_) {
+      const auto& prev_line = prev.segments_[corr.prev_i];
+      const auto& cur_line = cur.segments_[corr.cur_i];
 
       visualization::DrawLine(prev_line.p0, prev_line.p1, colors[color], vis_msg_);
       visualization::DrawLine(cur_line.p0, cur_line.p1, colors[color], vis_msg_);
@@ -104,6 +104,14 @@ int main(int argc, char** argv) {
   ros::spin();
 
   printf("%s\n", common::runtime_dist.summary().c_str());
+  printf("%lu unique features\n", rd_slam::SLAMBelief::gen_id() - 1);
+
+  size_t total_features = 0;
+  for (const auto& bel : slam_.belief_history_) {
+    total_features += bel.segments_.size();
+  }
+
+  printf("%lu total line segments\n", total_features);
 
   return 0;
 }
