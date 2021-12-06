@@ -125,7 +125,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
 
     // Naive correspondence matching based on min LSS.
     // ~O(N^2 log(N)), but N is usually small.
-    MinHeap<Correspondence> q;
+    MinHeap<std::pair<double, Correspondence>> q;
     const std::vector<geometry::line2f>& prev_segments = belief_history_.back().segments;
 
     for (size_t prev_i = 0; prev_i < prev_segments.size(); prev_i++) {
@@ -133,7 +133,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
         const double lss = LSS(prev_segments[prev_i], segments[cur_i]);
 
         if (lss != f64INF) {
-          q.emplace(prev_i, cur_i, lss);
+          q.emplace(std::make_pair(lss, Correspondence(prev_i, cur_i)));
         }
       }
     }
@@ -143,7 +143,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
     std::unordered_set<size_t> cur_used_idx;
 
     while (!q.empty()) {
-      const Correspondence& c = q.top();
+      const auto& [lss, c] = q.top();
 
       if (prev_used_idx.count(c.prev_i) == 0 && cur_used_idx.count(c.cur_i) == 0) {
         prev_used_idx.insert(c.prev_i);

@@ -31,11 +31,11 @@ struct SLAMBelief {
   struct Correspondence {
     size_t prev_i;
     size_t cur_i;
-    double lss;
 
-    Correspondence(size_t p, size_t c, size_t l) : prev_i(p), cur_i(c), lss(l) {}
+    Correspondence(size_t p, size_t c) : prev_i(p), cur_i(c) {}
 
-    bool operator>(const Correspondence& other) const { return lss > other.lss; }
+    bool operator>(const Correspondence& other) const { return prev_i > other.prev_i; }
+    bool operator<(const Correspondence& other) const { return prev_i < other.prev_i; }
   };
 
   SLAMBelief(std::vector<geometry::line2f>&& segments, const pose_2d::Pose2Df& ref_pose)
