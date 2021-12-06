@@ -2,9 +2,11 @@
 
 #include "eigen3/Eigen/Dense"
 #include "shared/math/line2d.h"
+#include "shared/math/poses_2d.h"
 
 #include "amrl_msgs/Localization2DMsg.h"
 #include "amrl_msgs/VisualizationMsg.h"
+#include "nav_msgs/Odometry.h"
 #include "ros/ros.h"
 #include "sensor_msgs/LaserScan.h"
 #include "visualization/visualization.h"
@@ -45,9 +47,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   }
   last_laser_msg_ = msg;
 
-  common::runtime_dist.start_lap("ObserveLaser");
   slam_.ObserveLaser(msg);
-  common::runtime_dist.end_lap("ObserveLaser");
 
   visualization::ClearVisualizationMsg(vis_msg_);
   vis_msg_.header.stamp = ros::Time::now();
@@ -78,6 +78,15 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   visualization_publisher_.publish(vis_msg_);
 }
 
+void OdometryCallback(const nav_msgs::Odometry& msg) {
+  if (FLAGS_v > 0) {
+    printf("Odometry t=%f\n", msg.header.stamp.toSec());
+  }
+  const Eigen::Vector2f odom_loc(msg.pose.pose.position.x, msg.pose.pose.position.y);
+  const float odom_angle = 2.0 * atan2(msg.pose.pose.orientation.z, msg.pose.pose.orientation.w);
+  slam_.ObserveOdometry(pose_2d::Pose2Df(odom_angle, odom_loc));
+}
+
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
 
@@ -90,7 +99,7 @@ int main(int argc, char** argv) {
   localization_publisher_ = n.advertise<amrl_msgs::Localization2DMsg>("localization", 1);
 
   ros::Subscriber laser_sub = n.subscribe(FLAGS_laser_topic.c_str(), 1, LaserCallback);
-  //   ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
+  ros::Subscriber odom_sub = n.subscribe(FLAGS_odom_topic.c_str(), 1, OdometryCallback);
 
   ros::spin();
 

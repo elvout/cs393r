@@ -3,9 +3,11 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <mutex>
 #include <queue>
 #include <unordered_set>
 #include <vector>
+#include "common/common.hh"
 #include "eigen3/Eigen/Dense"
 #include "math/line2d.h"
 #include "models/sensor.hh"
@@ -88,14 +90,36 @@ double LSS(geometry::line2f a, geometry::line2f b, bool strict) {
   return Eigen::Vector3d(rot_score, perp_score, pll_score).norm();
 }
 
-SLAM::SLAM() : belief_history_() {}
+SLAM::SLAM() : belief_history_(), odom_mutex_(), odom_epoch_(0) {}
+
+void SLAM::ObserveOdometry(const pose_2d::Pose2Df new_pose) {
+  std::scoped_lock lock(odom_mutex_);
+
+  odom_epoch_++;
+  odom_reported_pose_ = new_pose;
+}
 
 void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
+  static uint64_t last_odom_epoch = 0;
+
+  pose_2d::Pose2Df reference_pose;
+  {
+    std::scoped_lock lock(odom_mutex_);
+
+    if (last_odom_epoch == odom_epoch_) {
+      return;
+    } else {
+      last_odom_epoch = odom_epoch_;
+      reference_pose = odom_reported_pose_;
+    }
+  }
+  auto __scopedfn = common::runtime_dist.auto_lap("SLAM::ObserveLaser");
+
   const models::Observations obs(scan);
   std::vector<geometry::line2f> segments = iterative_end_point_fit(obs.point_cloud());
 
   if (belief_history_.empty()) {
-    belief_history_.emplace_back(std::move(segments));
+    belief_history_.emplace_back(std::move(segments), reference_pose);
   } else {
     using Correspondence = SLAMBelief::Correspondence;
 
@@ -130,7 +154,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
       q.pop();
     }
 
-    belief_history_.emplace_back(std::move(segments), std::move(corrs));
+    belief_history_.emplace_back(std::move(segments), std::move(corrs), reference_pose);
   }
 }
 
