@@ -132,8 +132,6 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
 
     belief_history_.emplace_back(std::move(segments), std::move(corrs));
   }
-
-  printf("%lu size\n", belief_history_.size());
 }
 
 }  // namespace rd_slam
