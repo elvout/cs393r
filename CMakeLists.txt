@@ -1,5 +1,5 @@
 PROJECT(reference_car)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 
 MESSAGE(STATUS "Compiling Reference Car Localization + Navigation")
 MESSAGE(STATUS "Using compiler: ${CMAKE_CXX_COMPILER}")
@@ -26,6 +26,8 @@ MESSAGE(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+
+find_package(Ceres REQUIRED)
 
 SET(libs roslib roscpp rosbag glog gflags amrl-shared-lib boost_system lua5.1
     pthread)
@@ -86,7 +88,7 @@ ROSBUILD_ADD_EXECUTABLE(rd_slam
                         src/rd_slam/iepf.cc
                         src/rd_slam/rd_slam.cc
 )
-TARGET_LINK_LIBRARIES(rd_slam shared_library ${libs})
+TARGET_LINK_LIBRARIES(rd_slam shared_library ${libs} ceres)
 
 # ADD_EXECUTABLE(eigen_tutorial
 #               src/eigen_tutorial.cc)
