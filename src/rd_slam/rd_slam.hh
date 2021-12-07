@@ -46,8 +46,10 @@ class SLAMBelief {
   }
 
  public:
-  SLAMBelief(std::vector<geometry::line2f>&& segments, const pose_2d::Pose2Df& ref_pose)
-      : segments_(segments), segment_ids_(), corrs_(), ref_pose_(ref_pose) {
+  SLAMBelief(std::vector<geometry::line2f>&& segments,
+             const pose_2d::Pose2Df& ref_odom,
+             const pose_2d::Pose2Df& rel_disp)
+      : segments_(segments), segment_ids_(), corrs_(), ref_odom_(ref_odom), rel_disp_(rel_disp) {
     segment_ids_.reserve(segments_.size());
     for (size_t i = 0; i < segments_.size(); i++) {
       segment_ids_.push_back(gen_id());
@@ -57,14 +59,20 @@ class SLAMBelief {
   SLAMBelief(std::vector<geometry::line2f>&& segments,
              std::vector<uint64_t>&& segment_ids,
              std::vector<Correspondence>&& corrs,
-             const pose_2d::Pose2Df& ref_pose)
-      : segments_(segments), segment_ids_(segment_ids), corrs_(corrs), ref_pose_(ref_pose) {}
+             const pose_2d::Pose2Df& ref_odom,
+             const pose_2d::Pose2Df& rel_disp)
+      : segments_(segments),
+        segment_ids_(segment_ids),
+        corrs_(corrs),
+        ref_odom_(ref_odom),
+        rel_disp_(rel_disp) {}
 
  public:
   std::vector<geometry::line2f> segments_;
   std::vector<uint64_t> segment_ids_;
   std::vector<Correspondence> corrs_;
-  pose_2d::Pose2Df ref_pose_;
+  pose_2d::Pose2Df ref_odom_;
+  pose_2d::Pose2Df rel_disp_;
 };
 
 class SLAM {
