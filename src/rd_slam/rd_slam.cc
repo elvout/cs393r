@@ -65,9 +65,9 @@ double LSS(geometry::line2f a, geometry::line2f b, bool strict) {
 
   // Perpendicular similarity metric
   double perp_score = std::abs((b.p0.y() + b.p1.y()) / 2.0);
-  if (strict && perp_score > b.Length() / 2.0) {
-    return f64INF;
-  }
+  // if (strict && perp_score > b.Length() / 2.0) {
+  //   return f64INF;
+  // }
 
   // Parallel similarity metric
   double pll_score = 0;
@@ -134,6 +134,10 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
     Eigen::Vector2f disp = Eigen::Rotation2Df(-prev_odom.angle) *
                            (reference_pose.translation - prev_odom.translation);
     float angle_disp = math_util::ReflexToConvexAngle(reference_pose.angle - prev_odom.angle);
+
+    if (!(disp.norm() > 0.2 || std::abs(angle_disp) > 0.0872664626)) {
+      return;
+    }
 
     pose_2d::Pose2Df rel_disp(angle_disp, disp);
 
