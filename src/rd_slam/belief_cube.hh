@@ -39,9 +39,9 @@ class BeliefCube {
    * in the delta-space around odom_disp
    * by minimizing the total error for all line segments from a perturbation.
    */
-  void eval(const SLAMBelief& prev_bel,
-            const SLAMBelief& cur_bel,
-            const pose_2d::Pose2Df odom_disp);
+  pose_2d::Pose2Df eval(const SLAMBelief& prev_bel,
+                        const SLAMBelief& cur_bel,
+                        const pose_2d::Pose2Df& odom_disp);
 
   /**
    * Return the translational and rotational displacements with the

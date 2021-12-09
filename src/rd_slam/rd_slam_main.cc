@@ -67,17 +67,27 @@ void DrawMap() {
 
   printf("==================\nManualSearch:\n");
   for (size_t i = 1; i < slam_.belief_history_.size(); i++) {
+    const auto& prev_bel = slam_.belief_history_[i - 1];
+    const auto& bel = slam_.belief_history_[i];
     rd_slam::BeliefCube bc(20, 1, 10, 1);
-    bc.eval(slam_.belief_history_[i - 1], slam_.belief_history_[i],
-            slam_.belief_history_[i].rel_disp_);
+    const auto best_disp = bc.eval(prev_bel, bel, bel.rel_disp_);
 
     Eigen::Affine2f xform = Eigen::Translation2f(loc) * Eigen::Rotation2Df(ang);
-    for (const auto& line : slam_.belief_history_[i - 1].segments_) {
+    for (const auto& line : prev_bel.segments_) {
       visualization::DrawLine(xform * line.p0, xform * line.p1, 0, vis_msg_);
     }
     visualization_publisher_.publish(vis_msg_);
 
-    const auto [tx, theta] = bc.max_belief();
+    const auto& tx = best_disp.translation;
+    const auto& theta = best_disp.angle;
+    // const auto [tx, theta] = bc.max_belief();
+
+    {
+      const float x = bel.rel_disp_.translation.x();
+      const float y = bel.rel_disp_.translation.y();
+      const float theta = bel.rel_disp_.angle;
+      printf("%.4f, %.4f %.4f => ", x, y, theta);
+    }
     printf("%.4f, %.4f, %.4f\n", tx.x(), tx.y(), theta);
 
     // transform using searched transformation
@@ -93,8 +103,8 @@ void DrawMap() {
 void LaserCallback(const sensor_msgs::LaserScan& msg) {
   static int calls = 0;
   calls++;
-  if (calls >= 200) {
-    if (calls == 200) {
+  if (calls >= 500) {
+    if (calls == 500) {
       DrawMap();
     }
 

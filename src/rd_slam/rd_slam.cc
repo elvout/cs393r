@@ -58,7 +58,7 @@ double LSS(geometry::line2f a, geometry::line2f b, bool strict) {
   {
     const Eigen::Vector2f vec = b.p1 - b.p0;
     const double theta = std::atan2(vec.y(), vec.x());
-    rot_score = std::abs(std::sin(theta));
+    rot_score = std::abs(std::sin(theta)) * 3;
 
     rot_score *= a.Length() / b.Length();
   }
@@ -71,7 +71,7 @@ double LSS(geometry::line2f a, geometry::line2f b, bool strict) {
 
   // Parallel similarity metric
   double pll_score = 0;
-  {
+  if (strict) {
     const double len = a.p1.x();
 
     if (0 <= b.p0.x() && b.p0.x() <= len) {
@@ -145,7 +145,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
       for (size_t cur_i = 0; cur_i < segments.size(); cur_i++) {
         const double lss = LSS(prev_segments[prev_i], segments[cur_i]);
 
-        if (lss != f64INF) {
+        if (lss != f64INF && lss < 3) {
           q.emplace(std::make_pair(lss, Correspondence(prev_i, cur_i)));
         }
       }

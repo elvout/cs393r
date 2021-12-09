@@ -1,4 +1,5 @@
 #include "rd_slam/belief_cube.hh"
+#include <cmath>
 #include <stdexcept>
 #include <unordered_set>
 #include "eigen3/Eigen/Dense"
@@ -39,43 +40,53 @@ decltype(auto) BeliefCube::max_index_iterator() const {
   return max_it;
 }
 
-void BeliefCube::eval(const SLAMBelief& prev_bel,
-                      const SLAMBelief& cur_bel,
-                      const pose_2d::Pose2Df odom_disp) {
-  for (int dtheta = -rot_windowsize_; dtheta <= rot_windowsize_; dtheta += rot_resolution_) {
-    const int dtheta_index = dtheta / rot_resolution_;
+pose_2d::Pose2Df BeliefCube::eval(const SLAMBelief& prev_bel,
+                                  const SLAMBelief& cur_bel,
+                                  const pose_2d::Pose2Df& odom_disp) {
+  const double odom_x = odom_disp.translation.x();
+  const double odom_y = odom_disp.translation.y();
+  const double odom_th = math_util::ReflexToConvexAngle(odom_disp.angle);
 
-    for (int dx = -tx_windowsize_; dx <= tx_windowsize_; dx += tx_resolution_) {
-      const int dx_index = dx / tx_resolution_;
+  // Eval halfway in each direction of each delta space
+  const double x_delta = std::min(0.01, std::fabs(odom_x) / 10);
+  const double y_delta = std::max(0.001, std::fabs(odom_y) / 10);
+  const double th_delta = 0.00436332313 / 3;  // 0.25 degree
 
-      // for (int dy = -tx_windowsize_; dy <= tx_windowsize_; dy += tx_resolution_) {
-      int dy = 0;
-      const int dy_index = dy / tx_resolution_;
+  double min_error = std::numeric_limits<double>::infinity();
+  pose_2d::Pose2Df best_disp;
 
-      const Point index(dx_index, dy_index, dtheta_index);
-      const auto [hypothesis_disp, hypothesis_rot] = unbinify(index);
+  for (int x_i = -10; x_i <= 10; x_i++) {
+    const double x_disp = odom_x + x_delta * x_i;
 
-      const Eigen::Affine2f xform =
-          Eigen::Translation2f(hypothesis_disp) * Eigen::Rotation2Df(hypothesis_rot);
+    for (int y_i = -10; y_i <= 10; y_i++) {
+      const double y_disp = odom_y + y_delta * y_i;
 
-      // double error_sum = (hypothesis_disp - odom_disp.translation).norm();
-      double error_sum = 0;
+      for (int th_i = -50; th_i <= 50; th_i++) {
+        const double th_disp = odom_th + th_delta * th_i;
 
-      for (const auto& corr : cur_bel.corrs_) {
-        const auto& ref_line = prev_bel.segments_[corr.prev_i];
-        auto hypothesis_line = cur_bel.segments_[corr.cur_i];
+        const Eigen::Affine2f xform =
+            Eigen::Translation2f(x_disp, y_disp) * Eigen::Rotation2Df(th_disp);
 
-        hypothesis_line.p0 = xform * hypothesis_line.p0;
-        hypothesis_line.p1 = xform * hypothesis_line.p1;
+        double error_sum = 0;
+        for (const auto& corr : cur_bel.corrs_) {
+          const auto& ref_line = prev_bel.segments_[corr.prev_i];
+          auto hypothesis_line = cur_bel.segments_[corr.cur_i];
 
-        error_sum += LSS(ref_line, hypothesis_line, false);
+          hypothesis_line.p0 = xform * hypothesis_line.p0;
+          hypothesis_line.p1 = xform * hypothesis_line.p1;
+
+          error_sum += LSS(ref_line, hypothesis_line, false);
+        }
+
+        if (error_sum < min_error) {
+          best_disp.Set(th_disp, Eigen::Vector2f(x_disp, y_disp));
+          min_error = error_sum;
+        }
       }
-
-      // we aim to minimize the error sum
-      cube_.emplace(index, -error_sum);
-      // }
     }
   }
+
+  return best_disp;
 }
 
 std::pair<Eigen::Vector2f, double> BeliefCube::max_belief() const {
