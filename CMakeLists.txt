@@ -87,6 +87,7 @@ ROSBUILD_ADD_EXECUTABLE(rd_slam
                         src/rd_slam/rd_slam_main.cc
                         src/rd_slam/iepf.cc
                         src/rd_slam/rd_slam.cc
+                        src/rd_slam/belief_cube.cc
 )
 TARGET_LINK_LIBRARIES(rd_slam shared_library ${libs} ceres)
 

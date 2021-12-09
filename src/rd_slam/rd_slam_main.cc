@@ -15,6 +15,7 @@
 
 #include "common/common.hh"
 #include "models/sensor.hh"
+#include "rd_slam/belief_cube.hh"
 #include "rd_slam/iepf.hh"
 #include "rd_slam/rd_slam.hh"
 
@@ -41,7 +42,67 @@ void InitializeMsgs() {
   vis_msg_ = visualization::NewVisualizationMessage("map", "slam");
 }
 
+void DrawMap() {
+  printf("%lu unique features\n", rd_slam::SLAMBelief::gen_id() - 1);
+
+  size_t total_features = 0;
+  for (const auto& bel : slam_.belief_history_) {
+    total_features += bel.segments_.size();
+  }
+
+  printf("%lu total line segments\n", total_features);
+
+  printf("==================\n");
+  printf("Odometry data:\n");
+  for (const auto& bel : slam_.belief_history_) {
+    const float x = bel.rel_disp_.translation.x();
+    const float y = bel.rel_disp_.translation.y();
+    const float theta = bel.rel_disp_.angle;
+
+    printf("%.4f, %.4f, %.4f\n", x, y, theta);
+  }
+
+  Eigen::Vector2f loc(0, 0);
+  float ang = 0;
+
+  printf("==================\nManualSearch:\n");
+  for (size_t i = 1; i < slam_.belief_history_.size(); i++) {
+    rd_slam::BeliefCube bc(20, 1, 10, 1);
+    bc.eval(slam_.belief_history_[i - 1], slam_.belief_history_[i],
+            slam_.belief_history_[i].rel_disp_);
+
+    Eigen::Affine2f xform = Eigen::Translation2f(loc) * Eigen::Rotation2Df(ang);
+    for (const auto& line : slam_.belief_history_[i - 1].segments_) {
+      visualization::DrawLine(xform * line.p0, xform * line.p1, 0, vis_msg_);
+    }
+    visualization_publisher_.publish(vis_msg_);
+
+    const auto [tx, theta] = bc.max_belief();
+    printf("%.4f, %.4f, %.4f\n", tx.x(), tx.y(), theta);
+
+    // transform using searched transformation
+    loc = loc + Eigen::Rotation2Df(ang) * tx;
+    ang = math_util::ReflexToConvexAngle(ang + theta);
+
+    // transform based on raw odometry
+    // loc = loc + Eigen::Rotation2Df(ang) * slam_.belief_history_[i].rel_disp_.translation;
+    // ang = math_util::ReflexToConvexAngle(ang + slam_.belief_history_[i].rel_disp_.angle);
+  }
+}
+
 void LaserCallback(const sensor_msgs::LaserScan& msg) {
+  static int calls = 0;
+  calls++;
+  if (calls >= 200) {
+    if (calls == 200) {
+      DrawMap();
+    }
+
+    vis_msg_.header.stamp = ros::Time::now();
+    visualization_publisher_.publish(vis_msg_);
+    return;
+  }
+
   if (FLAGS_v > 0) {
     printf("Laser t=%f\n", msg.header.stamp.toSec());
   }
@@ -104,14 +165,6 @@ int main(int argc, char** argv) {
   ros::spin();
 
   printf("%s\n", common::runtime_dist.summary().c_str());
-  printf("%lu unique features\n", rd_slam::SLAMBelief::gen_id() - 1);
-
-  size_t total_features = 0;
-  for (const auto& bel : slam_.belief_history_) {
-    total_features += bel.segments_.size();
-  }
-
-  printf("%lu total line segments\n", total_features);
 
   return 0;
 }

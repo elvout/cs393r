@@ -135,9 +135,9 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
                            (reference_pose.translation - prev_odom.translation);
     float angle_disp = math_util::ReflexToConvexAngle(reference_pose.angle - prev_odom.angle);
 
-    if (!(disp.norm() > 0.2 || std::abs(angle_disp) > 0.0872664626)) {
-      return;
-    }
+    // if (!(disp.norm() > 0.1 || std::abs(angle_disp) > 0.0872664626)) {
+    //   return;
+    // }
 
     pose_2d::Pose2Df rel_disp(angle_disp, disp);
 
