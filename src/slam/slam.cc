@@ -118,7 +118,8 @@ SLAM::SLAM()
       prev_odom_angle_(0),
       odom_initialized_(false),
       belief_history(),
-      map_(2) {}
+      map_(2),
+      log_file_() {}
 
 std::pair<Eigen::Vector2f, float> SLAM::GetPose() const {
   if (belief_history.empty()) {
@@ -198,6 +199,14 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan_msg) {
   printf("Max likelihood disp: [%.4f, %.4f] %.2fº\n", bel->belief_disp.x(), bel->belief_disp.y(),
          math_util::RadToDeg(bel->belief_angle_disp));
 
+  if (log_file_.is_open() && log_file_.good()) {
+    log_file_ << "FLASER 0 ";
+    log_file_ << bel->belief_loc.x() << ' ' << bel->belief_loc.y() << ' ' << bel->belief_angle
+              << ' ';
+    log_file_ << "0 0 0 " << scan_msg.header.stamp.toSec() << " nohost 0\n";
+    log_file_.flush();
+  }
+
   belief_history.push_back(bel);
 }
 
@@ -230,6 +239,11 @@ vector<Vector2f> SLAM::GetMap() {
   last_update_idx = i - 1;
 
   return map_.export_coord_map();
+}
+
+void SLAM::EnableLogging() {
+  log_file_.open("slam-poses.log");
+  log_file_ << std::fixed << std::setprecision(6);
 }
 
 }  // namespace slam

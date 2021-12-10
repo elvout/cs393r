@@ -72,6 +72,7 @@ using visualization::DrawPoint;
 // Create command line arguements
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
 DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
+DEFINE_bool(log, false, "Write relative poses to log file");
 
 DECLARE_int32(v);
 
@@ -140,6 +141,10 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
+
+  if (FLAGS_log) {
+    slam_.EnableLogging();
+  }
 
   // Initialize ROS.
   ros::init(argc, argv, "slam");

@@ -20,6 +20,7 @@
 //========================================================================
 
 #include <algorithm>
+#include <fstream>
 #include <future>
 #include <memory>
 #include <vector>
@@ -80,6 +81,8 @@ class SLAM {
   // Get latest robot pose.
   std::pair<Eigen::Vector2f, float> GetPose() const;
 
+  void EnableLogging();
+
  private:
   // Previous odometry-reported locations.
   Eigen::Vector2f prev_odom_loc_;
@@ -89,6 +92,8 @@ class SLAM {
   std::vector<std::shared_ptr<SLAMBelief>> belief_history;
 
   IdentityRasterMap map_;
+
+  std::ofstream log_file_;
 };
 }  // namespace slam
 
