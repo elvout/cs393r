@@ -1,3 +1,4 @@
+#include <fstream>
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
@@ -24,6 +25,7 @@ using amrl_msgs::VisualizationMsg;
 // Create command line arguments
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
 DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
+DEFINE_bool(log, false, "Write relative poses to log file");
 DECLARE_int32(v);
 
 namespace {
@@ -32,6 +34,7 @@ ros::Publisher localization_publisher_;
 VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
 rd_slam::SLAM slam_;
+std::ofstream log_file_;
 }  // namespace
 
 void InitializeMsgs() {
@@ -65,6 +68,11 @@ void DrawMap() {
   Eigen::Vector2f loc(0, 0);
   float ang = 0;
 
+  if (FLAGS_log) {
+    log_file_.open("rd-slam-poses.log");
+    log_file_ << std::fixed << std::setprecision(6);
+  }
+
   printf("==================\nManualSearch:\n");
   for (size_t i = 1; i < slam_.belief_history_.size(); i++) {
     const auto& prev_bel = slam_.belief_history_[i - 1];
@@ -72,11 +80,14 @@ void DrawMap() {
     rd_slam::BeliefCube bc(20, 1, 10, 1);
     const auto best_disp = bc.eval(prev_bel, bel, bel.rel_disp_);
 
-    Eigen::Affine2f xform = Eigen::Translation2f(loc) * Eigen::Rotation2Df(ang);
-    for (const auto& line : prev_bel.segments_) {
-      visualization::DrawLine(xform * line.p0, xform * line.p1, 0, vis_msg_);
+    // rate-limit map lines
+    if (i % 5 == 0) {
+      Eigen::Affine2f xform = Eigen::Translation2f(loc) * Eigen::Rotation2Df(ang);
+      for (const auto& line : prev_bel.segments_) {
+        visualization::DrawLine(xform * line.p0, xform * line.p1, 0, vis_msg_);
+      }
+      visualization_publisher_.publish(vis_msg_);
     }
-    visualization_publisher_.publish(vis_msg_);
 
     const auto& tx = best_disp.translation;
     const auto& theta = best_disp.angle;
@@ -94,6 +105,13 @@ void DrawMap() {
     loc = loc + Eigen::Rotation2Df(ang) * tx;
     ang = math_util::ReflexToConvexAngle(ang + theta);
 
+    if (FLAGS_log) {
+      log_file_ << "FLASER 0 ";
+      log_file_ << loc.x() << ' ' << loc.y() << ' ' << ang << ' ';
+      log_file_ << "0 0 0 " << bel.time_stamp_ << " nohost 0\n";
+      log_file_.flush();
+    }
+
     // transform based on raw odometry
     // loc = loc + Eigen::Rotation2Df(ang) * slam_.belief_history_[i].rel_disp_.translation;
     // ang = math_util::ReflexToConvexAngle(ang + slam_.belief_history_[i].rel_disp_.angle);
@@ -101,11 +119,12 @@ void DrawMap() {
 }
 
 void LaserCallback(const sensor_msgs::LaserScan& msg) {
-  static int calls = 0;
-  calls++;
-  if (calls >= 500) {
-    if (calls == 500) {
+  static bool map_drawn = false;
+  // manually set to near-end of rosbag time
+  if (msg.header.stamp.toSec() >= 1031746424) {
+    if (!map_drawn) {
       DrawMap();
+      map_drawn = true;
     }
 
     vis_msg_.header.stamp = ros::Time::now();

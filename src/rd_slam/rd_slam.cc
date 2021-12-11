@@ -55,7 +55,8 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
   std::vector<geometry::line2f> segments = iterative_end_point_fit(obs.point_cloud());
 
   if (belief_history_.empty()) {
-    belief_history_.emplace_back(std::move(segments), reference_pose, pose_2d::Pose2Df(0, 0, 0));
+    belief_history_.emplace_back(std::move(segments), reference_pose, pose_2d::Pose2Df(0, 0, 0),
+                                 scan.header.stamp.toSec());
   } else {
     using Correspondence = SLAMBelief::Correspondence;
 
@@ -111,7 +112,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& scan) {
     }
 
     belief_history_.emplace_back(std::move(segments), std::move(segment_ids), std::move(corrs),
-                                 reference_pose, rel_disp);
+                                 reference_pose, rel_disp, scan.header.stamp.toSec());
   }
 }
 
