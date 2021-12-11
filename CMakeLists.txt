@@ -86,6 +86,7 @@ ROSBUILD_ADD_EXECUTABLE(rd_slam
                         src/models/sensor.cc
                         src/rd_slam/rd_slam_main.cc
                         src/rd_slam/iepf.cc
+                        src/rd_slam/lss.cc
                         src/rd_slam/rd_slam.cc
                         src/rd_slam/belief_cube.cc
 )

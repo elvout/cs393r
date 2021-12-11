@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <unordered_set>
 #include "eigen3/Eigen/Dense"
-#include "rd_slam/rd_slam.hh"
+#include "rd_slam/lss.hh"
 
 namespace rd_slam {
 BeliefCube::BeliefCube(const int tx_windowsize,
